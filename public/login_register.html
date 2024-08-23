@@ -1,0 +1,49 @@
+<!-- public/login_register.html -->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login</title>
+    <link rel="stylesheet" href="/css/global.css" type="text/css">
+    <link rel="stylesheet" href="/css/login_register.css">
+</head>
+
+<body>
+    <!-- <h1>Login Page</h1> -->
+    <div id="centered-window">
+        <form id="login-register-form">
+            <div>
+                <label>Username:</label>
+                <br>
+                <input type="text" id="username-input" class="text-input" required>
+            </div>
+            <br>
+            <div id="first-password">
+                <label>Password:</label>
+                <br>
+                <input type="password" id="first-password-input" class="text-input" required>
+            </div>
+            <br>
+            <div id="second-password">
+                <label>Password again:</label>
+                <br>
+                <input type="password" id="second-password-input" class="text-input">
+            </div>
+            <br>
+            <div id="invitation-code">
+                <label>Invitation code:</label>
+                <br>
+                <input type="text" id="invitation-code-input" class="text-input">
+            </div>
+            <br>
+            <button type="submit" class="button" id="submit-button"></button>
+        </form>
+        <button id="login-or-register" class="button"></button>
+
+    </div>
+    <script src="/js/login_register.js"></script>
+</body>
+
+</html>

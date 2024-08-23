@@ -1,0 +1,32 @@
+body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    /* margin: 0; */
+    background-color: #25272b;
+}
+
+#centered-window {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    height: 512px;
+    width: 512px;
+    background-color: #36393f;
+    border-radius: 35px;
+}
+
+.text-input {
+    margin-top: 8px;
+}
+
+/* .button { */
+/* display: flex; */
+/* justify-content: center; */
+/* align-items: center; */
+/* height: 100vh; */
+/* width: 128px; */
+/* margin: 10px; */
+/* } */

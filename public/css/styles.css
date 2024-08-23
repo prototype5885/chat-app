@@ -1,0 +1,343 @@
+body {
+    display: flex;
+    margin: 0;
+    height: 100vh;
+    /* font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; */
+    font-family: "gg sans", "Noto Sans", "Helvetica Neue", Helvetica, Arial, sans-serif, "Apple Symbols";
+    font-size: 14px;
+    /* overflow: hidden; */
+    color: #C5C7CB;
+}
+
+#channels {
+    min-width: 4.5rem;
+    max-width: 4.5rem;
+    background-color: #1E1F22;
+    display: flex;
+    flex-direction: column;
+    /* justify-content: baseline; */
+    align-items: center;
+    /* overflow-y: auto; */
+    /* overflow-block: auto; */
+    padding: 0.7rem 0;
+}
+
+#channels-top {
+    width: 3rem;
+    height: 3rem;
+    background-color: #5865F2;
+    margin-bottom: 0.7rem;
+    border-radius: 35%;
+}
+
+#channels-top:hover {
+    /* background-color: #4f545c; */
+    cursor: pointer;
+    /* border-radius: 35%; */
+}
+
+#channels-bottom {
+    margin: 0;
+    padding: 0;
+}
+
+#channels-bottom li {
+    list-style: none;
+    width: 3rem;
+    height: 3rem;
+    background-color: #36393f;
+    margin-bottom: 0.7rem;
+    border-radius: 50%;
+}
+
+#channels-bottom li:hover {
+    background-color: #4f545c;
+    cursor: pointer;
+    border-radius: 35%;
+}
+
+#first-column-container {
+    min-width: 15rem;
+    max-width: 15rem;
+    background-color: #2B2D31;
+    display: flex;
+    flex-direction: column;
+    /* padding: 10px; */
+}
+
+#first-column-top {
+    border-bottom: 1px solid #1F2023;
+    min-height: 3rem;
+    max-height: 3rem;
+    align-items: center;
+    /* background-color: #C5C7CB; */
+}
+
+#first-column-main-container {
+    /* background-color: #1E1F22; */
+    flex: 1;
+}
+
+#main-container {
+    display: flex;
+    flex: 1;
+    background-color: #313338;
+    flex-direction: column;
+}
+
+#main-top {
+    /* background-color: #2B2D31; */
+    border-bottom: 1px solid #1F2023;
+    height: 3rem;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+
+    /* flex: 1; */
+}
+
+#hide-member-list-button {
+    /* float: right; */
+    width: 2rem;
+    height: 2rem;
+    background-color: #36393f;
+    /* margin-bottom: 0.0rem; */
+    margin: 1rem;
+    border-radius: 50%;
+    border: 1;
+    background-color: #4f545c;
+    cursor: pointer;
+    border-radius: 35%;
+}
+
+#main-bottom {
+    display: flex;
+    flex: 1;
+    /* ensure no scrolling here */
+    overflow-y: hidden;
+}
+
+#main-center-container {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+#chat-message-list {
+    flex: 1;
+    overflow-y: auto;
+    margin: 0;
+    padding: 0;
+}
+
+#chat-message-list>li {
+    padding: 0.5rem 2rem;
+    display: flex;
+    flex-direction: row;
+}
+
+#chat-message-list>li:hover {
+    background-color: #2E3035;
+}
+
+.profile-pic,
+.msg-profile-pic {
+    border-radius: 50%;
+    margin-right: 0.9rem;
+    /* padding-right: 0.9rem; */
+}
+
+.profile-pic:hover,
+.msg-profile-pic:hover {
+    cursor: pointer;
+}
+
+.msg-data {
+    /* padding-left: 0.8rem; */
+    display: flex;
+    flex-direction: column;
+
+}
+
+.msg-name-and-date {
+    display: flex;
+    flex-direction: row;
+}
+
+.msg-user-name {
+    margin-right: 0.8rem;
+    line-height: 1.25rem;
+    vertical-align: baseline;
+    font-size: 15px;
+}
+
+
+.msg-date {
+    color: #949BA4;
+    font-size: 70%;
+    line-height: 1.25rem;
+    cursor: default;
+    /* vertical-align: baseline; */
+    /* align-self: flex-end; */
+
+    /* text-align: justify; */
+    /* vertical-align: bottom; */
+}
+
+.msg-text {
+    vertical-align: baseline;
+    /* align-self: ; */
+    /* text-anchor: start; */
+    /* vertical-align: bottom; */
+}
+
+/* #chat-message-list>li:nth-child(odd) {
+     background: #efefef;
+ } */
+
+#chat-input-form {
+    display: flex;
+}
+
+/* #chat-input-form>button {
+    background: #333;
+    border: none;
+    padding: 0 1rem;
+    margin: 0.25rem;
+    border-radius: 3px;
+    outline: none;
+    color: #fff;
+} */
+
+
+#chat-input {
+    /* bottom: 0; */
+    border: none;
+    padding: 1rem;
+
+    height: 0.75rem;
+    /* flex: 1; */
+    flex-grow: 1;
+    border-radius: 0.5rem;
+    /* margin: 1.25rem; */
+    margin-bottom: 1.5rem;
+    margin-left: 1rem;
+    margin-right: 1rem;
+
+    background-color: #383A40;
+    color: #C5C7CB;
+}
+
+#chat-input:focus {
+    outline: none;
+}
+
+#member-list,
+#first-column-main-container {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    background-color: #2B2D31;
+    min-width: 15rem;
+    max-width: 15rem;
+    flex: 1;
+    overflow-y: auto;
+    /* width: 240px; */
+    /* display: flex; */
+    /* float: right; */
+    /* flex-direction: column; */
+
+
+    /* padding: 10px; */
+}
+
+#member-list li,
+#first-column-main-container li {
+    padding: 0.35rem 1rem;
+    display: flex;
+    flex-direction: row;
+
+}
+
+.user:hover {
+    cursor: pointer;
+    background-color: #36373D;
+}
+
+.user-data {
+    pointer-events: none;
+    /* padding-left: 1rem; */
+    display: flex;
+    flex-direction: column;
+    cursor: default;
+
+}
+
+.user-name {
+    margin-right: 0.8rem;
+    line-height: 1rem;
+    vertical-align: baseline;
+    font-size: 15px;
+    pointer-events: none;
+
+}
+
+.user-status-text {
+    pointer-events: none;
+    font-size: 12px;
+}
+
+
+
+.right-click-menu {
+    display: none;
+    position: absolute;
+    z-index: 1000;
+    width: 150px;
+    background-color: #111214d1;
+    border-radius: 5px;
+    backdrop-filter: blur(4px);
+    box-shadow: 5px 5px 5px rgba(0, 0, 0, 0.25);
+}
+
+.right-click-menu ul {
+    list-style: none;
+    margin: 5%;
+    padding: 0;
+}
+
+/* context menu items */
+.right-click-menu li {
+    padding: 8px 12px;
+    font-size: small;
+    cursor: pointer;
+    border-radius: 5px;
+}
+
+.right-click-menu li:hover {
+    background-color: #505cdc;
+    color: white;
+    /* backdrop-filter: blur(4px); */
+}
+
+.right-click-menu .delete-message,
+.right-click-menu .report-user,
+.right-click-menu .remove-friend {
+    color: #F23F42;
+}
+
+.right-click-menu .delete-message:hover,
+.right-click-menu .report-user:hover,
+.right-click-menu .remove-friend:hover {
+    background-color: #F23F42;
+}
+
+.right-click-menu .delete-message:hover {
+    color: white;
+}
+
+.user-name:hover,
+.msg-user-name:hover {
+    cursor: pointer;
+    text-decoration: underline;
+}
