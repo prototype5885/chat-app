@@ -15,13 +15,13 @@ document.getElementById('login-register-form').addEventListener('submit', functi
     let dataToSend
     if (loginOrRegister == 'login') {
         dataToSend = {
-            type: 'login',
+            logreg: 'login',
             username: username,
             password: password,
         }
     } else {
         dataToSend = {
-            type: 'register',
+            logreg: 'register',
             username: username,
             password: password,
         }
