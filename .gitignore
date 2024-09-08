@@ -1,5 +1,10 @@
 .directory
+.vscode/
+.idea/
 protochat
 protochat.log
 *.crt
 *.key
+*.db
+identifier.sqlite
+config.json

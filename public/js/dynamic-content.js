@@ -13,22 +13,22 @@ function createRightClickMenu(event) {
     rightClickMenu.appendChild(ul)
 
     let type
-    let actions = []
+    let actions
     switch (event.target.className) {
-        // if right clicking on user from a friend/member list
+        // if right-clicking on user from a friend/member list
         case 'user':
         case 'user-name':
         case 'profile-pic':
             actions = addUserRightClickActions()
             type = 'user'
             break
-        // if right clicking on user in chat
+        // if right-clicking on user in chat
         case 'msg-user-name':
         case 'msg-profile-pic':
             actions = addUserRightClickActions()
             type = 'msg-user'
             break
-        // if right clicking on message
+        // if right-clicking on message
         case 'msg':
         case 'msg-text':
         case 'msg-date':
@@ -76,20 +76,20 @@ function deleteRightClickMenu() {
 }
 
 function addUserRightClickActions() {
-    actions = [
+    return [
         { text: 'Add friend', class: 'add-friend' },
         { text: 'Report user', class: 'report-user' },
-        { text: 'Remove friend', class: 'remove-friend' }
+        { text: 'Remove friend', class: 'remove-friend' },
+        { text: 'Copy user ID', class: 'copy-userid' }
     ]
-    return actions;
 }
 
 function rightClickMenuItemPressed(action, event, type) { // when something in right click menu was pressed
     deleteRightClickMenu()
 
-    if (type == 'user' || type == 'msg-user') {
+    if (type === 'user' || type === 'msg-user') {
         let parent
-        if (type == 'user') {
+        if (type === 'user') {
             parent = event.target.closest('.user')
         }
         else {
@@ -105,9 +105,14 @@ function rightClickMenuItemPressed(action, event, type) { // when something in r
                 break
             case 'remove-friend':
                 console.log('Removing friend ' + userID)
+                break
+            case 'copy-userid':
+                console.log('Copied user ID is: ' + userID)
+                navigator.clipboard.writeText(userID);
+                break
         }
     }
-    else if (type == 'message') {
+    else if (type === 'message') {
         const messageID = event.target.closest('.msg').id // find parent with msg class
         switch (action.class) {
             case 'delete-message':
@@ -119,14 +124,22 @@ function rightClickMenuItemPressed(action, event, type) { // when something in r
 }
 // end -- right click menu
 // start -- chat message
-function addChatMessage(messageData) {
+function addChatMessage(messageDataJson) {
+    let messageData = {}
+    messageData.MsgID = undefined
+    messageData.ChanID = undefined
+    messageData.UserID = undefined
+    messageData.Name = undefined
+    messageData.Msg = undefined
+    messageData = JSON.parse(messageDataJson)
+
     // create a <li> that holds the message
     const li = document.createElement('li')
     li.className = 'msg'
-    li.id = messageData.chat_msg_id
+    li.id = messageData.MsgID
     // li.setAttribute('msg_id', messageData.msgID)
 
-    li.setAttribute('user-id', messageData.user_id)
+    li.setAttribute('user-id', BigInt(messageData.UserID))
 
     // create a <img> that shows profile pic on the left
     const img = document.createElement('img')
@@ -147,13 +160,13 @@ function addChatMessage(messageData) {
     // and inside that create a <div> that displays the sender's name on the left
     const msgNameDiv = document.createElement('div')
     msgNameDiv.className = 'msg-user-name'
-    msgNameDiv.textContent = 'APFSDS'
+    msgNameDiv.textContent = messageData.Name
     msgDataDiv.style.color = chatNameColor
 
     // and next to it create a <div> that displays the date of msg on the right
     const msgDateDiv = document.createElement('div')
     msgDateDiv.className = 'msg-date'
-    msgDateDiv.textContent = getCurrentTime()
+    msgDateDiv.textContent = new Date().toLocaleString()
 
     // append name and date to msgNameAndDateDiv
     msgNameAndDateDiv.appendChild(msgNameDiv)
@@ -162,7 +175,7 @@ function addChatMessage(messageData) {
     // now create a <div> under name and date that displays the message
     const msgTextDiv = document.createElement('div')
     msgTextDiv.className = 'msg-text'
-    msgTextDiv.textContent = messageData.chat_msg
+    msgTextDiv.textContent = messageData.Msg
 
     // append both name/date <div> and msg <div> to msgDatDiv
     msgDataDiv.appendChild(msgNameAndDateDiv)
@@ -186,8 +199,8 @@ function addMember(id, where) {
     // create a <li> that holds the user
     const li = document.createElement('li')
     li.className = 'user'
-    li.id = 5
-    li.setAttribute('user-id', 5)
+    li.id = "5"
+    li.setAttribute('user-id', "5")
 
     // create a <img> that shows profile pic on the left
     const img = document.createElement('img')
@@ -197,7 +210,7 @@ function addMember(id, where) {
     img.width = 32
     img.height = 32
 
-    // create a nested <div> that will contain user name and status
+    // create a nested <div> that will contain username and status
     const userDataDiv = document.createElement('div')
     userDataDiv.className = 'user-data'
 

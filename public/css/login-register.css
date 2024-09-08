@@ -22,6 +22,17 @@ body {
     margin-top: 8px;
 }
 
+#second-password,
+#invitation-code {
+    visibility: hidden;
+}
+
+#error-message {
+    color: #ff0000;
+    display: flex;
+    justify-content: center;
+}
+
 /* .button { */
 /* display: flex; */
 /* justify-content: center; */

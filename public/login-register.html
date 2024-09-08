@@ -1,19 +1,23 @@
-<!-- public/login_register.html -->
+<!-- public/login-register.html -->
 <!DOCTYPE html>
 <html lang="en">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login</title>
+    <title>Login/Register</title>
     <link rel="stylesheet" href="/css/global.css" type="text/css">
-    <link rel="stylesheet" href="/css/login_register.css">
+    <link rel="stylesheet" href="/css/login-register.css" type="text/css">
 </head>
 
 <body>
     <!-- <h1>Login Page</h1> -->
     <div id="centered-window">
         <form id="login-register-form">
+            <div>
+                <div id="error-message"></div>
+                <br>
+            </div>
             <div>
                 <label>Username:</label>
                 <br>
@@ -43,7 +47,7 @@
         <button id="login-or-register" class="button"></button>
 
     </div>
-    <script src="/js/login_register.js"></script>
+    <script src="/js/login-register.js"></script>
 </body>
 
 </html>

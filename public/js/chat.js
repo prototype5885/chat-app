@@ -1,44 +1,25 @@
 
-const wsClient = new WebSocket('wss://' + window.location.host);
+const wsClient = new WebSocket('wss://' + window.location.host + "/wss");
+wsClient.binaryType = 'arraybuffer';
 const messages = document.getElementById('chat-message-list')
 
-// const friendList = document.getElementById('first-column-main-container')
-
-function getCurrentTime() {
-    const currentDate = new Date()
-
-    // const options = {
-    //     year: 'numeric',
-    //     month: 'numeric',
-    //     day: 'numeric',
-    //     hour: '2-digit',
-    //     minute: '2-digit',
-    //     second: undefined,
-    //     hour12: undefined 
-    // }
-
-    let localDateTime = currentDate.toLocaleString()
-
-    return localDateTime
-}
-
-wsClient.onopen = function (event) {
+wsClient.onopen = function (_event) {
     console.log('Connected to WebSocket successfully.');
 };
 
 // when server sends a message
 wsClient.onmessage = function (event) {
-    const packetString = event.data.toString()
-    const packetParsed = JSON.parse(packetString)
+    const receivedBytes = new Uint8Array(event.data);
 
-    const type = packetParsed.type
-    const data = JSON.parse(packetParsed.data)
+    const packetType = Number(receivedBytes[0])
+    const packetJson = new TextDecoder('utf-8').decode(receivedBytes.slice(1));
 
-    console.log('received: ' + packetString);
+    console.log('Packet type:', packetType)
+    console.log('Packet json:', packetJson)
 
-    switch (type) {
-        case 'serverChatMsg':
-            addChatMessage(data)
+    switch (packetType) {
+        case 1: // ServerChatMsg
+            addChatMessage(packetJson)
             messages.scrollTo({
                 top: messages.scrollHeight,
                 behavior: 'smooth'
@@ -47,15 +28,23 @@ wsClient.onmessage = function (event) {
     }
 }
 
-function sendPacket(type, data) {
+function sendPacket(typeStr, json) {
     if (wsClient.readyState === WebSocket.OPEN) {
-        const packet = {
-            type: type,
-            data: JSON.stringify(data)
+        let typeByte
+        switch (typeStr) {
+            case "clientChatMsg":
+                typeByte = new Uint8Array([1])
+                break
         }
-        const strPacket = JSON.stringify(packet)
-        console.log('sending: ' + strPacket)
-        wsClient.send(strPacket);
+        let jsonBytes = new TextEncoder().encode(json)
+        let packet = new Uint8Array(typeByte.length + jsonBytes.length)
+        packet.set(typeByte) // adds the 1 byte type in the beginning
+        packet.set(jsonBytes, typeByte.length) // adds the json binary after the type
+        console.log('sending packet')
+        wsClient.send(packet);
+    }
+    else {
+        console.log("Websocket is not open")
     }
 }
 

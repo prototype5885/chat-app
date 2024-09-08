@@ -1,0 +1,8 @@
+{
+  "Sqlite": true,
+  "Username": "mysql username",
+  "Password": "mysql password",
+  "Address": "127.0.0.1",
+  "Port": 3306,
+  "DatabaseName": "protochat"
+}

@@ -17,16 +17,16 @@ hideMemberListButton.addEventListener('click', function () {
 form.addEventListener('submit', (e) => {
     e.preventDefault()
     if (input.value) {
-        if (input.value == 'quit') {
+        if (input.value === 'quit') {
             console.log(wsClient)
             wsClient.close();
             console.log(wsClient)
         }
         const clientChatMsg = {
-            channel_id: 1942,
-            chat_msg: input.value
+            ChanID: 1942,
+            ChatMsg: input.value
         }
-        sendPacket('clientChatMsg', clientChatMsg)
+        sendPacket('clientChatMsg', JSON.stringify(clientChatMsg))
         input.value = ''
     }
 })
