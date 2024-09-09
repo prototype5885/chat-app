@@ -58,23 +58,24 @@ func readConfigFile() ConfigFile {
 }
 
 func findCookie(cookies []*http.Cookie, cookieName string) (http.Cookie, Result) {
-	log.Println("Reading cookies...")
+	log.Printf("Searching for cookie called: %s...\n", cookieName)
+
 	for _, cookie := range cookies {
-		log.Printf("Cookie: %s=%s\n", cookie.Name, cookie.Value)
+		// log.Printf("Cookie: %s=%s\n", cookie.Name, cookie.Value)
 		if cookie.Name == cookieName {
 			return *cookie, Result{
 				Success: true,
-				Message: "Cookie called " + cookieName + " found",
+				Message: "",
 			}
 		}
 	}
 	return http.Cookie{}, Result{
 		Success: false,
-		Message: "Cookie called " + cookieName + " was not found",
+		Message: "No cookie with the following name was found: " + cookieName,
 	}
 }
 
-func loginOrRegister(bodyBytes []byte, pathURL string) ([]byte, http.Cookie, Result) {
+func loginOrRegister(bodyBytes []byte, pathURL string) (http.Cookie, Result) {
 	// deserialize the body message into LoginData struct
 	type LoginData struct {
 		Username string
@@ -83,11 +84,9 @@ func loginOrRegister(bodyBytes []byte, pathURL string) ([]byte, http.Cookie, Res
 	var loginData LoginData
 	jsonErr := json.Unmarshal(bodyBytes, &loginData)
 	if jsonErr != nil {
-		const issue string = "Error deserializing received json from POST request"
-		log.Println(issue, jsonErr)
-		return nil, http.Cookie{}, Result{
+		return http.Cookie{}, Result{
 			Success: false,
-			Message: issue,
+			Message: "Error deserializing received loginData json from POST request",
 		}
 	}
 
@@ -95,54 +94,46 @@ func loginOrRegister(bodyBytes []byte, pathURL string) ([]byte, http.Cookie, Res
 	// so the server can't really know what the original password was
 	passwordBytes, err := base64.StdEncoding.DecodeString(loginData.Password)
 	if err != nil {
-		return nil, http.Cookie{}, Result{
+		return http.Cookie{}, Result{
 			Success: false,
 			Message: "Error decoding base64 password to byte array",
 		}
 	}
 
 	// the values received next will be stored in this
-	var result Result
+	var logRegResult Result
 	var userID uint64
 
 	// run depending on if its registration or login request
 	if pathURL == "/register" {
-		userID, result = registerUser(loginData.Username, passwordBytes)
+		userID, logRegResult = registerUser(loginData.Username, passwordBytes)
 	} else if pathURL == "/login" {
-		userID, result = loginUser(loginData.Username, passwordBytes)
+		userID, logRegResult = loginUser(loginData.Username, passwordBytes)
 	} else {
 		// this is not supposed to happen ever
 		fatalWithName(loginData.Username, "Invalid path URL:"+pathURL, "")
 	}
 
 	// generate token if login or registration was success, otherwise it will remain empty
-	var token Token
-	if result.Success {
-		var tokenResult Result
-		token, tokenResult = newToken(userID)
+	var cookie http.Cookie
+	if logRegResult.Success {
+		token, tokenResult := newToken(userID)
 		if !tokenResult.Success {
 			fatalWithName(loginData.Username, "Error generating token", tokenResult.Message)
+		} else {
+			cookie = http.Cookie{
+				Name:     "token",
+				Value:    token.Token,
+				Path:     "/",
+				HttpOnly: true,
+				SameSite: http.SameSiteStrictMode,
+				Secure:   true,
+				Expires:  time.Unix(int64(token.Expiration), 0),
+			}
 		}
-		printWithID(userID, tokenResult.Message)
 	}
-
-	var cookie = http.Cookie{
-		Name:     "token",
-		Value:    token.Token,
-		Path:     "/",
-		HttpOnly: true,
-		SameSite: http.SameSiteStrictMode,
-		Secure:   true,
-		Expires:  time.Unix(int64(token.Expiration), 0),
-	}
-
-	// serialize the response into json
-	responseJsonBytes, jsonErr := json.Marshal(result)
-	if jsonErr != nil {
-		fatalWithName(loginData.Username, "Error serializing log/reg POST request response:", jsonErr.Error())
-	}
-
-	return responseJsonBytes, cookie, result
+	printWithID(userID, logRegResult.Message)
+	return cookie, logRegResult
 }
 
 // Register user by adding it into the database
@@ -151,25 +142,22 @@ func registerUser(username string, passwordBytes []byte) (uint64, Result) {
 
 	// check if received password is in proper format
 	if len(passwordBytes) != 64 {
-		const issue string = "Password byte array length isn't 64 bytes"
 		return 0, Result{
 			Success: false,
-			Message: issue,
+			Message: "Password byte array length isn't 64 bytes",
 		}
 	} else if len(username) > 16 {
-		var issue string = "Username is longer than 16 bytes"
 		return 0, Result{
 			Success: false,
-			Message: issue,
+			Message: "Username is longer than 16 bytes",
 		}
 	}
 
 	// hash the password using bcrypt
 	var start int64 = time.Now().UnixMilli()
-	printWithName(username, "Hashing password...")
+	// printWithName(username, "Hashing password...")
 	passwordHash, err := bcrypt.GenerateFromPassword(passwordBytes, 10)
 	if err != nil {
-		log.Println(err)
 		var errMsg string
 		if err.Error() == "bcrypt: password length exceeds 72 bytes" {
 			errMsg = err.Error()
@@ -194,11 +182,10 @@ func registerUser(username string, passwordBytes []byte) (uint64, Result) {
 	//printWithName(username, totpResult.Message)
 
 	// add the new user to database
-	newUserResult := addNewUserToDB(userID, username, passwordHash, "")
+	newUserResult := registerNewUserToDB(userID, username, passwordHash, "")
 	if !newUserResult.Success {
 		return 0, newUserResult
 	}
-	//printWithName(username, newUserResult.Message)
 
 	// return the Success
 	return userID, Result{
@@ -214,7 +201,6 @@ func loginUser(username string, passwordBytes []byte) (uint64, Result) {
 
 	// get the user id from the database
 	userID, result := getUserIdFromDB(username)
-	printWithID(userID, result.Message)
 	if !result.Success {
 		return 0, result
 	}
@@ -225,11 +211,10 @@ func loginUser(username string, passwordBytes []byte) (uint64, Result) {
 	if !result.Success {
 		return 0, result
 	}
-	//printWithID(userID, result.Message)
 
 	// compare given password with the retrieved hash
 	printWithID(userID, "Comparing password hash and string...")
-	// var start = time.Now().UnixMilli()
+	var start = time.Now().UnixMilli()
 	if err := bcrypt.CompareHashAndPassword(passwordHash, passwordBytes); err != nil {
 		return 0, Result{
 			Success: false,
@@ -237,8 +222,7 @@ func loginUser(username string, passwordBytes []byte) (uint64, Result) {
 		}
 	}
 
-	printWithID(userID, "Password matches with hash")
-	// log.Printf("%s: password matches with hash, comparison took: %d ms\n", username, time.Now().UnixMilli()-start)
+	log.Printf("%s: password matches with hash, comparison took: %d ms\n", username, time.Now().UnixMilli()-start)
 
 	// return the Success
 	return userID, Result{
@@ -280,7 +264,10 @@ func addChatMessage(jsonBytes []byte, userID uint64, displayName string) []byte 
 		Msg:    clientChatMsg.ChatMsg,
 	}
 
-	addChatMessageDB(serverChatMsg.MsgID, serverChatMsg.ChanID, serverChatMsg.UserID, serverChatMsg.Msg)
+	result := addChatMessageDB(serverChatMsg.MsgID, serverChatMsg.ChanID, serverChatMsg.UserID, serverChatMsg.Msg)
+	if !result.Success {
+
+	}
 
 	jsonBytes, err := json.Marshal(serverChatMsg)
 	if err != nil {

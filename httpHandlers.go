@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"io"
 	"log"
 	"net/http"
@@ -17,11 +18,12 @@ func wssHandler(hub *Hub, w http.ResponseWriter, r *http.Request) {
 
 	// check if the user trying to connect to websocket has token
 	userID, result := checkIfTokenIsValid(r)
-	log.Println(result.Message)
 	if result.Success {
 		acceptWsClient(userID, hub, w, r)
 		return
 	}
+	log.Println(result.Message)
+
 	// someone is trying to connect to websocket directly without token
 	// this is not supposed to happen normally, as the .js file that connects to the websocket
 	// is only sent if user was already authenticated
@@ -35,7 +37,6 @@ func loginRegisterHandler(w http.ResponseWriter, r *http.Request) {
 
 	// check if user requesting login/registration already has a token
 	_, result := checkIfTokenIsValid(r)
-	log.Println(result.Message)
 	if result.Success { // if user is trying to login but has a token
 		log.Println("User is trying to access /login-register.html but already has a token")
 		log.Println("Redirecting user to /chat.html ...")
@@ -52,7 +53,6 @@ func chatHandler(w http.ResponseWriter, r *http.Request) {
 
 	// check if user requesting login/registration already has a token
 	_, result := checkIfTokenIsValid(r)
-	log.Println(result.Message)
 	if !result.Success { // if user tries to use the chat but has no token
 		log.Println("Someone is trying to access /chat.html but has no token")
 		log.Println("Redirecting to / ...")
@@ -87,11 +87,15 @@ func postRequestHandler(w http.ResponseWriter, r *http.Request) {
 
 	// handle different POST requests
 	if r.URL.Path == "/login" || r.URL.Path == "/register" {
-		responseJsonBytes, cookie, result := loginOrRegister(bodyBytes, r.URL.Path)
-		if !result.Success { // if login/registration fails (such as wrong password entered), non technical errors
-			log.Println(result.Message)
-		} else {
+		cookie, result := loginOrRegister(bodyBytes, r.URL.Path)
+		if result.Success {
 			http.SetCookie(w, &cookie) // sets the token as cookie on the client side
+		}
+
+		// serialize the response into json
+		responseJsonBytes, jsonErr := json.Marshal(result)
+		if jsonErr != nil {
+			log.Fatalln("Error serializing log/reg POST request response:", jsonErr.Error())
 		}
 
 		log.Println(string(responseJsonBytes))

@@ -97,36 +97,30 @@ func createTablesDB() {
 }
 
 func addChatMessageDB(messageID uint64, channelID uint64, userID uint64, message string) Result {
-	//log.Println("Adding Message into database...")
+	printWithID(userID, "Adding chat message into database...")
 	const query string = "INSERT INTO messages (messageid, channelid, userid, Message) VALUES (?, ?, ?, ?)"
 	_, err := db.Exec(query, messageID, channelID, userID, message)
 	if err != nil {
-		log.Fatal("Error executing INSERT query:", err)
-		//return Result{
-		//	Success: false,
-		//	Message: "FATAL: Error adding chat Message to database",
-		//}
+		fatalWithID(userID, "Error adding chat message ID ["+string(messageID)+"] into database:", err.Error())
 	}
+	successWithID(userID, "Added chat message ID ["+string(messageID)+"] into database")
 	return Result{
 		Success: true,
-		Message: "Chat Message added to database",
+		Message: "",
 	}
 }
 
-func addNewUserToDB(userId uint64, username string, passwordHash []byte, totpSecret string) Result {
-	printWithName(username, "Adding new user into database...")
+func registerNewUserToDB(userId uint64, username string, passwordHash []byte, totpSecret string) Result {
+	printWithName(username, "Registering new user into database...")
 	const query string = "INSERT INTO users (userid, username, password, totp) VALUES (?, ?, ?, ?)"
 	_, err := db.Exec(query, userId, username, passwordHash, totpSecret)
 	if err != nil {
-		log.Fatalf("%s: Error executing INSERT query: %s\n", username, err)
-		//return Result{
-		//	Success: false,
-		//	Message: "FATAL: Error adding new user to database",
-		//}
+		fatalWithName(username, "Error registering new user into database", err.Error())
 	}
+	successWithName(username, "Registered user into database")
 	return Result{
 		Success: true,
-		Message: "User added to database",
+		Message: "",
 	}
 }
 
@@ -142,12 +136,14 @@ func getUserIdFromDB(username string) (uint64, Result) {
 				Message: noUsernameFoundText(username),
 			}
 		} else {
-			fatalWithName(username, "Error executing SELECT query", err.Error())
+			fatalWithName(username, "Error getting user ID of username from database", err.Error())
 		}
 	}
+	successWithName(username, "User ID of username was retrieved from database")
+	// log.Println(successText("User ID of user [" + username + "] was retrieved from database"))
 	return userID, Result{
 		Success: true,
-		Message: "Field [userid] retrieved from database",
+		Message: "",
 	}
 }
 
@@ -163,18 +159,22 @@ func getUserNameFromDB(userID uint64) (string, Result) {
 				Message: noUserIdFoundText(userID),
 			}
 		} else {
-			fatalWithID(userID, "Error executing SELECT username query", err.Error())
+			fatalWithID(userID, "Error getting username of user ID from database", err.Error())
 		}
 	}
+	successWithID(userID, "Username of user ID was retrieved from database")
+	// log.Println(successText("Username of user ID [" + string(userID) + "] was retrieved from database"))
 	return userName, Result{
 		Success: true,
-		Message: "Field [username] retrieved from database",
+		Message: "",
 	}
 }
 
 func getPasswordFromDB(userID uint64) ([]byte, Result) {
 	printWithID(userID, "Searching for field [password] in database...")
+
 	const query string = "SELECT password FROM users WHERE userid = ?"
+
 	var passwordHash []byte
 	err := db.QueryRow(query, userID).Scan(&passwordHash)
 	if err != nil {
@@ -184,30 +184,29 @@ func getPasswordFromDB(userID uint64) ([]byte, Result) {
 				Message: noUserIdFoundText(userID),
 			}
 		} else {
-			fatalWithID(userID, "Error executing SELECT password query", err.Error())
+			fatalWithID(userID, "Error getting password of user ID from database", err.Error())
 		}
 	}
+	successWithID(userID, "Password of user ID was retrieved from database")
 	return passwordHash, Result{
 		Success: true,
-		Message: "Field [password] retrieved from database",
+		Message: "",
 	}
 }
 
-func addTokenDB(tokenRow Token) Result {
-	printWithID(tokenRow.UserID, "Adding new token into database...")
+func addTokenDB(token Token) Result {
+	printWithID(token.UserID, "Adding new token into database...")
 
 	const query string = "INSERT INTO tokens (token, userid, expiration) VALUES (?, ?, ?)"
-	_, err := db.Exec(query, tokenRow.Token, tokenRow.UserID, tokenRow.Expiration)
+
+	_, err := db.Exec(query, token.Token, token.UserID, token.Expiration)
 	if err != nil {
-		fatalWithID(tokenRow.UserID, "Error executing INSERT token query", err.Error())
-		//return Result{
-		//	Success: false,
-		//	Message: "FATAL: Error adding new user to database",
-		//}
+		fatalWithID(token.UserID, "Error adding new token for user ID into database", err.Error())
 	}
+	successWithID(token.UserID, "Added a new token for user ID into database")
 	return Result{
 		Success: true,
-		Message: "Token added to database",
+		Message: "",
 	}
 }
 
@@ -224,15 +223,16 @@ func getTokenFromDB(tokenString string) (Token, Result) {
 		if err == sql.ErrNoRows { // token was not found
 			return Token{}, Result{
 				Success: false,
-				Message: "Failure: Token was not found in database",
+				Message: "Token was not found in database",
 			}
 		} else {
-			log.Fatal("Error executing SELECT token query: " + err.Error())
+			log.Fatal("Error retrieving given token from database: " + err.Error())
 		}
 	}
+	successWithName(tokenString, "Given token was found in database")
 	return token, Result{
 		Success: true,
-		Message: "Success: Token was found in the database",
+		Message: "",
 	}
 }
 

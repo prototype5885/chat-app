@@ -26,8 +26,8 @@ func main() {
 	//test()
 
 	// websocket
-	var hub *Hub
-	hub = newHub()
+
+	var hub *Hub = newHub()
 	go hub.run()
 	http.HandleFunc("/wss", func(w http.ResponseWriter, r *http.Request) {
 		wssHandler(hub, w, r)
@@ -44,9 +44,6 @@ func main() {
 
 	const certFile = "./sslcert/selfsigned.crt"
 	const keyFile = "./sslcert/selfsigned.key"
-
-	// var certFile string = "/etc/letsencrypt/live/prototype585.asuscomm.com/fullchain.pem"
-	// var keyFile string = "/etc/letsencrypt/live/prototype585.asuscomm.com/privkey.pem"
 
 	log.Println("Listening on port 3000")
 	if err := http.ListenAndServeTLS(":3000", certFile, keyFile, nil); err != nil {

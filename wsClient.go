@@ -117,7 +117,7 @@ func (c *Client) writePump() {
 			}
 		case <-ticker.C:
 			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
-			log.Println("Pinging")
+			printWithID(c.userID, "Pinging")
 			err := c.conn.WriteMessage(websocket.PingMessage, nil)
 			if err != nil {
 				log.Println(err)
@@ -128,9 +128,10 @@ func (c *Client) writePump() {
 }
 
 func acceptWsClient(userID uint64, hub *Hub, w http.ResponseWriter, r *http.Request) {
+	printWithID(userID, "Accepting websocket connection")
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Println("serveWs error: ", err)
+		log.Println("Error accepting websocket connection: ", err)
 		return
 	}
 	username, nameResult := getUserNameFromDB(userID)
