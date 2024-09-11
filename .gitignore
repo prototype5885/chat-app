@@ -8,3 +8,4 @@ protochat.log
 *.db
 identifier.sqlite
 config.json
+proto-chat

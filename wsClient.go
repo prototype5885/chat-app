@@ -5,7 +5,7 @@
 package main
 
 import (
-	"bytes"
+	"encoding/binary"
 	"log"
 	"net/http"
 	"time"
@@ -16,14 +16,14 @@ import (
 const (
 	writeWait      = 10 * time.Second // Time allowed to write a Message to the peer.
 	pongWait       = 60 * time.Second // Time allowed to read the next pong Message from the peer.
-	pingPeriod     = 10 * time.Second // Send pings to peer with this period. Must be less than pongWait.
-	maxMessageSize = 1024             // Maximum Message size allowed from peer.
+	pingPeriod     = 15 * time.Second // Send pings to peer with this period. Must be less than pongWait.
+	maxMessageSize = 8192             // Maximum Message size allowed from peer.
 )
 
-var (
-	newline = []byte{'\n'}
-	space   = []byte{' '}
-)
+// var (
+// 	newline = []byte{'\n'}
+// 	space   = []byte{' '}
+// )
 
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
@@ -56,21 +56,52 @@ func (c *Client) readPump() {
 		c.hub.unregister <- c
 		c.conn.Close()
 	}()
-	c.conn.SetReadLimit(maxMessageSize)
+	// c.conn.SetReadLimit(maxMessageSize)
 	c.conn.SetReadDeadline(time.Now().Add(pongWait))
 	c.conn.SetPongHandler(func(string) error { c.conn.SetReadDeadline(time.Now().Add(pongWait)); return nil })
 	for {
-		_, message, err := c.conn.ReadMessage()
+		_, receivedBytes, err := c.conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				log.Println(err)
 			}
 			break
 		}
-		message = bytes.TrimSpace(bytes.Replace(message, newline, space, -1))
-		var responseMsgBytes []byte = handleWebsocketMessage(message, c.userID, c.displayName)
-		printWithID(c.userID, string(responseMsgBytes))
-		c.hub.broadcast <- responseMsgBytes
+		// convert the first 4 bytes into uint32 to get the endIndex,
+		// which marks the end of the packet
+		var endIndex uint32 = binary.LittleEndian.Uint32(receivedBytes[:4])
+
+		// 5th byte is a 1 byte number which states the type of the packet
+		var packetType byte = receivedBytes[4]
+
+		// get the json byte array from the 6th byte to the end
+		var packetJson []byte = receivedBytes[5:endIndex]
+
+		log.Println("Received packet:", endIndex, packetType, string(packetJson))
+
+		var responseBytes []byte
+		switch packetType {
+		case 1: // client sent a chat message
+			responseBytes = onChatMessage(packetJson, c.userID, c.displayName)
+		case 11: // chat history request
+			responseBytes = onChatHistoryRequest(packetJson, c.userID)
+		case 21: // client added a server
+			responseBytes = onAddServerRequest(packetJson, c.userID)
+		}
+
+		if responseBytes == nil {
+			printWithID(c.userID, "User sent a websocket message with unprocessable packet type")
+			return
+		}
+
+		var responseEndIndex uint32 = binary.LittleEndian.Uint32(responseBytes[:4])
+		var responsePacketType byte = responseBytes[4]
+		var responsePacketJson []byte = responseBytes[5:endIndex]
+
+		log.Println("prepared packet:", responseEndIndex, responsePacketType, string(responsePacketJson))
+
+		// printWithID(c.userID, string(responseBytes))
+		c.hub.broadcast <- responseBytes
 	}
 }
 
@@ -107,7 +138,7 @@ func (c *Client) writePump() {
 			log.Println("Add queued chat messages to the current websocket Message")
 			n := len(c.send)
 			for i := 0; i < n; i++ {
-				w.Write(newline)
+				// w.Write(newline)
 				w.Write(<-c.send)
 			}
 
@@ -117,7 +148,7 @@ func (c *Client) writePump() {
 			}
 		case <-ticker.C:
 			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
-			printWithID(c.userID, "Pinging")
+			// printWithID(c.userID, "Pinging")
 			err := c.conn.WriteMessage(websocket.PingMessage, nil)
 			if err != nil {
 				log.Println(err)
@@ -134,7 +165,7 @@ func acceptWsClient(userID uint64, hub *Hub, w http.ResponseWriter, r *http.Requ
 		log.Println("Error accepting websocket connection: ", err)
 		return
 	}
-	username, nameResult := getUserNameFromDB(userID)
+	username, nameResult := database.GetUsername(userID)
 	if !nameResult.Success { // this is not supposed to happen
 		fatalWithID(userID, "For some reason no username was associated with the given user id", "FATAL")
 	}
@@ -152,6 +183,5 @@ func acceptWsClient(userID uint64, hub *Hub, w http.ResponseWriter, r *http.Requ
 	// new goroutines.
 	go client.writePump()
 	go client.readPump()
-	// log.Println("Client has connected to the websocket", client.conn.RemoteAddr())
 	printWithID(userID, "Client has connected to the websocket")
 }

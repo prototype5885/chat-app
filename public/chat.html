@@ -5,21 +5,18 @@
 <head>
     <meta name="viewport" content="width=device-width,height=device-height,user-scalable=no,initial-scale=1.0">
     <title>Discord Clone</title>
-    <link rel="stylesheet" href="/css/chat.css">
+    <link rel="stylesheet" href="chat.css">
 </head>
 
 <body>
-    <div id="channels">
-        <div id="channels-top">
+    <div id="servers">
+        <div id="direct-messages">
             <!-- <div></div> -->
         </div>
-        <ol id="channels-bottom">
-            <li></li>
-            <li></li>
-            <li></li>
-            <li></li>
-        </ol>
-
+        <div id="server-list">
+            <!-- <button></button> -->
+        </div>
+        <button id="add-server-button">+</button>
     </div>
     <div id="first-column-container">
         <div id="first-column-top">
@@ -48,19 +45,26 @@
                         </div>
                     </li> -->
                 </ol>
-                <form id="chat-input-form" action="">
-                    <input id="chat-input" autocomplete="off" placeholder="Message someone" />
-                    <!-- <button>Send</button> -->
-                </form>
+                <div id="chat-input-form-container" action="">
+                    <div id="chat-input-form">
+                        <button id="attachment-button" class="chat-button">
+                            <div id="attachment-button-icon" class="chat-button-icon">Atch</div>
+                        </button>
+                        <textarea id="chat-input" autocomplete="off" placeholder="Message someone"></textarea>
+                        <button id="send-button" class="chat-button">
+                            <div id="send-button-icon" class="chat-button-icon">Send</div>
+                        </button>
+                    </div>
+                </div>
             </div>
             <ol id="member-list">
                 <!-- <li>Members</li> -->
             </ol>
         </div>
     </div>
-    <script src="/js/interactions.js"></script>
-    <script src="/js/dynamic-content.js"></script>
-    <script src="/js/chat.js"></script>
+    <script src="interactions.js"></script>
+    <script src="dynamic-content.js"></script>
+    <script src="chat.js"></script>
 </body>
 
 </html>

@@ -24,9 +24,9 @@ func wssHandler(hub *Hub, w http.ResponseWriter, r *http.Request) {
 	}
 	log.Println(result.Message)
 
-	// someone is trying to connect to websocket directly without token
+	// someone is trying to connect to websocket directly without authorized token
 	// this is not supposed to happen normally, as the .js file that connects to the websocket
-	// is only sent if user was already authenticated
+	// is only sent if user was already authorized
 	log.Println("Someone is trying to connect to websocket directly without token")
 	log.Println("Redirecting to / ...")
 	http.Redirect(w, r, "/", http.StatusMovedPermanently)
@@ -38,7 +38,7 @@ func loginRegisterHandler(w http.ResponseWriter, r *http.Request) {
 	// check if user requesting login/registration already has a token
 	_, result := checkIfTokenIsValid(r)
 	if result.Success { // if user is trying to login but has a token
-		log.Println("User is trying to access /login-register.html but already has a token")
+		log.Println("User is trying to access /login-register.html but already has authorized token")
 		log.Println("Redirecting user to /chat.html ...")
 		http.Redirect(w, r, "/chat.html", http.StatusMovedPermanently)
 		return
@@ -54,7 +54,7 @@ func chatHandler(w http.ResponseWriter, r *http.Request) {
 	// check if user requesting login/registration already has a token
 	_, result := checkIfTokenIsValid(r)
 	if !result.Success { // if user tries to use the chat but has no token
-		log.Println("Someone is trying to access /chat.html but has no token")
+		log.Println("Someone is trying to access /chat.html without authorized token")
 		log.Println("Redirecting to / ...")
 		http.Redirect(w, r, "/", http.StatusMovedPermanently)
 		return

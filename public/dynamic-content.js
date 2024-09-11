@@ -124,22 +124,17 @@ function rightClickMenuItemPressed(action, event, type) { // when something in r
 }
 // end -- right click menu
 // start -- chat message
-function addChatMessage(messageDataJson) {
-    let messageData = {}
-    messageData.MsgID = undefined
-    messageData.ChanID = undefined
-    messageData.UserID = undefined
-    messageData.Name = undefined
-    messageData.Msg = undefined
-    messageData = JSON.parse(messageDataJson)
+function addChatMessage(messageID, channelID, userID, username, message) {
+    // extract the message date from messageID
+    const msgDate = new Date(Number((BigInt(messageID) >> BigInt(20)))).toLocaleString()
 
     // create a <li> that holds the message
     const li = document.createElement('li')
     li.className = 'msg'
-    li.id = messageData.MsgID
+    li.id = messageID
     // li.setAttribute('msg_id', messageData.msgID)
 
-    li.setAttribute('user-id', BigInt(messageData.UserID))
+    li.setAttribute('user-id', userID)
 
     // create a <img> that shows profile pic on the left
     const img = document.createElement('img')
@@ -160,13 +155,13 @@ function addChatMessage(messageDataJson) {
     // and inside that create a <div> that displays the sender's name on the left
     const msgNameDiv = document.createElement('div')
     msgNameDiv.className = 'msg-user-name'
-    msgNameDiv.textContent = messageData.Name
+    msgNameDiv.textContent = username
     msgDataDiv.style.color = chatNameColor
 
     // and next to it create a <div> that displays the date of msg on the right
     const msgDateDiv = document.createElement('div')
     msgDateDiv.className = 'msg-date'
-    msgDateDiv.textContent = new Date().toLocaleString()
+    msgDateDiv.textContent = msgDate
 
     // append name and date to msgNameAndDateDiv
     msgNameAndDateDiv.appendChild(msgNameDiv)
@@ -175,7 +170,7 @@ function addChatMessage(messageDataJson) {
     // now create a <div> under name and date that displays the message
     const msgTextDiv = document.createElement('div')
     msgTextDiv.className = 'msg-text'
-    msgTextDiv.textContent = messageData.Msg
+    msgTextDiv.textContent = message
 
     // append both name/date <div> and msg <div> to msgDatDiv
     msgDataDiv.appendChild(msgNameAndDateDiv)
@@ -186,7 +181,7 @@ function addChatMessage(messageDataJson) {
     li.appendChild(msgDataDiv)
 
     // and finally append the message to the message list
-    messages.appendChild(li)
+    document.getElementById('chat-message-list').appendChild(li)
 }
 
 function deleteChatMessage(messageID) {
@@ -238,3 +233,12 @@ function addMember(id, where) {
     memberList.appendChild(li)
 }
 // end -- add member to group chat member list or friend list
+
+function addServer(serverID, ownerID, serverName) {
+    const button = document.createElement('button')
+    button.className = 'server'
+    button.id = serverID
+    button.setAttribute('server-name', serverName)
+
+    document.getElementById('server-list').append(button)
+}

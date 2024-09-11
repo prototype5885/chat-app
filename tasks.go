@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -123,7 +124,7 @@ func loginOrRegister(bodyBytes []byte, pathURL string) (http.Cookie, Result) {
 		} else {
 			cookie = http.Cookie{
 				Name:     "token",
-				Value:    token.Token,
+				Value:    hex.EncodeToString(token.Token),
 				Path:     "/",
 				HttpOnly: true,
 				SameSite: http.SameSiteStrictMode,
@@ -182,7 +183,7 @@ func registerUser(username string, passwordBytes []byte) (uint64, Result) {
 	//printWithName(username, totpResult.Message)
 
 	// add the new user to database
-	newUserResult := registerNewUserToDB(userID, username, passwordHash, "")
+	newUserResult := database.RegisterNewUser(userID, username, passwordHash, "")
 	if !newUserResult.Success {
 		return 0, newUserResult
 	}
@@ -200,14 +201,14 @@ func loginUser(username string, passwordBytes []byte) (uint64, Result) {
 	printWithName(username, "Starting login...")
 
 	// get the user id from the database
-	userID, result := getUserIdFromDB(username)
+	userID, result := database.GetUserID(username)
 	if !result.Success {
 		return 0, result
 	}
 	printWithName(username, "Confirmed to be: "+strconv.FormatUint(userID, 10))
 
 	// get the password hash from the database
-	passwordHash, result := getPasswordFromDB(userID)
+	passwordHash, result := database.GetPassword(userID)
 	if !result.Success {
 		return 0, result
 	}
@@ -229,63 +230,6 @@ func loginUser(username string, passwordBytes []byte) (uint64, Result) {
 		Success: true,
 		Message: "Successful login",
 	}
-}
-
-func addChatMessage(jsonBytes []byte, userID uint64, displayName string) []byte {
-	type ClientChatMsg struct {
-		ChanID  uint64
-		Name    string
-		ChatMsg string
-	}
-
-	var clientChatMsg ClientChatMsg
-
-	if err := json.Unmarshal(jsonBytes, &clientChatMsg); err != nil {
-		log.Println("Error deserializing Msg json:", err)
-		return []byte("Error deserializing Msg json")
-	}
-
-	//log.Println(clientChatMsg.ChannelId)
-	//log.Println(clientChatMsg.ChatMsg)
-
-	type ServerChatMsg struct {
-		MsgID  uint64
-		ChanID uint64
-		UserID uint64
-		Name   string
-		Msg    string
-	}
-
-	var serverChatMsg = ServerChatMsg{
-		MsgID:  snowflake.Generate(),
-		ChanID: snowflake.Generate(),
-		UserID: userID,
-		Name:   displayName,
-		Msg:    clientChatMsg.ChatMsg,
-	}
-
-	result := addChatMessageDB(serverChatMsg.MsgID, serverChatMsg.ChanID, serverChatMsg.UserID, serverChatMsg.Msg)
-	if !result.Success {
-
-	}
-
-	jsonBytes, err := json.Marshal(serverChatMsg)
-	if err != nil {
-		log.Fatal("Error serializing ServerChatMsg json:", err)
-		return []byte("Error serializing ServerChatMsg json")
-	}
-
-	var typeByte byte = 1
-	var packet []byte = make([]byte, len(jsonBytes)+1)
-
-	packet[0] = typeByte
-	copy(packet[1:], jsonBytes)
-
-	//for _, value := range packet {
-	//	fmt.Printf("%d ", value)
-	//}
-
-	return packet
 }
 
 func generateTOTP(userID uint64) (string, Result) {
@@ -322,17 +266,16 @@ func newToken(userID uint64) (Token, Result) {
 	}
 
 	var tokenRow = Token{
-		Token:      hex.EncodeToString(tokenBytes),
+		Token:      tokenBytes,
 		UserID:     userID,
 		Expiration: uint64(time.Now().Add(30 * 24 * time.Hour).Unix()), // 3 months
 	}
 
 	// add the newly generated token into the database
-	result := addTokenDB(tokenRow)
+	result := database.AddToken(tokenRow)
 	if !result.Success {
 		return Token{}, result
 	}
-	printWithID(userID, result.Message)
 
 	// return the new token
 	return tokenRow, Result{
@@ -346,8 +289,18 @@ func checkIfTokenIsValid(r *http.Request) (uint64, Result) {
 
 	cookieToken, cookieResult := findCookie(r.Cookies(), "token")
 	if cookieResult.Success { // if user has a token
+		// decode to bytes
+		tokenBytes, err := hex.DecodeString(cookieToken.Value)
+		if err != nil {
+			log.Println("Error decoding token from cookie to byte array:", err.Error())
+			return 0, Result{
+				Success: false,
+				Message: "",
+			}
+		}
+
 		// check if token exists in the database
-		token, result := getTokenFromDB(cookieToken.Value)
+		token, result := database.GetToken(tokenBytes)
 		if result.Success {
 			return token.UserID, result
 		} else {
@@ -355,4 +308,21 @@ func checkIfTokenIsValid(r *http.Request) (uint64, Result) {
 		}
 	}
 	return 0, cookieResult
+}
+
+func preparePacket(typeByte byte, jsonBytes []byte) []byte {
+	// convert the end index uint32 value into 4 bytes
+	var endIndex uint32 = uint32(5 + len(jsonBytes))
+	var endIndexBytes []byte = make([]byte, 4)
+	binary.LittleEndian.PutUint32(endIndexBytes, endIndex)
+
+	// merge them into a single packet
+	var packet []byte = make([]byte, 5+len(jsonBytes))
+	copy(packet, endIndexBytes) // first 4 bytes will be the length
+	packet[4] = typeByte        // 5th byte will be the packet type
+	copy(packet[5:], jsonBytes) // rest will be the json byte array
+
+	log.Println("Prepared packet:", endIndex, packet[4], string(jsonBytes))
+
+	return packet
 }

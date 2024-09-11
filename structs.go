@@ -16,7 +16,31 @@ type Result struct {
 }
 
 type Token struct {
-	Token      string
+	Token      []byte
 	UserID     uint64
 	Expiration uint64
+}
+
+type Server struct {
+	ServerID      uint64
+	ServerOwnerID uint64
+	ServerName    string
+}
+
+type Channel struct {
+	ChannelID   uint64
+	ServerID    uint64
+	ChannelName string
+}
+
+type ServerChatMessage struct {
+	MessageID uint64
+	ChannelID uint64
+	UserID    uint64
+	Username  string
+	Message   string
+}
+
+type ServerChatMessages struct {
+	Messages []ServerChatMessage
 }

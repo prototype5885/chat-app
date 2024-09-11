@@ -9,7 +9,7 @@ body {
     color: #C5C7CB;
 }
 
-#channels {
+#servers {
     min-width: 4.5rem;
     max-width: 4.5rem;
     background-color: #1E1F22;
@@ -22,7 +22,7 @@ body {
     padding: 0.7rem 0;
 }
 
-#channels-top {
+#direct-messages {
     width: 3rem;
     height: 3rem;
     background-color: #5865F2;
@@ -30,30 +30,37 @@ body {
     border-radius: 35%;
 }
 
-#channels-top:hover {
+#direct-messages:hover {
     /* background-color: #4f545c; */
     cursor: pointer;
     /* border-radius: 35%; */
 }
 
-#channels-bottom {
+#server-list {
     margin: 0;
     padding: 0;
 }
 
-#channels-bottom li {
+#server-list button,
+#add-server-button {
     list-style: none;
     width: 3rem;
     height: 3rem;
     background-color: #36393f;
     margin-bottom: 0.7rem;
     border-radius: 50%;
+    border: none;
 }
 
-#channels-bottom li:hover {
+#server-list button:hover,
+#add-server-button:hover {
     background-color: #4f545c;
     cursor: pointer;
     border-radius: 35%;
+}
+
+#add-server-button:hover {
+    background-color: green;
 }
 
 #first-column-container {
@@ -140,6 +147,10 @@ body {
     background-color: #2E3035;
 }
 
+/* .msg { */
+/* width: auto */
+/* } */
+
 .profile-pic,
 .msg-profile-pic {
     border-radius: 50%;
@@ -156,7 +167,6 @@ body {
     /* padding-left: 0.8rem; */
     display: flex;
     flex-direction: column;
-
 }
 
 .msg-name-and-date {
@@ -186,48 +196,79 @@ body {
 
 .msg-text {
     vertical-align: baseline;
-    /* align-self: ; */
-    /* text-anchor: start; */
-    /* vertical-align: bottom; */
+    overflow-wrap: anywhere;
 }
 
-/* #chat-message-list>li:nth-child(odd) {
-     background: #efefef;
- } */
-
-#chat-input-form {
+/* chat input */
+#chat-input-form-container {
     display: flex;
+    padding-bottom: 1.5rem;
+    padding-left: 1rem;
+    padding-right: 1rem;
 }
 
-/* #chat-input-form>button {
-    background: #333;
-    border: none;
-    padding: 0 1rem;
-    margin: 0.25rem;
-    border-radius: 3px;
-    outline: none;
-    color: #fff;
-} */
-
-
-#chat-input {
-    /* bottom: 0; */
-    border: none;
-    padding: 1rem;
-
-    height: 0.75rem;
-    /* flex: 1; */
-    flex-grow: 1;
-    border-radius: 0.5rem;
-    /* margin: 1.25rem; */
-    margin-bottom: 1.5rem;
-    margin-left: 1rem;
-    margin-right: 1rem;
-
+/* this holds the chat text input and buttons such as attachment */
+#chat-input-form {
+    resize: none;
+    display: flex;
+    /* min-height: 4rem;
+    max-height: 32rem; */
+    min-height: 2rem;
+    flex: 1;
+    border-radius: 0.75rem;
     background-color: #383a40;
-    color: #C5C7CB;
 }
 
+/* text input for chat */
+#chat-input {
+    flex: 1;
+    background: none;
+    border: none;
+    min-height: 1rem;
+    max-height: 32rem;
+    /* height: max-content; */
+    resize: none;
+    color: #C5C7CB;
+    overflow: auto;
+    margin-top: 1rem;
+    /* margin: 1rem; */
+    /* display: flex; */
+    /* justify-content: center; */
+    /* align-items: center; */
+}
+
+/* every button inside chat input */
+.chat-button {
+    background: none;
+    border: none;
+    display: flex;
+    align-items: flex-end;
+}
+
+/* the icon inside every chat input buttons */
+.chat-button-icon {
+    height: 2rem;
+    width: 2rem;
+    background: #a29e9e;
+    margin: 0.5rem;
+    border-radius: 50%;
+    /* this is for the text inside it */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* if cursor is inside any chat input button */
+.chat-button:hover {
+    cursor: pointer;
+}
+
+/* same as above but change color of the icon inside the button too */
+.chat-button:hover>.chat-button-icon {
+    background-color: red;
+}
+
+/* disable outline when typing message */
 #chat-input:focus {
     outline: none;
 }
@@ -269,7 +310,7 @@ body {
     /* padding-left: 1rem; */
     display: flex;
     flex-direction: column;
-    cursor: default;
+    /* cursor: default; */
 
 }
 

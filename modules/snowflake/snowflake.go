@@ -14,10 +14,11 @@ const (
 	serverLength    uint64 = 8                                     // 8
 	serverPos       uint64 = timestampPos - serverLength           // 17
 	incrementLength        = 64 - (timestampLength + serverLength) // 12
-	timestampOffset uint64 = 1704067200000                         // 2024. january 1.
+	// timestampOffset uint64 = 1704067200000                         // 2024. january 1.
 )
 
-var maxTimestamp uint64 = uint64(math.Pow(2, float64(timestampLength))) + timestampOffset // max possible timestamp value possible
+// var maxTimestamp uint64 = uint64(math.Pow(2, float64(timestampLength))) + timestampOffset // max possible timestamp value possible
+var maxTimestamp uint64 = uint64(math.Pow(2, float64(timestampLength))) // max possible timestamp value possible
 
 var lastIncrement, lastTimestamp uint64
 var snowflakeMutex sync.Mutex
@@ -38,7 +39,8 @@ func Generate() uint64 {
 	snowflakeMutex.Lock()
 	defer snowflakeMutex.Unlock()
 
-	var timestamp uint64 = uint64(time.Now().UnixMilli()) - timestampOffset
+	// var timestamp uint64 = uint64(time.Now().UnixMilli()) - timestampOffset
+	var timestamp uint64 = uint64(time.Now().UnixMilli())
 	if timestamp == lastTimestamp {
 		lastIncrement += 1
 	} else {
@@ -58,7 +60,8 @@ func Extract(snowflakeId uint64) (uint64, uint64, uint64) {
 
 func Print(snowflakeId uint64) {
 	timestamp, serverId, increment := Extract(snowflakeId)
-	var realTimestamp = timestamp + timestampOffset
+	// var realTimestamp = timestamp + timestampOffset
+	var realTimestamp = timestamp
 	fmt.Println("-----------------")
 	fmt.Println("Date:", time.UnixMilli(int64(realTimestamp)))
 	fmt.Println("Server timestamp:", timestamp, "/", maxTimestamp)
