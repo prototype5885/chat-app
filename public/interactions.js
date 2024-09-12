@@ -9,16 +9,6 @@ hideMemberListButton.addEventListener('click', function () {
     }
 })
 
-// handles sending message like pressing enter
-// form.addEventListener('submit', (event) => {
-//     event.preventDefault()
-//     if (input.value) {
-//         prepareMessage(input.value, 2002)
-//         input.value = ''
-//     }
-// })
-
-
 // runs whenever the chat input textarea content changes
 const inputArea = document.getElementById('chat-input')
 inputArea.addEventListener('input', () => {
@@ -57,7 +47,7 @@ function readChatInput() {
 
 // create the right click menu on right click, delete existing one beforehand
 document.addEventListener('contextmenu', function (event) {
-    // event.preventDefault()
+    event.preventDefault()
     deleteRightClickMenu()
     createRightClickMenu(event)
 })

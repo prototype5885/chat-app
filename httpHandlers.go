@@ -13,13 +13,13 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 	http.FileServer(http.Dir("./public")).ServeHTTP(w, r)
 }
 
-func wssHandler(hub *Hub, w http.ResponseWriter, r *http.Request) {
+func wssHandler(w http.ResponseWriter, r *http.Request) {
 	printReceivedRequest(r.URL.Path, r.Method)
 
 	// check if the user trying to connect to websocket has token
 	userID, result := checkIfTokenIsValid(r)
 	if result.Success {
-		acceptWsClient(userID, hub, w, r)
+		acceptWsClient(userID, w, r)
 		return
 	}
 	log.Println(result.Message)

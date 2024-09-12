@@ -64,6 +64,7 @@ func (d *Database) createTables() {
 	_, err = d.db.Exec(`CREATE TABLE IF NOT EXISTS users (
 		user_id BIGINT UNSIGNED PRIMARY KEY,
 		username TEXT,
+		profilepic TEXT,
 		password BINARY(60),
 		totp CHAR(32)
 	)`)
@@ -120,6 +121,16 @@ func (d *Database) createTables() {
 		log.Fatal("Error creating tokens table in database:", err)
 		return
 	}
+
+	// profile pictures table
+	_, err = d.db.Exec(`CREATE TABLE IF NOT EXISTS profilepics (
+			hash BINARY(32) PRIMARY KEY,
+			file_name TEXT
+		)`)
+	if err != nil {
+		log.Fatal("Error creating profilepics table in database:", err)
+		return
+	}
 }
 
 func (d *Database) AddChatMessage(messageID uint64, channelID uint64, userID uint64, message string) Result {
@@ -136,22 +147,69 @@ func (d *Database) AddChatMessage(messageID uint64, channelID uint64, userID uin
 	}
 }
 
-func (d *Database) getMessagesFromChannel(channelID uint64) (ServerChatMessages, Result) {
+func (d *Database) GetChatMessageOwner(messageID uint64) (uint64, bool) {
+	log.Printf("Searching for field [user_id] in db table [messages] with message ID [%d]...", messageID)
+	const query string = "SELECT user_id FROM messages WHERE message_id = ?"
+	var userID uint64
+	err := d.db.QueryRow(query, messageID).Scan(&userID)
+	if err != nil {
+		if err == sql.ErrNoRows { // there is no user with this name
+			log.Printf("No message found in messages with ID %d\n", messageID)
+			return 0, false
+		}
+		log.Fatalf("Error getting user ID of the owner of message ID [%d]:%s", messageID, err.Error())
+	}
+	log.Printf("Owner ID of message ID [%d] was confirmed to be: [%d]\n", messageID, userID)
+	return userID, true
+}
+
+func (d *Database) DeleteChatMessage(messageID uint64) bool {
+	log.Printf("Deleting message ID [%d] from db table [messages]...", messageID)
+
+	stmt, err := d.db.Prepare("DELETE FROM messages where message_id = ?")
+	if err != nil {
+		log.Fatalf("Error preparing statement in DeleteChatMessage for message ID [%d]\n", messageID)
+	}
+	defer stmt.Close()
+
+	result, err := stmt.Exec(messageID)
+	if err != nil {
+		log.Fatalf("Error executing statement in DeleteChatMessage for message ID [%d]\n", messageID)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		log.Fatalf("Error getting rowsAffected: %s\n", err.Error())
+	}
+
+	if rowsAffected == 0 {
+		log.Fatalf("Message ID [%d] that was to be deleted was nowhere to be found\n", messageID)
+	} else if rowsAffected != 0 && rowsAffected != 1 {
+		log.Fatalf("Multiple messages with same ID [%d] were found and deleted\n", messageID)
+	}
+	// successfully deleted
+	return true
+}
+
+func (d *Database) GetMessagesFromChannel(channelID uint64) (ServerChatMessages, Result) {
 	const query string = "SELECT * FROM messages WHERE channel_id = ?"
 
 	rows, err := d.db.Query(query, channelID)
 	if err != nil {
-		if err == sql.ErrNoRows { // there is no channel with given id
-			return ServerChatMessages{}, Result{
-				Success: false,
-				Message: fmt.Sprintf("No channel found with given ID: %d\n", channelID),
-			}
-		}
+		// if err == sql.ErrNoRows { // there is no channel with given id
+		// 	return ServerChatMessages{}, Result{
+		// 		Success: false,
+		// 		Message: fmt.Sprintf("No messages found on channel ID: %d\n", channelID),
+		// 	}
+		// }
 		fatalWithID(channelID, "Error searching for messages in channel ID", err.Error())
 	}
 
 	var messages = ServerChatMessages{}
+
+	var counter int = 0
 	for rows.Next() {
+		counter++
 		var message ServerChatMessage = ServerChatMessage{
 			Username: "test",
 		}
@@ -161,6 +219,14 @@ func (d *Database) getMessagesFromChannel(channelID uint64) (ServerChatMessages,
 		}
 		messages.Messages = append(messages.Messages, message)
 	}
+
+	if counter == 0 {
+		return messages, Result{
+			Success: false,
+			Message: fmt.Sprintf("No messages found on channel ID: %d", channelID),
+		}
+	}
+
 	successWithID(channelID, "Messages from channel ID were retrieved")
 	return messages, Result{
 		Success: true,

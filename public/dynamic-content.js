@@ -113,17 +113,16 @@ function rightClickMenuItemPressed(action, event, type) { // when something in r
         }
     }
     else if (type === 'message') {
-        const messageID = event.target.closest('.msg').id // find parent with msg class
+        const messageID = BigInt(event.target.closest('.msg').id) // find parent with msg class
         switch (action.class) {
             case 'delete-message':
-                // messages.removeChild(messageID) // delete it
-                deleteChatMessage(messageID)
+                requestChatMessageDeletion(messageID)
                 break
         }
     }
 }
-// end -- right click menu
-// start -- chat message
+
+// adds the new chat message into html
 function addChatMessage(messageID, channelID, userID, username, message) {
     // extract the message date from messageID
     const msgDate = new Date(Number((BigInt(messageID) >> BigInt(20)))).toLocaleString()
@@ -188,8 +187,7 @@ function deleteChatMessage(messageID) {
     document.getElementById(messageID).remove()
     console.log('Deleting message id ' + messageID)
 }
-// end -- chat message
-// start -- add member to group chat member list or friend list
+
 function addMember(id, where) {
     // create a <li> that holds the user
     const li = document.createElement('li')
@@ -232,7 +230,6 @@ function addMember(id, where) {
     // if (where == '')
     memberList.appendChild(li)
 }
-// end -- add member to group chat member list or friend list
 
 function addServer(serverID, ownerID, serverName) {
     const button = document.createElement('button')

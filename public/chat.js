@@ -6,7 +6,7 @@ wsClient.binaryType = 'arraybuffer';
 
 wsClient.onopen = function (_event) {
     console.log('Connected to WebSocket successfully.');
-    requestChatHistory(2002)
+    requestChatHistory('2002')
 };
 
 // when server sends a message
@@ -35,16 +35,23 @@ wsClient.onmessage = function (event) {
                 behavior: 'smooth'
             })
             break
-        case 11: // server sent the requested chat history
+        case 2: // server sent the requested chat history
             const history = JSON.parse(packetJson)
+            if (history.Messages === null) {
+                console.log('Chat history is empty')
+                return
+            }
             for (let i = 0; i < history.Messages.length; i++) {
-                console.log(history.Messages[i].Message)
                 addChatMessage(BigInt(history.Messages[i].MessageID), BigInt(history.Messages[i].ChannelID), BigInt(history.Messages[i].UserID), history.Messages[i].Username, history.Messages[i].Message)
             }
             messages.scrollTo({
                 top: messages.scrollHeight,
                 behavior: 'instant'
             })
+            break
+        case 3: // server sent which message was deleted
+            const messageToDelete = JSON.parse(packetJson)
+            deleteChatMessage(messageToDelete.MessageID)
             break
         case 21: // server sent information of newly added chat server
             const server = JSON.parse(packetJson)
@@ -86,13 +93,18 @@ function preparePacket(type, struct) {
 
 function sendChatMessage(message, channelID) { // type is 1
     preparePacket(1, {
-        ChanID: channelID.toString(),
-        Msg: message
+        ChannelID: channelID.toString(),
+        Message: message
     })
 }
 function requestChatHistory(channelID) {
-    preparePacket(11, {
+    preparePacket(2, {
         ChannelID: channelID
+    })
+}
+function requestChatMessageDeletion(messageID) {
+    preparePacket(3, {
+        MessageID: messageID.toString()
     })
 }
 function requestAddServer(serverName) {

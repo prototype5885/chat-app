@@ -1,9 +1,8 @@
 [Dolphin]
-HeaderColumnWidths=1087,70,140,134
-Timestamp=2024,8,1,20,29,59.636
+Timestamp=2024,9,12,9,20,52.551
 Version=4
 ViewMode=1
-VisibleRoles=Details_text,Details_size,Details_modificationtime,Details_type,CustomizedDetails
+VisibleRoles=CustomizedDetails,Details_text,Details_size,Details_modificationtime
 
 [Settings]
 HiddenFilesShown=true

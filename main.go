@@ -13,10 +13,6 @@ func main() {
 
 	setupLogging(config.LogInFile)
 
-	// snowflake.SetSnowflakeServerID(0)
-
-	// snowflake.Print(snowflake.Generate())
-
 	// database
 	if config.Sqlite {
 		database.ConnectSqlite()
@@ -24,15 +20,10 @@ func main() {
 		database.ConnectMariadb(config.Username, config.Password, config.Address, strconv.Itoa(int(config.Port)), config.DatabaseName)
 	}
 
-	// var serverID uint64 = 22913936297820160
-	// database.AddServer(serverID, 123)
-	// database.AddChannel(2002, serverID)
-
 	// websocket
-	var hub *Hub = newHub()
-	go hub.run()
+	go pingClients()
 	http.HandleFunc("/wss", func(w http.ResponseWriter, r *http.Request) {
-		wssHandler(hub, w, r)
+		wssHandler(w, r)
 	})
 
 	// http.HandleFunc("GET /wss", wssHandler)
