@@ -1,17 +1,18 @@
 
 const messages = document.getElementById('chat-message-list')
 
-const wsClient = new WebSocket('wss://' + window.location.host + "/wss");
-wsClient.binaryType = 'arraybuffer';
+const wsClient = new WebSocket('wss://' + window.location.host + "/wss")
+wsClient.binaryType = 'arraybuffer'
 
 wsClient.onopen = function (_event) {
-    console.log('Connected to WebSocket successfully.');
+    console.log('Connected to WebSocket successfully.')
+    requestServerList()
     requestChatHistory('2002')
-};
+}
 
 // when server sends a message
 wsClient.onmessage = function (event) {
-    const receivedBytes = new Uint8Array(event.data);
+    const receivedBytes = new Uint8Array(event.data)
 
     // convert the first 4 bytes into uint32 to get the endIndex,
     // which marks the end of the packet
@@ -22,7 +23,7 @@ wsClient.onmessage = function (event) {
     const packetType = receivedBytes[4]
 
     // get the json string from the 6th byte to the end
-    const packetJson = String.fromCharCode.apply(null, receivedBytes.slice(5, endIndex));
+    const packetJson = String.fromCharCode.apply(null, receivedBytes.slice(5, endIndex))
 
     console.log('Received packet:', endIndex, packetType, packetJson)
 
@@ -62,13 +63,18 @@ wsClient.onmessage = function (event) {
 
 function preparePacket(type, struct) {
     if (wsClient.readyState === WebSocket.OPEN) {
+        const json = JSON.stringify(struct)
         // convert the type value into a single byte value that will be the packet type
         const typeByte = new Uint8Array([1])
         typeByte[0] = type
 
         // serialize the struct into json then convert to byte array
-        const json = JSON.stringify(struct)
-        const jsonBytes = new TextEncoder().encode(json)
+        var jsonBytes
+        if (struct != null) {
+            jsonBytes = new TextEncoder().encode(json)
+        } else {
+            jsonBytes = new Uint8Array([0])
+        }
 
         // convert the end index uint32 value into 4 bytes
         const endIndex = jsonBytes.length + 5
@@ -84,7 +90,7 @@ function preparePacket(type, struct) {
 
         console.log('Prepared packet:', endIndex, packet[4], json)
 
-        wsClient.send(packet);
+        wsClient.send(packet)
     }
     else {
         console.log("Websocket is not open")
@@ -111,4 +117,8 @@ function requestAddServer(serverName) {
     preparePacket(21, {
         Name: serverName
     })
+}
+
+function requestServerList() {
+    preparePacket(22, null)
 }

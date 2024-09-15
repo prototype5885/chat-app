@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -22,11 +23,17 @@ func main() {
 
 	// websocket
 	go pingClients()
-	http.HandleFunc("/wss", func(w http.ResponseWriter, r *http.Request) {
+
+	var wsType string
+	if config.TLS {
+		wsType = "/wss"
+	} else {
+		wsType = "/ws"
+	}
+	http.HandleFunc(wsType, func(w http.ResponseWriter, r *http.Request) {
 		wssHandler(w, r)
 	})
 
-	// http.HandleFunc("GET /wss", wssHandler)
 	http.HandleFunc("GET /login-register.html", loginRegisterHandler)
 	http.HandleFunc("GET /chat.html", chatHandler)
 
@@ -35,11 +42,23 @@ func main() {
 
 	http.HandleFunc("/", mainHandler)
 
-	const certFile = "./sslcert/selfsigned.crt"
-	const keyFile = "./sslcert/selfsigned.key"
+	var address string
+	if config.LocalhostOnly {
+		address = fmt.Sprintf("%s:%d", "127.0.0.1", config.Port)
+	} else {
+		address = fmt.Sprintf("%s:%d", "0.0.0.0", config.Port)
+	}
 
-	log.Println("Listening on port 3000")
-	if err := http.ListenAndServeTLS(":3000", certFile, keyFile, nil); err != nil {
-		log.Fatal("Error starting server:", err)
+	log.Printf("Listening on port %d", config.Port)
+	if config.TLS {
+		const certFile = "./sslcert/cert.crt"
+		const keyFile = "./sslcert/key.key"
+		if err := http.ListenAndServeTLS(address, certFile, keyFile, nil); err != nil {
+			log.Panic("Error starting TLS server:", err)
+		}
+	} else {
+		if err := http.ListenAndServe(address, nil); err != nil {
+			log.Panic("Error starting server:", err)
+		}
 	}
 }

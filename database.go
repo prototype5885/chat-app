@@ -32,13 +32,13 @@ func (d *Database) ConnectSqlite() {
 	//os.Remove("./database/database.db")
 
 	if err := os.MkdirAll("database", os.ModePerm); err != nil {
-		log.Fatal("Error creating database folder:", err)
+		log.Panic("Error creating sqlite database folder:", err)
 	}
 
 	var err error
 	d.db, err = sql.Open("sqlite", "./database/database.db")
 	if err != nil {
-		log.Fatal("Error opening sqlite file:", err)
+		log.Panic("Error opening sqlite file:", err)
 	}
 
 	d.db.SetMaxOpenConns(1)
@@ -51,7 +51,7 @@ func (d *Database) ConnectMariadb(username string, password string, address stri
 	var err error
 	d.db, err = sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", username, password, address, port, dbName))
 	if err != nil {
-		log.Fatal("Error opening mariadb connection:", err)
+		log.Panic("Error opening mariadb connection:", err)
 	}
 
 	d.db.SetMaxOpenConns(100)
@@ -69,7 +69,7 @@ func (d *Database) createTables() {
 		totp CHAR(32)
 	)`)
 	if err != nil {
-		log.Fatal("Error creating users table in database:", err)
+		log.Panic("Error creating users table in database:", err)
 		return
 	}
 
@@ -81,7 +81,7 @@ func (d *Database) createTables() {
 			FOREIGN KEY (owner_id) REFERENCES users(user_id)
 		)`)
 	if err != nil {
-		log.Fatal("Error creating server table in database:", err)
+		log.Panic("Error creating server table in database:", err)
 		return
 	}
 
@@ -93,7 +93,7 @@ func (d *Database) createTables() {
 			FOREIGN KEY (server_id) REFERENCES servers(server_id)
 		)`)
 	if err != nil {
-		log.Fatal("Error creating channels table in database:", err)
+		log.Panic("Error creating channels table in database:", err)
 		return
 	}
 
@@ -106,7 +106,7 @@ func (d *Database) createTables() {
 		FOREIGN KEY (channel_id) REFERENCES channels(channel_id)
 	)`)
 	if err != nil {
-		log.Fatal("Error creating messages table in database:", err)
+		log.Panic("Error creating messages table in database:", err)
 		return
 	}
 
@@ -118,7 +118,7 @@ func (d *Database) createTables() {
 		FOREIGN KEY (user_id) REFERENCES users(user_id)
 	)`)
 	if err != nil {
-		log.Fatal("Error creating tokens table in database:", err)
+		log.Panic("Error creating tokens table in database:", err)
 		return
 	}
 
@@ -128,23 +128,19 @@ func (d *Database) createTables() {
 			file_name TEXT
 		)`)
 	if err != nil {
-		log.Fatal("Error creating profilepics table in database:", err)
+		log.Panic("Error creating profilepics table in database:", err)
 		return
 	}
 }
 
-func (d *Database) AddChatMessage(messageID uint64, channelID uint64, userID uint64, message string) Result {
+func (d *Database) AddChatMessage(messageID uint64, channelID uint64, userID uint64, message string) {
 	printWithID(userID, "Adding chat message into database...")
 	const query string = "INSERT INTO messages (message_id, channel_id, user_id, Message) VALUES (?, ?, ?, ?)"
 	_, err := d.db.Exec(query, messageID, channelID, userID, message)
 	if err != nil {
-		fatalWithID(userID, "Error adding chat message ID ["+strconv.FormatUint(messageID, 10)+"] into database:", err.Error())
+		panicWithID(userID, "Error adding chat message ID ["+strconv.FormatUint(messageID, 10)+"] into database:", err.Error())
 	}
 	successWithID(userID, "Added chat message ID ["+strconv.FormatUint(messageID, 10)+"] into database")
-	return Result{
-		Success: true,
-		Message: "",
-	}
 }
 
 func (d *Database) GetChatMessageOwner(messageID uint64) (uint64, bool) {
@@ -157,41 +153,39 @@ func (d *Database) GetChatMessageOwner(messageID uint64) (uint64, bool) {
 			log.Printf("No message found in messages with ID %d\n", messageID)
 			return 0, false
 		}
-		log.Fatalf("Error getting user ID of the owner of message ID [%d]:%s", messageID, err.Error())
+		log.Panicf("Error getting user ID of the owner of message ID [%d]:%s", messageID, err.Error())
 	}
 	log.Printf("Owner ID of message ID [%d] was confirmed to be: [%d]\n", messageID, userID)
 	return userID, true
 }
 
-func (d *Database) DeleteChatMessage(messageID uint64) bool {
+func (d *Database) DeleteChatMessage(messageID uint64) {
 	log.Printf("Deleting message ID [%d] from db table [messages]...", messageID)
 
 	stmt, err := d.db.Prepare("DELETE FROM messages where message_id = ?")
 	if err != nil {
-		log.Fatalf("Error preparing statement in DeleteChatMessage for message ID [%d]\n", messageID)
+		log.Panicf("Error preparing statement in DeleteChatMessage for message ID [%d]\n", messageID)
 	}
 	defer stmt.Close()
 
 	result, err := stmt.Exec(messageID)
 	if err != nil {
-		log.Fatalf("Error executing statement in DeleteChatMessage for message ID [%d]\n", messageID)
+		log.Panicf("Error executing statement in DeleteChatMessage for message ID [%d]\n", messageID)
 	}
 
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		log.Fatalf("Error getting rowsAffected: %s\n", err.Error())
+		log.Panicf("Error getting rowsAffected: %s\n", err.Error())
 	}
 
 	if rowsAffected == 0 {
-		log.Fatalf("Message ID [%d] that was to be deleted was nowhere to be found\n", messageID)
+		log.Panicf("Message ID [%d] that was to be deleted was nowhere to be found\n", messageID)
 	} else if rowsAffected != 0 && rowsAffected != 1 {
-		log.Fatalf("Multiple messages with same ID [%d] were found and deleted\n", messageID)
+		log.Panicf("Multiple messages with same ID [%d] were found and deleted\n", messageID)
 	}
-	// successfully deleted
-	return true
 }
 
-func (d *Database) GetMessagesFromChannel(channelID uint64) (ServerChatMessages, Result) {
+func (d *Database) GetMessagesFromChannel(channelID uint64) (ServerChatMessages, bool) {
 	const query string = "SELECT * FROM messages WHERE channel_id = ?"
 
 	rows, err := d.db.Query(query, channelID)
@@ -202,7 +196,7 @@ func (d *Database) GetMessagesFromChannel(channelID uint64) (ServerChatMessages,
 		// 		Message: fmt.Sprintf("No messages found on channel ID: %d\n", channelID),
 		// 	}
 		// }
-		fatalWithID(channelID, "Error searching for messages in channel ID", err.Error())
+		panicWithID(channelID, "Error searching for messages in channel ID", err.Error())
 	}
 
 	var messages = ServerChatMessages{}
@@ -215,51 +209,42 @@ func (d *Database) GetMessagesFromChannel(channelID uint64) (ServerChatMessages,
 		}
 		err := rows.Scan(&message.MessageID, &message.ChannelID, &message.UserID, &message.Message)
 		if err != nil {
-			log.Fatal("Error scanning message row into struct")
+			log.Panic("Error scanning message row into struct")
 		}
 		messages.Messages = append(messages.Messages, message)
 	}
 
 	if counter == 0 {
-		return messages, Result{
-			Success: false,
-			Message: fmt.Sprintf("No messages found on channel ID: %d", channelID),
-		}
+		log.Printf("No messages found on channel ID: [%d]\n", channelID)
+		return messages, false
 	}
 
 	successWithID(channelID, "Messages from channel ID were retrieved")
-	return messages, Result{
-		Success: true,
-		Message: "",
-	}
+	return messages, true
 }
 
-func (d *Database) AddServer(server Server) Result {
+func (d *Database) AddServer(server Server) {
 	printWithID(server.ServerID, "Adding server into database...")
 	const query string = "INSERT INTO servers (server_id, owner_id, name) VALUES (?, ?, ?)"
 	_, err := d.db.Exec(query, server.ServerID, server.ServerOwnerID, server.ServerName)
 	if err != nil {
-		fatalWithID(server.ServerID, "Error adding server into database:", err.Error())
+		panicWithID(server.ServerID, "Error adding server into database:", err.Error())
 	}
 	successWithID(server.ServerID, "Added server into database")
-	return Result{
-		Success: true,
-		Message: "",
-	}
 }
 
-func (d *Database) AddChannel(channelID uint64, serverID uint64) Result {
+func (d *Database) GetServerList(server Server, userID uint64) {
+
+}
+
+func (d *Database) AddChannel(channelID uint64, serverID uint64) {
 	printWithID(channelID, "Adding channel into database...")
 	const query string = "INSERT INTO channels (channel_id, server_id) VALUES (?, ?)"
 	_, err := d.db.Exec(query, channelID, serverID)
 	if err != nil {
-		fatalWithID(channelID, "Error adding channel into database:", err.Error())
+		panicWithID(channelID, "Error adding channel into database:", err.Error())
 	}
 	successWithID(channelID, "Added channel into database")
-	return Result{
-		Success: true,
-		Message: "",
-	}
 }
 
 // func (d *Database) getChannel(channelID uint64) (Channel, Result) {
@@ -275,7 +260,7 @@ func (d *Database) AddChannel(channelID uint64, serverID uint64) Result {
 // 				Message: noUserIdFoundText(userIDArgs),
 // 			}
 // 		} else {
-// 			log.Fatalf("%s: Error executing SELECT query: %s\n", userIDArgs, err)
+// 			log.Panicf("%s: Error executing SELECT query: %s\n", userIDArgs, err)
 // 			return channel, Result{
 // 				Success: false,
 // 				Message: "FATAL: Error searching for channel in database",
@@ -294,7 +279,7 @@ func (d *Database) RegisterNewUser(userId uint64, username string, passwordHash 
 	const query string = "INSERT INTO users (user_id, username, password, totp) VALUES (?, ?, ?, ?)"
 	_, err := d.db.Exec(query, userId, username, passwordHash, totpSecret)
 	if err != nil {
-		fatalWithName(username, "Error registering new user into database", err.Error())
+		panicWithName(username, "Error registering new user into database", err.Error())
 	}
 	successWithName(username, "Registered user into database")
 	return Result{
@@ -315,7 +300,7 @@ func (d *Database) GetUserID(username string) (uint64, Result) {
 				Message: noUsernameFoundText(username),
 			}
 		}
-		fatalWithName(username, "Error getting user ID of username from database", err.Error())
+		panicWithName(username, "Error getting user ID of username from database", err.Error())
 	}
 	successWithName(username, "User ID of username was retrieved from database")
 	// log.Println(successText("User ID of user [" + username + "] was retrieved from database"))
@@ -326,7 +311,7 @@ func (d *Database) GetUserID(username string) (uint64, Result) {
 }
 
 func (d *Database) GetUsername(userID uint64) (string, Result) {
-	printWithID(userID, "Searching for field [username] in database...")
+	log.Printf("Searching for field [username] in database using user ID [%d]...", userID)
 	const query string = "SELECT username FROM users WHERE user_id = ?"
 	var userName string
 	err := d.db.QueryRow(query, userID).Scan(&userName)
@@ -337,9 +322,9 @@ func (d *Database) GetUsername(userID uint64) (string, Result) {
 				Message: noUserIdFoundText(userID),
 			}
 		}
-		fatalWithID(userID, "Error getting username of user ID from database", err.Error())
+		log.Panicf("Error getting username of user ID [%d] from database, reason: %s\n", userID, err.Error())
 	}
-	successWithID(userID, "Username of user ID was retrieved from database")
+	log.Printf("Username of user ID [%d] was retrieved from database successfully", userID)
 	return userName, Result{
 		Success: true,
 		Message: "",
@@ -360,7 +345,7 @@ func (d *Database) GetPassword(userID uint64) ([]byte, Result) {
 				Message: noUserIdFoundText(userID),
 			}
 		}
-		fatalWithID(userID, "Error getting password of user ID from database", err.Error())
+		panicWithID(userID, "Error getting password of user ID from database", err.Error())
 	}
 	successWithID(userID, "Password of user ID was retrieved from database")
 	return passwordHash, Result{
@@ -369,23 +354,20 @@ func (d *Database) GetPassword(userID uint64) ([]byte, Result) {
 	}
 }
 
-func (d *Database) AddToken(token Token) Result {
+func (d *Database) AddToken(token Token) {
 	printWithID(token.UserID, "Adding new token into database...")
 
 	const query string = "INSERT INTO tokens (token, user_id, expiration) VALUES (?, ?, ?)"
 
 	_, err := d.db.Exec(query, token.Token, token.UserID, token.Expiration)
 	if err != nil {
-		fatalWithID(token.UserID, "Error adding new token for user ID into database", err.Error())
+		panicWithID(token.UserID, "Error adding new token for user ID into database", err.Error())
 	}
 	successWithID(token.UserID, "Added a new token for user ID into database")
-	return Result{
-		Success: true,
-		Message: "",
-	}
+
 }
 
-func (d *Database) GetToken(tokenBytes []byte) (Token, Result) {
+func (d *Database) GetToken(tokenBytes []byte) (Token, bool) {
 	log.Println("Searching for token in database...")
 
 	const query string = "SELECT * FROM tokens WHERE token = ?"
@@ -396,18 +378,13 @@ func (d *Database) GetToken(tokenBytes []byte) (Token, Result) {
 	err := d.db.QueryRow(query, tokenBytes).Scan(&token.Token, &token.UserID, &text)
 	if err != nil {
 		if err == sql.ErrNoRows { // token was not found
-			return Token{}, Result{
-				Success: false,
-				Message: "Token was not found in database",
-			}
+			log.Printf("Given token was not found in database: [%s]\n", hex.EncodeToString(tokenBytes))
+			return Token{}, false
 		}
-		log.Fatal("Error retrieving given token from database: " + err.Error())
+		log.Panic("Error retrieving given token from database: " + err.Error())
 	}
-	successWithName(hex.EncodeToString(tokenBytes), "Given token was found in database")
-	return token, Result{
-		Success: true,
-		Message: "",
-	}
+	log.Printf("Given token was successfully found in database: [%s]\n", hex.EncodeToString(tokenBytes))
+	return token, true
 }
 
 // func getUserRowDB(userIDArgs uint64) (uint64, string, string, string, string, Result) {
@@ -429,10 +406,10 @@ func (d *Database) GetToken(tokenBytes []byte) (Token, Result) {
 // 				Message: noUserIdFoundText(userIDArgs),
 // 			}
 // 		} else {
-// 			log.Fatalf("%s: Error executing SELECT query: %s\n", userIDArgs, err)
+// 			log.Panicf("%s: Error executing SELECT query: %s\n", userIDArgs, err)
 // 			return 0, "", "", "", "", Result{
 // 				Success: false,
-// 				Message: "FATAL: Error searching for user in database",
+// 				Message: "PANIC: Error searching for user in database",
 // 			}
 // 		}
 // 	}

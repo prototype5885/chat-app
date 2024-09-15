@@ -35,12 +35,12 @@ func successWithID(userID uint64, text string) {
 	log.Printf("[%d], SUCCESS: %s\n", userID, text)
 }
 
-func fatalWithName(username string, text string, err string) {
-	log.Fatalf("[%s]: %s: %s\n", username, text, err)
+func panicWithName(username string, text string, err string) {
+	log.Panicf("[%s]: %s: %s\n", username, text, err)
 }
 
-func fatalWithID(userID uint64, text string, err string) {
-	log.Fatalf("[%d]: %s: %s\n", userID, text, err)
+func panicWithID(userID uint64, text string, err string) {
+	log.Panicf("[%d]: %s: %s\n", userID, text, err)
 }
 
 func noUserIdFoundText(userID uint64) string {
@@ -60,11 +60,11 @@ func setupLogging(logInFile bool) {
 	if logInFile {
 		err := os.MkdirAll("logs", fs.FileMode(os.ModePerm))
 		if err != nil {
-			log.Fatal("Error creating log folder:", err)
+			log.Panic("Error creating log folder:", err)
 		}
 		file, err := os.OpenFile("./logs/protochat.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
 		if err != nil {
-			log.Fatal("Error opening log file:", err)
+			log.Panic("Error opening log file:", err)
 		}
 		log.SetOutput(file)
 	}
@@ -93,22 +93,17 @@ func readConfigFile() ConfigFile {
 	return config
 }
 
-func findCookie(cookies []*http.Cookie, cookieName string) (http.Cookie, Result) {
+func findCookie(cookies []*http.Cookie, cookieName string) (http.Cookie, bool) {
 	log.Printf("Searching for cookie called: %s...\n", cookieName)
 
 	for _, cookie := range cookies {
-		// log.Printf("Cookie: %s=%s\n", cookie.Name, cookie.Value)
+		log.Printf("Cookie: %s=%s\n", cookie.Name, cookie.Value)
 		if cookie.Name == cookieName {
-			return *cookie, Result{
-				Success: true,
-				Message: "",
-			}
+			return *cookie, true
 		}
 	}
-	return http.Cookie{}, Result{
-		Success: false,
-		Message: "No cookie with the following name was found: " + cookieName,
-	}
+	log.Printf("No cookie with the following name was found: [%s]\n", cookieName)
+	return http.Cookie{}, false
 }
 
 func loginOrRegister(bodyBytes []byte, pathURL string) (http.Cookie, Result) {
@@ -147,26 +142,24 @@ func loginOrRegister(bodyBytes []byte, pathURL string) (http.Cookie, Result) {
 		userID, logRegResult = loginUser(loginData.Username, passwordBytes)
 	} else {
 		// this is not supposed to happen ever
-		fatalWithName(loginData.Username, "Invalid path URL:"+pathURL, "")
+		panicWithName(loginData.Username, "Invalid path URL:"+pathURL, "")
 	}
 
-	// generate token if login or registration was success, otherwise it will remain empty
+	// generate token if login or registration was success,
+	// otherwise it will remain empty as it won't be needed
 	var cookie http.Cookie
 	if logRegResult.Success {
-		token, tokenResult := newToken(userID)
-		if !tokenResult.Success {
-			fatalWithName(loginData.Username, "Error generating token", tokenResult.Message)
-		} else {
-			cookie = http.Cookie{
-				Name:     "token",
-				Value:    hex.EncodeToString(token.Token),
-				Path:     "/",
-				HttpOnly: true,
-				SameSite: http.SameSiteStrictMode,
-				Secure:   true,
-				Expires:  time.Unix(int64(token.Expiration), 0),
-			}
+		var token Token = newToken(userID)
+		cookie = http.Cookie{
+			Name:     "token",
+			Value:    hex.EncodeToString(token.Token),
+			Path:     "/",
+			HttpOnly: true,
+			SameSite: http.SameSiteStrictMode,
+			Secure:   true,
+			Expires:  time.Unix(int64(token.Expiration), 0),
 		}
+
 	}
 	printWithID(userID, logRegResult.Message)
 	return cookie, logRegResult
@@ -267,7 +260,7 @@ func loginUser(username string, passwordBytes []byte) (uint64, Result) {
 	}
 }
 
-func generateTOTP(userID uint64) (string, Result) {
+func generateTOTP(userID uint64) string {
 	printWithID(userID, "Generating TOTP secret key...")
 
 	totpKey, err := totp.Generate(totp.GenerateOpts{
@@ -275,29 +268,19 @@ func generateTOTP(userID uint64) (string, Result) {
 		Issuer:      "ProToType",
 	})
 	if err != nil {
-		log.Fatal(err)
-		//return "", Result{
-		//	Success: false,
-		//	Message: "Error generating TOTP secret key",
-		//}
+		log.Panic("Error generating TOTP:", err)
 	}
-	return totpKey.Secret(), Result{
-		Success: true,
-		Message: "TOTP secret key generated",
-	}
+	return totpKey.Secret()
 }
 
-func newToken(userID uint64) (Token, Result) {
+func newToken(userID uint64) Token {
 	printWithID(userID, "Generating new token...")
 
 	// generate new token
 	var tokenBytes []byte = make([]byte, 32)
 	_, err := io.ReadFull(rand.Reader, tokenBytes)
 	if err != nil {
-		return Token{}, Result{
-			Success: false,
-			Message: err.Error(),
-		}
+		log.Panicf("Error generating token for user ID [%d], reason: %s\n", userID, err.Error())
 	}
 
 	var tokenRow = Token{
@@ -307,42 +290,33 @@ func newToken(userID uint64) (Token, Result) {
 	}
 
 	// add the newly generated token into the database
-	result := database.AddToken(tokenRow)
-	if !result.Success {
-		return Token{}, result
-	}
+	database.AddToken(tokenRow)
 
 	// return the new token
-	return tokenRow, Result{
-		Success: true,
-		Message: "Successfully generated and added new token",
-	}
+	return tokenRow
 }
 
-func checkIfTokenIsValid(r *http.Request) (uint64, Result) {
+func checkIfTokenIsValid(r *http.Request) (uint64, bool) {
 	log.Println("Checking if received token is valid...")
 
-	cookieToken, cookieResult := findCookie(r.Cookies(), "token")
-	if cookieResult.Success { // if user has a token
+	cookieToken, found := findCookie(r.Cookies(), "token")
+	if found { // if user has a token
 		// decode to bytes
 		tokenBytes, err := hex.DecodeString(cookieToken.Value)
 		if err != nil {
 			log.Println("Error decoding token from cookie to byte array:", err.Error())
-			return 0, Result{
-				Success: false,
-				Message: "",
-			}
+			return 0, false
 		}
 
 		// check if token exists in the database
-		token, result := database.GetToken(tokenBytes)
-		if result.Success {
-			return token.UserID, result
+		token, found := database.GetToken(tokenBytes)
+		if !found {
+			return 0, false
 		} else {
-			return 0, result
+			return token.UserID, true
 		}
 	}
-	return 0, cookieResult
+	return 0, false
 }
 
 func preparePacket(typeByte byte, jsonBytes []byte) []byte {

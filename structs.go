@@ -1,13 +1,15 @@
 package main
 
 type ConfigFile struct {
-	Sqlite       bool
-	LogInFile    bool
-	Username     string
-	Password     string
-	Address      string
-	Port         uint
-	DatabaseName string
+	Sqlite        bool
+	TLS           bool
+	LocalhostOnly bool
+	LogInFile     bool
+	Username      string
+	Password      string
+	Address       string
+	Port          uint32
+	DatabaseName  string
 }
 
 type Result struct {

@@ -2,8 +2,9 @@ body {
     display: flex;
     margin: 0;
     height: 100vh;
-    /* font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; */
-    font-family: "gg sans", "Noto Sans", "Helvetica Neue", Helvetica, Arial, sans-serif, "Apple Symbols";
+
+    font-family: Roboto, Helvetica, Arial, sans-serif;
+    /* font-family: "gg sans", "Noto Sans", "Helvetica Neue", Helvetica, Arial, sans-serif, "Apple Symbols"; */
     font-size: 14px;
     /* overflow: hidden; */
     color: #C5C7CB;
@@ -15,10 +16,7 @@ body {
     background-color: #1E1F22;
     display: flex;
     flex-direction: column;
-    /* justify-content: baseline; */
     align-items: center;
-    /* overflow-y: auto; */
-    /* overflow-block: auto; */
     padding: 0.7rem 0;
 }
 
