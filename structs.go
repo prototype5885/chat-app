@@ -24,15 +24,16 @@ type Token struct {
 }
 
 type Server struct {
-	ServerID      uint64
-	ServerOwnerID uint64
-	ServerName    string
+	ServerID uint64
+	OwnerID  uint64
+	Name     string
+	Picture  string
 }
 
 type Channel struct {
-	ChannelID   uint64
-	ServerID    uint64
-	ChannelName string
+	ChannelID uint64
+	ServerID  uint64
+	Name      string
 }
 
 type ServerChatMessage struct {
@@ -43,6 +44,8 @@ type ServerChatMessage struct {
 	Message   string
 }
 
-type ServerChatMessages struct {
-	Messages []ServerChatMessage
+type ServerForClient struct { // this is whats sent to the client when client requests server list
+	ServerID uint64
+	Name     string
+	Picture  string
 }

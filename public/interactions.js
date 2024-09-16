@@ -34,7 +34,7 @@ inputArea.addEventListener('keydown', function (event) {
 const sendButton = document.getElementById('send-button')
 sendButton.addEventListener('click', () => {
     readChatInput()
-});
+})
 
 // read the text message for sending
 function readChatInput() {
@@ -43,6 +43,19 @@ function readChatInput() {
         inputArea.value = ''
         resizeChatInput()
     }
+}
+
+// when clicking on any server button on the left
+function listenServerButtonsClick(button) {
+    button.addEventListener('click', () => {
+        console.log('Clicked:', button.id)
+    })
+}
+
+function listenChannelButtonsClick(button) {
+    button.addEventListener('click', () => {
+        console.log('clicked:', button.id)
+    })
 }
 
 // create the right click menu on right click, delete existing one beforehand
@@ -61,4 +74,4 @@ document.addEventListener('click', function () {
 const addServerButton = document.getElementById('add-server-button')
 addServerButton.addEventListener('click', () => {
     requestAddServer('test server')
-});
+})

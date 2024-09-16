@@ -56,8 +56,18 @@ wsClient.onmessage = function (event) {
             break
         case 21: // server sent information of newly added chat server
             const server = JSON.parse(packetJson)
-            addServer(BigInt(server.ServerID), BigInt(server.ServerOwnerID), server.ServerName)
+            addServer(BigInt(server.ServerID), server.Name)
             break
+        case 22: // server sent the requested server list
+            const servers = JSON.parse(packetJson)
+            if (servers.Servers == null) {
+                console.log("Not being in any servers")
+                break
+            }
+            for (let i = 0; i < servers.Servers.length; i++) {
+                addServer(BigInt(servers.Servers[i].ServerID), servers.Servers[i].Name)
+            }
+            
     }
 }
 

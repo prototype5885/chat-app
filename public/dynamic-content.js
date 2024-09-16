@@ -1,19 +1,10 @@
-const chatNameColor = '#e7e7e7'
+
 const grey1 = '#949BA4'
 
 // start -- right click menu
 function createRightClickMenu(event) {
-    // create the right click menu
-    const rightClickMenu = document.createElement('div')
-    rightClickMenu.className = 'right-click-menu'
-    document.body.appendChild(rightClickMenu)
-
-    // create ul that holds the menu items
-    let ul = document.createElement('ul')
-    rightClickMenu.appendChild(ul)
-
     let type
-    let actions
+    let actions // this will hold the list of actions in the right click menu
     switch (event.target.className) {
         // if right-clicking on user from a friend/member list
         case 'user':
@@ -43,8 +34,17 @@ function createRightClickMenu(event) {
                 { text: 'Action 2', class: 'none' },
                 { text: 'Action 3', class: 'none' }
             ]
-            break
+            // return
     }
+
+    // create the right click menu
+    const rightClickMenu = document.createElement('div')
+    rightClickMenu.className = 'right-click-menu'
+    document.body.appendChild(rightClickMenu)
+
+    // create ul that holds the menu items
+    let ul = document.createElement('ul')
+    rightClickMenu.appendChild(ul)
 
     // add a menu item for each action
     actions.forEach(function (action) {
@@ -127,65 +127,27 @@ function addChatMessage(messageID, channelID, userID, username, message) {
     // extract the message date from messageID
     const msgDate = new Date(Number((BigInt(messageID) >> BigInt(20)))).toLocaleString()
 
-    // create a <li> that holds the message
-    const li = document.createElement('li')
-    li.className = 'msg'
-    li.id = messageID
-    // li.setAttribute('msg_id', messageData.msgID)
+    const chatNameColor = '#e7e7e7'
+    const pic = 'profilepic.jpg'
 
-    li.setAttribute('user-id', userID)
+    const chatElement = 
+    `<li class="msg" id="${messageID}" user-id="${userID}">
+        <img class="msg-profile-pic" src="${pic}" width="40" height="40">
+        <div class="msg-data">
+            <div class="msg-name-and-date">
+                <div class="msg-user-name" style="color: ${chatNameColor}">${username}</div>
+                <div class="msg-date">${msgDate}</div>
+            </div>
+            <div class="msg-text">${message}</div>
+        </div>
+    </li>`
 
-    // create a <img> that shows profile pic on the left
-    const img = document.createElement('img')
-    img.className = 'msg-profile-pic'
-    img.src = 'profilepic.jpg'
-    img.alt = 'pfpic'
-    img.width = 40
-    img.height = 40
-
-    // create a nested <div> that will contain sender name, message and date
-    const msgDataDiv = document.createElement('div')
-    msgDataDiv.className = 'msg-data'
-
-    // inside that create a sub nested <div> that contains sender name and date
-    const msgNameAndDateDiv = document.createElement('div')
-    msgNameAndDateDiv.className = 'msg-name-and-date'
-
-    // and inside that create a <div> that displays the sender's name on the left
-    const msgNameDiv = document.createElement('div')
-    msgNameDiv.className = 'msg-user-name'
-    msgNameDiv.textContent = username
-    msgDataDiv.style.color = chatNameColor
-
-    // and next to it create a <div> that displays the date of msg on the right
-    const msgDateDiv = document.createElement('div')
-    msgDateDiv.className = 'msg-date'
-    msgDateDiv.textContent = msgDate
-
-    // append name and date to msgNameAndDateDiv
-    msgNameAndDateDiv.appendChild(msgNameDiv)
-    msgNameAndDateDiv.appendChild(msgDateDiv)
-
-    // now create a <div> under name and date that displays the message
-    const msgTextDiv = document.createElement('div')
-    msgTextDiv.className = 'msg-text'
-    msgTextDiv.textContent = message
-
-    // append both name/date <div> and msg <div> to msgDatDiv
-    msgDataDiv.appendChild(msgNameAndDateDiv)
-    msgDataDiv.appendChild(msgTextDiv)
-
-    // append both the profile pic and message data to the <li>
-    li.appendChild(img)
-    li.appendChild(msgDataDiv)
-
-    // and finally append the message to the message list
-    document.getElementById('chat-message-list').appendChild(li)
+    document.getElementById('chat-message-list').insertAdjacentHTML('beforeend', chatElement)
 }
 
 function deleteChatMessage(messageID) {
-    document.getElementById(messageID).remove()
     console.log('Deleting message id ' + messageID)
+    document.getElementById(messageID).remove()
 }
 
 function addMember(id, where) {
@@ -231,11 +193,13 @@ function addMember(id, where) {
     memberList.appendChild(li)
 }
 
-function addServer(serverID, ownerID, serverName) {
+function addServer(serverID, serverName) {
     const button = document.createElement('button')
     button.className = 'server'
     button.id = serverID
     button.setAttribute('server-name', serverName)
 
     document.getElementById('server-list').append(button)
+
+    listenServerButtonsClick(button)
 }

@@ -115,9 +115,11 @@ func (c *Client) readMessages(userID uint64) {
 		case 21: // client is requesting to add a server
 			log.Printf("User ID [%d] wants to create a server\n", userID)
 			responseBytes = onAddServerRequest(packetJson, userID)
+			respondOnlyToSender = true
 		case 22: // client requested server list
 			log.Printf("User ID [%d] is requesting server list\n", userID)
-			responseBytes = onServerListRequest(packetJson, userID)
+			responseBytes = onServerListRequest(userID)
+			respondOnlyToSender = true
 		}
 
 		if responseBytes == nil {
@@ -168,8 +170,8 @@ func onChatMessageRequest(jsonBytes []byte, userID uint64, displayName string) [
 
 	var clientChatMsg ClientChatMsg
 
-	if jsonErr := json.Unmarshal(jsonBytes, &clientChatMsg); jsonErr != nil {
-		log.Println("Error deserializing Msg json:", jsonErr)
+	if err := json.Unmarshal(jsonBytes, &clientChatMsg); err != nil {
+		log.Printf("Error deserializing onChatMessageRequest json of user ID [%d], reason: %s\n", userID, err.Error())
 		return nil
 	}
 
@@ -178,7 +180,7 @@ func onChatMessageRequest(jsonBytes []byte, userID uint64, displayName string) [
 	// parse channel id string as uint64
 	channelID, parseErr := strconv.ParseUint(clientChatMsg.ChannelID, 10, 64)
 	if parseErr != nil {
-		printWithID(userID, "Error parsing uint64 in onChatMessageRequest: "+parseErr.Error())
+		log.Printf("Error parsing uint64 in onChatMessageRequest from user ID [%d], reason: %s\n", userID, parseErr.Error())
 		return nil
 	}
 
@@ -200,6 +202,7 @@ func onChatMessageRequest(jsonBytes []byte, userID uint64, displayName string) [
 	return preparePacket(1, jsonBytes)
 }
 
+// when client wants to delete a message they own
 func onDeleteChatMessageRequest(jsonBytes []byte, userID uint64) []byte {
 	type MessageToDelete struct {
 		MessageID string
@@ -207,15 +210,15 @@ func onDeleteChatMessageRequest(jsonBytes []byte, userID uint64) []byte {
 
 	var messageToDelete = MessageToDelete{}
 
-	if jsonErr := json.Unmarshal(jsonBytes, &messageToDelete); jsonErr != nil {
-		log.Println("Error deserializing DeleteMessage json:", jsonErr)
+	if err := json.Unmarshal(jsonBytes, &messageToDelete); err != nil {
+		log.Printf("Error deserializing onDeleteChatMessageRequest json of user ID [%d], reason: %s\n", userID, err.Error())
 		return nil
 	}
 
 	// parse message ID string as uint64
 	messageID, parseErr := strconv.ParseUint(messageToDelete.MessageID, 10, 64)
 	if parseErr != nil {
-		printWithID(userID, "Error parsing uint64 in onDeleteChatMessageRequest:"+parseErr.Error())
+		log.Printf("Error parsing uint64 in onDeleteChatMessageRequest from user ID [%d], reason: %s\n", userID, parseErr.Error())
 		return nil
 	}
 
@@ -225,7 +228,7 @@ func onDeleteChatMessageRequest(jsonBytes []byte, userID uint64) []byte {
 	}
 
 	if ownerID != userID {
-		log.Printf("User [%d] is trying to delete someone else's message [%d], aborting\n", userID, messageID)
+		log.Printf("User ID [%d] is trying to delete someone else's message [%d], aborting\n", userID, messageID)
 		return nil
 	}
 
@@ -233,7 +236,7 @@ func onDeleteChatMessageRequest(jsonBytes []byte, userID uint64) []byte {
 
 	messagesBytes, err := json.Marshal(messageToDelete)
 	if err != nil {
-		log.Panicln("Error serializing json at onDeleteChatMessageRequest:", err)
+		log.Panicf("Error serializing json at onDeleteChatMessageRequest for user ID [%d], reason: %s\n:", userID, err.Error())
 	}
 	return preparePacket(3, messagesBytes)
 }
@@ -246,8 +249,8 @@ func onChatHistoryRequest(packetJson []byte, userID uint64) []byte {
 
 	var chatHistoryRequest ChatHistoryRequest
 
-	if jsonErr := json.Unmarshal(packetJson, &chatHistoryRequest); jsonErr != nil {
-		log.Println("Error deserializing chatHistoryRequest json:", jsonErr)
+	if err := json.Unmarshal(packetJson, &chatHistoryRequest); err != nil {
+		log.Printf("Error deserializing onChatHistoryRequest json of user ID [%d], reason: %s\n", userID, err.Error())
 		return nil
 	}
 
@@ -258,29 +261,20 @@ func onChatHistoryRequest(packetJson []byte, userID uint64) []byte {
 		return nil
 	}
 
-	var messages ServerChatMessages
-
-	var result Result
-	messages, success := database.GetMessagesFromChannel(channelID)
-	if !success {
-		printWithID(userID, result.Message)
-
+	type ServerChatMessages struct {
+		Messages []ServerChatMessage
 	}
-	// if len(messages.Messages) == 0 {
-	// 	printWithID(userID, "No message history in channel id:"+strconv.FormatUint(chatHistoryRequest.ChannelID, 10))
-	// 	return nil
-	// }
+
+	var messages = ServerChatMessages{
+		Messages: database.GetMessagesFromChannel(channelID),
+	}
 
 	messagesBytes, err := json.Marshal(messages)
 	if err != nil {
-		log.Panicln("Error serializing json at onChatHistoryRequest:", err)
+		log.Panicf("Error serializing json at onChatHistoryRequest for user ID [%d], reason: %s\n:", userID, err.Error())
 	}
 	return preparePacket(2, messagesBytes)
 }
-
-// func onServerListRequest() {
-
-// }
 
 // when client is requesting to add a new server
 func onAddServerRequest(packetJson []byte, userID uint64) []byte {
@@ -290,27 +284,39 @@ func onAddServerRequest(packetJson []byte, userID uint64) []byte {
 
 	var addServerRequest = AddServerRequest{}
 
-	if jsonErr := json.Unmarshal(packetJson, &addServerRequest); jsonErr != nil {
-		log.Println("Error deserializing addServerRequest json:", jsonErr)
+	if err := json.Unmarshal(packetJson, &addServerRequest); err != nil {
+		log.Printf("Error deserializing addServerRequest json of user ID [%d], reason: %s\n", userID, err.Error())
 		return nil
 	}
 
 	var server = Server{
-		ServerID:      snowflake.Generate(),
-		ServerOwnerID: userID,
-		ServerName:    addServerRequest.Name,
+		ServerID: snowflake.Generate(),
+		OwnerID:  userID,
+		Name:     addServerRequest.Name,
+		Picture:  "nothing.jpg",
 	}
 
 	database.AddServer(server)
 
 	messagesBytes, err := json.Marshal(server)
 	if err != nil {
-		log.Panicln("Error serializing json at onAddServerRequest:", err)
+		log.Panicf("Error serializing json at onAddServerRequest for user ID [%d], reason: %s\n:", userID, err.Error())
 	}
 	return preparePacket(21, messagesBytes)
 }
 
-func onServerListRequest(packetJson []byte, userID uint64) []byte {
-	log.Println("yaya")
-	return nil
+func onServerListRequest(userID uint64) []byte {
+	type ServersForClient struct {
+		Servers []ServerForClient
+	}
+
+	var servers = ServersForClient{
+		Servers: database.GetServerList(userID),
+	}
+
+	messagesBytes, err := json.Marshal(servers)
+	if err != nil {
+		log.Panicf("Error serializing json at onServerListRequest for user ID [%d], reason: %s\n:", userID, err.Error())
+	}
+	return preparePacket(22, messagesBytes)
 }

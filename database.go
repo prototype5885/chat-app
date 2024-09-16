@@ -64,7 +64,7 @@ func (d *Database) createTables() {
 	_, err = d.db.Exec(`CREATE TABLE IF NOT EXISTS users (
 		user_id BIGINT UNSIGNED PRIMARY KEY,
 		username TEXT,
-		profilepic TEXT,
+		picture TEXT,
 		password BINARY(60),
 		totp CHAR(32)
 	)`)
@@ -78,6 +78,7 @@ func (d *Database) createTables() {
 			server_id BIGINT UNSIGNED PRIMARY KEY,
 			owner_id BIGINT UNSIGNED,
 			name TEXT,
+			picture TEXT,
 			FOREIGN KEY (owner_id) REFERENCES users(user_id)
 		)`)
 	if err != nil {
@@ -185,56 +186,76 @@ func (d *Database) DeleteChatMessage(messageID uint64) {
 	}
 }
 
-func (d *Database) GetMessagesFromChannel(channelID uint64) (ServerChatMessages, bool) {
+func (d *Database) GetMessagesFromChannel(channelID uint64) []ServerChatMessage {
 	const query string = "SELECT * FROM messages WHERE channel_id = ?"
 
 	rows, err := d.db.Query(query, channelID)
 	if err != nil {
-		// if err == sql.ErrNoRows { // there is no channel with given id
-		// 	return ServerChatMessages{}, Result{
-		// 		Success: false,
-		// 		Message: fmt.Sprintf("No messages found on channel ID: %d\n", channelID),
-		// 	}
-		// }
-		panicWithID(channelID, "Error searching for messages in channel ID", err.Error())
+		log.Panic("Error searching for messages on channel ID [%d], reason: %s\n", channelID, err.Error())
 	}
 
-	var messages = ServerChatMessages{}
+	var messages []ServerChatMessage
 
 	var counter int = 0
 	for rows.Next() {
 		counter++
-		var message ServerChatMessage = ServerChatMessage{
+		var message = ServerChatMessage{
 			Username: "test",
 		}
 		err := rows.Scan(&message.MessageID, &message.ChannelID, &message.UserID, &message.Message)
 		if err != nil {
-			log.Panic("Error scanning message row into struct")
+			log.Panicf("Error scanning message row into struct in channel ID [%d], reason: %s\n:", channelID, err.Error())
 		}
-		messages.Messages = append(messages.Messages, message)
+		messages = append(messages, message)
 	}
 
 	if counter == 0 {
 		log.Printf("No messages found on channel ID: [%d]\n", channelID)
-		return messages, false
+		return messages
 	}
 
 	successWithID(channelID, "Messages from channel ID were retrieved")
-	return messages, true
+	return messages
 }
 
 func (d *Database) AddServer(server Server) {
-	printWithID(server.ServerID, "Adding server into database...")
-	const query string = "INSERT INTO servers (server_id, owner_id, name) VALUES (?, ?, ?)"
-	_, err := d.db.Exec(query, server.ServerID, server.ServerOwnerID, server.ServerName)
+	log.Printf("Adding server ID [%d] into database...\n", server.ServerID)
+	const query string = "INSERT INTO servers (server_id, owner_id, name, picture) VALUES (?, ?, ?, ?)"
+	_, err := d.db.Exec(query, server.ServerID, server.OwnerID, server.Name, server.Picture)
 	if err != nil {
-		panicWithID(server.ServerID, "Error adding server into database:", err.Error())
+		log.Panicf("Error adding server ID [%d] into database, reason: %s\n", server.ServerID, err.Error())
 	}
-	successWithID(server.ServerID, "Added server into database")
+	log.Printf("Successfully added server ID [%d] into database\n", server.ServerID)
 }
 
-func (d *Database) GetServerList(server Server, userID uint64) {
+func (d *Database) GetServerList(userID uint64) []ServerForClient {
+	const query string = "SELECT server_id, name, picture FROM servers"
 
+	rows, err := d.db.Query(query)
+	if err != nil {
+		log.Panicf("Error searching for server list of user ID [%d], reason: %s\n", userID, err.Error())
+	}
+
+	var servers []ServerForClient
+
+	var counter int = 0
+	for rows.Next() {
+		counter++
+		var server = ServerForClient{}
+		err := rows.Scan(&server.ServerID, &server.Name, &server.Picture)
+		if err != nil {
+			log.Panicf("Error scanning server row into struct for user ID [%d], reason: %s\n:", userID, err.Error())
+		}
+		servers = append(servers, server)
+	}
+
+	if counter == 0 {
+		log.Printf("User ID [%d] is not in any servers\n", userID)
+		return servers
+	}
+
+	log.Printf("Servers for user ID [%d] were retrieved successfully\n", userID)
+	return servers
 }
 
 func (d *Database) AddChannel(channelID uint64, serverID uint64) {
