@@ -1,5 +1,20 @@
 body {
+    font-family: Roboto, Helvetica, Arial, sans-serif;
     background-color: #36393f;
+    color: #C5C7CB;
+    font-size: 14px;
+}
+
+/* default settings for all buttons */
+button {
+    background: none;
+    border: none;
+    color: #C5C7CB;
+}
+
+button:hover {
+    cursor: pointer;
+    color: #fff;
 }
 
 .button {

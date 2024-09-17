@@ -5,6 +5,7 @@
 <head>
     <meta name="viewport" content="width=device-width,height=device-height,user-scalable=no,initial-scale=1.0">
     <title>Discord Clone</title>
+    <link rel="stylesheet" href="global.css">
     <link rel="stylesheet" href="chat.css">
 </head>
 
@@ -18,17 +19,25 @@
         </div>
         <button id="add-server-button">+</button>
     </div>
-    <div id="first-column-container">
+    <div id="second-column">
         <div id="above-friends-channels">
             <div>Friends top bar</div>
         </div>
-        <div id="friends-channels-list">
-            <div ></div>
-            <div class="channel" channel-id="">
-                <div>Channel 1</div>
+        <div id="channels">
+            <div id="channels-visible-or-add-new">
+                <button>
+                    <div>></div>
+                    <div>text channels</div>
+                </button>
+                <button>+</button>
             </div>
-            <div class="channel" channel-id="">
-                <div>Channel 2</div>
+            <div id="channels-list">
+                <button channel-id="">
+                    <div>Channel 1</div>
+                </button>
+                <button channel-id="">
+                    <div>Channel 2</div>
+                </button>
             </div>
         </div>
     </div>
@@ -40,16 +49,6 @@
         <div id="main-bottom">
             <div id="main-center-container">
                 <ol id="chat-message-list">
-                    <!-- <li id="msg1">
-                        <img class="msg-pfp" src="profilepic.jpg" alt="pfpic" width="40" height="40">
-                        <div class="msg-data">
-                            <div class="msg-name-and-date">
-                                <div class="msg-name">username</div>
-                                <div class="msg-date">Today at 14:44</div>
-                            </div>
-                            <div class="msg-text">no u</div>
-                        </div>
-                    </li> -->
                 </ol>
                 <div id="chat-input-form-container" action="">
                     <div id="chat-input-form">
@@ -64,7 +63,7 @@
                 </div>
             </div>
             <ol id="member-list">
-                <!-- <li>Members</li> -->
+                <li>Members</li>
             </ol>
         </div>
     </div>

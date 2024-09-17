@@ -198,8 +198,10 @@ function addServer(serverID, serverName) {
     button.className = 'server'
     button.id = serverID
     button.setAttribute('server-name', serverName)
-
     document.getElementById('server-list').append(button)
 
+    // const serverElement = `<button class="server" id="${serverID}" server-name="${serverName}"></button>`
+    // document.getElementById('server-list').insertAdjacentHTML('beforeend', serverElement)
+    // const button = document.getElementById(serverID)
     listenServerButtonsClick(button)
 }

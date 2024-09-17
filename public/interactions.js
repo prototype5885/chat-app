@@ -70,7 +70,7 @@ document.addEventListener('click', function () {
     deleteRightClickMenu()
 })
 
-// when clicking on add channel button
+// when clicking on add server button
 const addServerButton = document.getElementById('add-server-button')
 addServerButton.addEventListener('click', () => {
     requestAddServer('test server')
