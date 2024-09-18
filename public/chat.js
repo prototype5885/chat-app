@@ -1,11 +1,18 @@
 const wsClient = new WebSocket('wss://' + window.location.host + "/wss")
 wsClient.binaryType = 'arraybuffer'
 
+if (typeof(Storage) !== "undefined") {
+    console.log('Supports storage')
+} else {
+    console.log('Doesnt support storage')
+}
+
+
+var newSession = true
+
 wsClient.onopen = function (_event) {
     console.log('Connected to WebSocket successfully.')
     requestServerList()
-    requestChannelList(1917)
-    requestChatHistory(2002)
 }
 
 // when server sends a message
@@ -62,9 +69,12 @@ wsClient.onmessage = function (event) {
             for (let i = 0; i < json.Servers.length; i++) {
                 addServer(BigInt(json.Servers[i].ServerID), json.Servers[i].Name, json.Servers[i].Picture)
             }
+            if (newSession) {
+                selectServer(getCurrentServerID())
+            }
             break
         case 31: // server responded to the add channel request
-            addChannel(json.ChannelID, json.Name)
+            addChannel(BigInt(json.ChannelID), json.Name)
             break
         case 32: // server sent the requested channel list
             if (json.Channels == null) {
@@ -74,6 +84,10 @@ wsClient.onmessage = function (event) {
             for (let i = 0; i < json.Channels.length; i++) {
                 // addChannel
                 addChannel(BigInt(json.Channels[i].ChannelID), json.Channels[i].Name)
+            }
+            if (newSession) {
+                selectChannel(getCurrentChannelID())
+                newSession = false
             }
             break
     }
@@ -142,15 +156,14 @@ function requestServerList() {
 }
 
 function requestAddChannel() {
-    const id = 1917
     preparePacket(31, {
-        Name: 'Test Channel',
-        ServerID: id.toString()
+        Name: 'Channel',
+        ServerID: getCurrentServerID().toString()
     })
 }
 
-function requestChannelList(serverID) {
+function requestChannelList() {
     preparePacket(32, {
-        ServerID: serverID.toString()
+        ServerID: getCurrentServerID().toString()
     })
 }

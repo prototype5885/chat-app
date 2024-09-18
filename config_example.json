@@ -1,10 +1,11 @@
 {
+  "Port": 3000,
   "Sqlite": true,
   "TLS": false,
   "LocalhostOnly": true,
   "Username": "mysql username",
   "Password": "mysql password",
   "Address": "127.0.0.1",
-  "Port": 3000,
+  "DatabasePort": 3306,
   "DatabaseName": "protochat"
 }

@@ -75,7 +75,6 @@ func readConfigFile() ConfigFile {
 	file, err := os.Open(configFile)
 	if err != nil {
 		log.Panicln("Error opening config file:", err)
-		return ConfigFile{}
 	}
 	defer func(file *os.File) {
 		err := file.Close()
@@ -88,7 +87,6 @@ func readConfigFile() ConfigFile {
 	err = json.NewDecoder(file).Decode(&config)
 	if err != nil {
 		log.Panicln("Error decoding config file:", err)
-		return ConfigFile{}
 	}
 	return config
 }

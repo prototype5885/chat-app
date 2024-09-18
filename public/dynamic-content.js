@@ -205,7 +205,10 @@ function addServer(serverID, serverName, picture) {
     // const serverElement = `<button class="server" id="${serverID}" server-name="${serverName}"></button>`
     // document.getElementById('server-list').insertAdjacentHTML('beforeend', serverElement)
     // const button = document.getElementById(serverID)
-    listenServerButtonsClick(button)
+    
+    button.addEventListener('click', () => {
+        selectServer(BigInt(button.id))
+    })
 }
 
 function addChannel(channelID, channelName) {
@@ -218,4 +221,44 @@ function addChannel(channelID, channelName) {
     button.appendChild(buttonName)
 
     document.getElementById('channels-list').appendChild(button)
+
+    button.addEventListener('click', () => {
+        selectChannel(button.id)
+    })
 }
+
+var hidden = false
+function toggleChannelsVisibility() {
+    const list = document.getElementById('channels-list')
+    const channels = Array.from(list.children)
+
+    channels.forEach(channel => {
+        if (!hidden) {
+            if (channel.id != getCurrentChannelID()) {
+                channel.style.display = 'none'
+            }
+        } else {
+            channel.style.display = ''
+        }
+    })
+    if (!hidden) {
+        hidden = true
+    } else {
+        hidden = false
+    }
+}
+
+function setSelectedChannelBackground(channelID, previousChannelID) {
+    document.getElementById(channelID.toString()).style.backgroundColor = '#36393f'
+    // document.getElementById(previousChannelID.toString()).style.background = 'transparent'
+    document.getElementById(previousChannelID.toString()).removeAttribute('style')
+}
+
+function resetChannels() {
+    document.getElementById('channels-list').innerHTML = ''
+}
+
+function resetMessages() {
+    document.getElementById('chat-message-list').innerHTML = '' // empties chat
+}
+

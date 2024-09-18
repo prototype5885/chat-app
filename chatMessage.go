@@ -32,7 +32,9 @@ func onChatMessageRequest(jsonBytes []byte, userID uint64, displayName string) [
 
 	var messageID = snowflake.Generate()
 
-	database.AddChatMessage(messageID, channelID, userID, chatMessageRequest.Message)
+	if !database.AddChatMessage(messageID, channelID, userID, chatMessageRequest.Message) {
+		return nil
+	}
 
 	var serverChatMsg = ServerChatMessage{
 		MessageID: messageID,

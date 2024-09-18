@@ -43,7 +43,9 @@ func onAddChannelRequest(packetJson []byte, userID uint64) []byte {
 
 	var channelID = snowflake.Generate()
 
-	database.AddChannel(channelID, parsedServerID, channelRequest.Name)
+	if !database.AddChannel(channelID, parsedServerID, channelRequest.Name) {
+		return nil
+	}
 
 	var channelResponse = ChannelResponse{
 		ChannelID: channelID,
@@ -65,7 +67,7 @@ func onChannelListRequest(packetJson []byte, userID uint64) []byte {
 	var channelListRequest ChannelListRequest
 
 	if err := json.Unmarshal(packetJson, &channelListRequest); err != nil {
-		log.Printf("Error deserializing onC json of user ID [%d], reason: %s\n", userID, err.Error())
+		log.Printf("Error deserializing onChannelListRequest json of user ID [%d], reason: %s\n", userID, err.Error())
 		return nil
 	}
 

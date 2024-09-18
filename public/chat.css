@@ -124,13 +124,10 @@ body {
 
 #channels-list button {
     height: 32px;
-    /* background-color: red; */
+    /* background-color:#36393f */
     display: flex;
-    /* flex: 1; */
     align-items: center;
-    /* margin: 8px; */
     border-radius: 8px;
-    /* background: none; */
     border: none;
     font-size: medium;
     transition: font-size 0.2s ease, transform 0.2s ease;

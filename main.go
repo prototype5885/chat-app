@@ -18,7 +18,7 @@ func main() {
 	if config.Sqlite {
 		database.ConnectSqlite()
 	} else {
-		database.ConnectMariadb(config.Username, config.Password, config.Address, strconv.Itoa(int(config.Port)), config.DatabaseName)
+		database.ConnectMariadb(config.Username, config.Password, config.Address, strconv.Itoa(int(config.DatabasePort)), config.DatabaseName)
 	}
 
 	// websocket

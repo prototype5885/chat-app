@@ -42,51 +42,37 @@ document.addEventListener('click', function () {
     deleteRightClickMenu()
 })
 
-// when clicking on add server button
-const addServerButton = document.getElementById('add-server-button')
-addServerButton.addEventListener('click', () => {
-    requestAddServer('test server')
-})
-
 // read the text message for sending
 function readChatInput() {
     if (inputArea.value) {
-        sendChatMessage(inputArea.value, 2002)
+        sendChatMessage(inputArea.value, getCurrentChannelID())
         inputArea.value = ''
         resizeChatInput()
     }
 }
 
-// when clicking on any server button on the left
-function listenServerButtonsClick(button) {
-    button.addEventListener('click', () => {
-        console.log('Clicked:', button.id)
-    })
+// when clicked on a server from server list
+function selectServer(serverID) {
+    console.log('Clicked on server:', serverID)
+    resetChannels()
+    resetMessages()
+    setCurrentServerID(serverID)
+    requestChannelList()
 }
 
-var hidden = false
-function toggleChannelsVisibility() {
-    const list = document.getElementById('channels-list')
-    const channels = Array.from(list.children)
+// when clicked on a channel from channel list
+function selectChannel(channelID) {
+    console.log('Clicked on channel:', channelID)
+    const previousChannelID = getCurrentChannelID()
 
-    channels.forEach(channel => {
-        if (!hidden) {
-            if (channel.id != 2) {
-                channel.style.display = 'none'
-            }
-        } else {
-            channel.style.display = ''
-        }
-    })
-    if (!hidden) {
-        hidden = true
-    } else {
-        hidden = false
+    if (channelID == previousChannelID) {
+        console.log('Channel clicked on is already the current one')
+        return
     }
-}
 
-function listenChannelButtonsClick(button) {
-    button.addEventListener('click', () => {
-        console.log('clicked:', button.id)
-    })
+    resetMessages()
+    setCurrentChannelID(channelID)
+    requestChatHistory(channelID)
+
+    setSelectedChannelBackground(channelID, previousChannelID)
 }

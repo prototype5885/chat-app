@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 
 	_ "github.com/go-sql-driver/mysql"
 	_ "modernc.org/sqlite"
@@ -134,14 +135,20 @@ func (d *Database) createTables() {
 	}
 }
 
-func (d *Database) AddChatMessage(messageID uint64, channelID uint64, userID uint64, message string) {
+func (d *Database) AddChatMessage(messageID uint64, channelID uint64, userID uint64, message string) bool {
 	printWithID(userID, "Adding chat message into database...")
 	const query string = "INSERT INTO messages (message_id, channel_id, user_id, Message) VALUES (?, ?, ?, ?)"
 	_, err := d.db.Exec(query, messageID, channelID, userID, message)
 	if err != nil {
-		panicWithID(userID, "Error adding chat message ID ["+strconv.FormatUint(messageID, 10)+"] into database:", err.Error())
+		log.Println(err.Error())
+		if strings.Contains(err.Error(), "Error 1452") {
+			log.Printf("Failed adding message ID [%d] into database for channel ID [%d] from user ID [%d], there is no channel with given ID", messageID, channelID, userID)
+			return false
+		}
+		log.Printf("Error adding chat message ID [%d] from user ID [%d] into database", messageID, userID)
 	}
 	successWithID(userID, "Added chat message ID ["+strconv.FormatUint(messageID, 10)+"] into database")
+	return true
 }
 
 func (d *Database) GetChatMessageOwner(messageID uint64) (uint64, bool) {
@@ -191,7 +198,8 @@ func (d *Database) GetMessagesFromChannel(channelID uint64) []ServerChatMessage 
 
 	rows, err := d.db.Query(query, channelID)
 	if err != nil {
-		log.Panicf("Error searching for messages on channel ID [%d], reason: %s\n", channelID, err.Error())
+		log.Println(err.Error())
+		log.Panicf("Error searching for messages on channel ID [%d]\n", channelID)
 	}
 
 	var messages []ServerChatMessage
@@ -204,7 +212,8 @@ func (d *Database) GetMessagesFromChannel(channelID uint64) []ServerChatMessage 
 		}
 		err := rows.Scan(&message.MessageID, &message.ChannelID, &message.UserID, &message.Message)
 		if err != nil {
-			log.Panicf("Error scanning message row into struct in channel ID [%d], reason: %s\n:", channelID, err.Error())
+			log.Println(err.Error())
+			log.Panicf("Error scanning message row into struct in channel ID [%d]\n:", channelID)
 		}
 		messages = append(messages, message)
 	}
@@ -223,7 +232,8 @@ func (d *Database) AddServer(serverID uint64, ownerID uint64, serverName string,
 	const query string = "INSERT INTO servers (server_id, owner_id, name, picture) VALUES (?, ?, ?, ?)"
 	_, err := d.db.Exec(query, serverID, ownerID, serverName, picture)
 	if err != nil {
-		log.Panicf("Error adding server ID [%d] into database, reason: %s\n", serverID, err.Error())
+		log.Println(err.Error())
+		log.Panicf("Error adding server ID [%d] into database\n", serverID)
 	}
 	log.Printf("Successfully added server ID [%d] into database\n", serverID)
 }
@@ -233,7 +243,8 @@ func (d *Database) GetServerList(userID uint64) []ServerResponse {
 
 	rows, err := d.db.Query(query)
 	if err != nil {
-		log.Panicf("Error searching for server list of user ID [%d], reason: %s\n", userID, err.Error())
+		log.Println(err.Error())
+		log.Panicf("Error searching for server list of user ID [%d]\n", userID)
 	}
 
 	var servers []ServerResponse
@@ -244,7 +255,8 @@ func (d *Database) GetServerList(userID uint64) []ServerResponse {
 		var server = ServerResponse{}
 		err := rows.Scan(&server.ServerID, &server.Name, &server.Picture)
 		if err != nil {
-			log.Panicf("Error scanning server row into struct for user ID [%d], reason: %s\n:", userID, err.Error())
+			log.Println(err.Error())
+			log.Panicf("Error scanning server row into struct for user ID [%d]\n:", userID)
 		}
 		servers = append(servers, server)
 	}
@@ -258,14 +270,20 @@ func (d *Database) GetServerList(userID uint64) []ServerResponse {
 	return servers
 }
 
-func (d *Database) AddChannel(channelID uint64, serverID uint64, channelName string) {
+func (d *Database) AddChannel(channelID uint64, serverID uint64, channelName string) bool {
 	log.Printf("Adding channel ID [%d] into database...\n", channelID)
 	const query string = "INSERT INTO channels (channel_id, server_id, name) VALUES (?, ?, ?)"
 	_, err := d.db.Exec(query, channelID, serverID, channelName)
 	if err != nil {
-		log.Panicf("Error adding channel ID [%d] into database, reason: %s\n", channelID, err.Error())
+		log.Println(err.Error())
+		if strings.Contains(err.Error(), "Error 1452") {
+			log.Printf("Failed adding channel ID [%d] into database for server ID [%d], there is no server with given ID", channelID, serverID)
+			return false
+		}
+		log.Panicf("Error adding channel ID [%d] into database\n", channelID)
 	}
 	log.Printf("Successfully added channel ID [%d] into database\n", channelID)
+	return true
 }
 
 func (d *Database) GetChannelList(serverID uint64) []ChannelResponse {
@@ -273,7 +291,8 @@ func (d *Database) GetChannelList(serverID uint64) []ChannelResponse {
 
 	rows, err := d.db.Query(query, serverID)
 	if err != nil {
-		log.Panicf("Error searching for channels list of server ID [%d], reason: %s\n", serverID, err.Error())
+		log.Println(err.Error())
+		log.Panicf("Error searching for channels list of server ID [%d]\n", serverID)
 	}
 
 	var channels []ChannelResponse
@@ -284,7 +303,8 @@ func (d *Database) GetChannelList(serverID uint64) []ChannelResponse {
 		var channel = ChannelResponse{}
 		err := rows.Scan(&channel.ChannelID, &channel.Name)
 		if err != nil {
-			log.Panicf("Error scanning channel row into struct from server ID [%d], reason: %s\n:", serverID, err.Error())
+			log.Println(err.Error())
+			log.Panicf("Error scanning channel row into struct from server ID [%d]\n:", serverID)
 		}
 		channels = append(channels, channel)
 	}
@@ -340,13 +360,14 @@ func (d *Database) GetUsername(userID uint64) (string, Result) {
 	var userName string
 	err := d.db.QueryRow(query, userID).Scan(&userName)
 	if err != nil {
+		log.Println(err.Error())
 		if err == sql.ErrNoRows { // there is no user with this id
 			return "", Result{
 				Success: false,
 				Message: noUserIdFoundText(userID),
 			}
 		}
-		log.Panicf("Error getting username of user ID [%d] from database, reason: %s\n", userID, err.Error())
+		log.Panicf("Error getting username of user ID [%d] from database\n", userID)
 	}
 	log.Printf("Username of user ID [%d] was retrieved from database successfully", userID)
 	return userName, Result{

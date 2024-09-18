@@ -1,6 +1,7 @@
 package main
 
 type ConfigFile struct {
+	Port          uint32
 	Sqlite        bool
 	TLS           bool
 	LocalhostOnly bool
@@ -8,7 +9,7 @@ type ConfigFile struct {
 	Username      string
 	Password      string
 	Address       string
-	Port          uint32
+	DatabasePort  uint32
 	DatabaseName  string
 }
 
