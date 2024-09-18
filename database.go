@@ -113,7 +113,7 @@ func (d *Database) createTables() {
 
 	// tokens table
 	_, err = d.db.Exec(`CREATE TABLE IF NOT EXISTS tokens (
-		token BINARY(32) PRIMARY KEY,
+		token BINARY(128) PRIMARY KEY,
 		user_id BIGINT UNSIGNED,
 		expiration BIGINT UNSIGNED,
 		FOREIGN KEY (user_id) REFERENCES users(user_id)
@@ -191,7 +191,7 @@ func (d *Database) GetMessagesFromChannel(channelID uint64) []ServerChatMessage 
 
 	rows, err := d.db.Query(query, channelID)
 	if err != nil {
-		log.Panic("Error searching for messages on channel ID [%d], reason: %s\n", channelID, err.Error())
+		log.Panicf("Error searching for messages on channel ID [%d], reason: %s\n", channelID, err.Error())
 	}
 
 	var messages []ServerChatMessage
@@ -218,17 +218,17 @@ func (d *Database) GetMessagesFromChannel(channelID uint64) []ServerChatMessage 
 	return messages
 }
 
-func (d *Database) AddServer(server Server) {
-	log.Printf("Adding server ID [%d] into database...\n", server.ServerID)
+func (d *Database) AddServer(serverID uint64, ownerID uint64, serverName string, picture string) {
+	log.Printf("Adding server ID [%d] into database...\n", serverID)
 	const query string = "INSERT INTO servers (server_id, owner_id, name, picture) VALUES (?, ?, ?, ?)"
-	_, err := d.db.Exec(query, server.ServerID, server.OwnerID, server.Name, server.Picture)
+	_, err := d.db.Exec(query, serverID, ownerID, serverName, picture)
 	if err != nil {
-		log.Panicf("Error adding server ID [%d] into database, reason: %s\n", server.ServerID, err.Error())
+		log.Panicf("Error adding server ID [%d] into database, reason: %s\n", serverID, err.Error())
 	}
-	log.Printf("Successfully added server ID [%d] into database\n", server.ServerID)
+	log.Printf("Successfully added server ID [%d] into database\n", serverID)
 }
 
-func (d *Database) GetServerList(userID uint64) []ServerForClient {
+func (d *Database) GetServerList(userID uint64) []ServerResponse {
 	const query string = "SELECT server_id, name, picture FROM servers"
 
 	rows, err := d.db.Query(query)
@@ -236,12 +236,12 @@ func (d *Database) GetServerList(userID uint64) []ServerForClient {
 		log.Panicf("Error searching for server list of user ID [%d], reason: %s\n", userID, err.Error())
 	}
 
-	var servers []ServerForClient
+	var servers []ServerResponse
 
 	var counter int = 0
 	for rows.Next() {
 		counter++
-		var server = ServerForClient{}
+		var server = ServerResponse{}
 		err := rows.Scan(&server.ServerID, &server.Name, &server.Picture)
 		if err != nil {
 			log.Panicf("Error scanning server row into struct for user ID [%d], reason: %s\n:", userID, err.Error())
@@ -258,42 +258,45 @@ func (d *Database) GetServerList(userID uint64) []ServerForClient {
 	return servers
 }
 
-func (d *Database) AddChannel(channelID uint64, serverID uint64) {
-	printWithID(channelID, "Adding channel into database...")
-	const query string = "INSERT INTO channels (channel_id, server_id) VALUES (?, ?)"
-	_, err := d.db.Exec(query, channelID, serverID)
+func (d *Database) AddChannel(channelID uint64, serverID uint64, channelName string) {
+	log.Printf("Adding channel ID [%d] into database...\n", channelID)
+	const query string = "INSERT INTO channels (channel_id, server_id, name) VALUES (?, ?, ?)"
+	_, err := d.db.Exec(query, channelID, serverID, channelName)
 	if err != nil {
-		panicWithID(channelID, "Error adding channel into database:", err.Error())
+		log.Panicf("Error adding channel ID [%d] into database, reason: %s\n", channelID, err.Error())
 	}
-	successWithID(channelID, "Added channel into database")
+	log.Printf("Successfully added channel ID [%d] into database\n", channelID)
 }
 
-// func (d *Database) getChannel(channelID uint64) (Channel, Result) {
-// 	const query string = "SELECT * FROM messages WHERE channel_id = ?"
+func (d *Database) GetChannelList(serverID uint64) []ChannelResponse {
+	const query string = "SELECT channel_id, name FROM channels WHERE server_id = ?"
 
-// 	var channel = Channel{}
+	rows, err := d.db.Query(query, serverID)
+	if err != nil {
+		log.Panicf("Error searching for channels list of server ID [%d], reason: %s\n", serverID, err.Error())
+	}
 
-// 	err := d.db.QueryRow(query, channelID).Scan(&channel.channelID, &channel.serverID)
-// 	if err != nil {
-// 		if err == sql.ErrNoRows { // there is no user with this name
-// 			return channel, Result{
-// 				Success: false,
-// 				Message: noUserIdFoundText(userIDArgs),
-// 			}
-// 		} else {
-// 			log.Panicf("%s: Error executing SELECT query: %s\n", userIDArgs, err)
-// 			return channel, Result{
-// 				Success: false,
-// 				Message: "FATAL: Error searching for channel in database",
-// 			}
-// 		}
-// 	}
-// 	successWithID(channelID, "Channel was retrieved from database")
-// 	return channel, Result{
-// 		Success: true,
-// 		Message: "",
-// 	}
-// }
+	var channels []ChannelResponse
+
+	var counter int = 0
+	for rows.Next() {
+		counter++
+		var channel = ChannelResponse{}
+		err := rows.Scan(&channel.ChannelID, &channel.Name)
+		if err != nil {
+			log.Panicf("Error scanning channel row into struct from server ID [%d], reason: %s\n:", serverID, err.Error())
+		}
+		channels = append(channels, channel)
+	}
+
+	if counter == 0 {
+		log.Printf("Server ID [%d] doesn't have any channels\n", serverID)
+		return channels
+	}
+
+	log.Printf("Channels from server ID [%d] were retrieved successfully\n", serverID)
+	return channels
+}
 
 func (d *Database) RegisterNewUser(userId uint64, username string, passwordHash []byte, totpSecret string) Result {
 	printWithName(username, "Registering new user into database...")

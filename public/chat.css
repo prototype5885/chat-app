@@ -2,64 +2,78 @@ body {
     display: flex;
     margin: 0;
     height: 100vh;
-    /* overflow: scroll; */
+    overflow: hidden;
 }
 
-/* column on the left side */
+/* server list column on the left side */
 #servers-column { 
+    overflow-y:scroll;
+    scrollbar-width: none;
     min-width: 72px;
     max-width: min-content;
     background-color: #1E1F22;
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 0.7rem 0;
+    padding-top: 12px;
 }
 
-/* list of servers */
+/* positioning of servers list column */
 #server-list {
     display: flex;
     flex-direction: column;
 }
 
-
-#server-list button,
-#add-server-button {
-    list-style: none;
+/* all the circular buttons on the left side */
+#servers-column button,
+#server-list button {
+    flex-shrink: 0; /* prevent resizing button */
     width: 48px;
     height: 48px;
-    background-color: #36393f;
-    margin-bottom: 0.7rem;
+    margin-bottom: 12px;
     border-radius: 50%;
-    border: none;
     transition: border-radius 0.3s ease, transform 0.3s ease;
 }
 
-/* change servers buttons on hover */
-#server-list button:hover,
-#add-server-button:hover {
-    background-color: #4f545c;
+/* change their shape on hover */
+#servers-column button:hover,
+#server-list button:hover {
     border-radius: 35%;
 }
 
+#server-list button {
+    background-size: 48px 48px;
+}
+
+/* color and font of add server button */
+#add-server-button {
+    font-size: x-large;
+    color: #00b700;
+}
+
+#add-server-button:hover {
+    color:white
+}
+
+/* color of the top left dm messages button */
+#direct-messages {
+    background-color: #5865F2;
+    background-image: url(hs.svg);
+    background-size: 48px 48px;
+}
+
+/* default color of add server button */
+#server-list button,
+#add-server-button {
+    background-color: #36393f;
+    /* background-image: url(icon_add.svg); */
+    /* background-size: 48px 48px; */
+}
+
+/* make the add server button green on hover */
 #add-server-button:hover {
     background-color: green;
 }
-
-#direct-messages {
-    width: 3rem;
-    height: 3rem;
-    background-color: #5865F2;
-    margin-bottom: 0.7rem;
-    border-radius: 35%;
-}
-
-#direct-messages:hover {
-    /* background-color: #4f545c; */
-    cursor: pointer;
-    /* border-radius: 35%; */
-}
-
 
 #second-column {
     min-width: 15rem;
@@ -95,20 +109,12 @@ body {
 }
 
 /* button that toggles the channels' visibility */
-#channels-visible-or-add-new button:first-child {
+#channels-visibility-button {
     display: flex;
     /* background-color: red; */
     flex: 1;
     height: 32px;
     align-items: center;
-}
-
-#channels-visible-or-add-new button:first-child:hover {
-    /* transition: font-size 0.2s ease, transform 0.2s ease; */
-}
-
-#channels-visible-or-add-new button:last-child {
-    /* background-color: yellow; */
 }
 
 #channels-list {

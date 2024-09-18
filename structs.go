@@ -22,30 +22,3 @@ type Token struct {
 	UserID     uint64
 	Expiration uint64
 }
-
-type Server struct {
-	ServerID uint64
-	OwnerID  uint64
-	Name     string
-	Picture  string
-}
-
-type Channel struct {
-	ChannelID uint64
-	ServerID  uint64
-	Name      string
-}
-
-type ServerChatMessage struct {
-	MessageID uint64
-	ChannelID uint64
-	UserID    uint64
-	Username  string
-	Message   string
-}
-
-type ServerForClient struct { // this is whats sent to the client when client requests server list
-	ServerID uint64
-	Name     string
-	Picture  string
-}

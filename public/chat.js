@@ -1,13 +1,11 @@
-
-const messages = document.getElementById('chat-message-list')
-
 const wsClient = new WebSocket('wss://' + window.location.host + "/wss")
 wsClient.binaryType = 'arraybuffer'
 
 wsClient.onopen = function (_event) {
     console.log('Connected to WebSocket successfully.')
     requestServerList()
-    requestChatHistory('2002')
+    requestChannelList(1917)
+    requestChatHistory(2002)
 }
 
 // when server sends a message
@@ -27,23 +25,23 @@ wsClient.onmessage = function (event) {
 
     console.log('Received packet:', endIndex, packetType, packetJson)
 
+    const messages = document.getElementById('chat-message-list')
+    const json = JSON.parse(packetJson)
     switch (packetType) {
         case 1: // server sent a chat message
-            const msg = JSON.parse(packetJson)
-            addChatMessage(BigInt(msg.MessageID), BigInt(msg.ChannelID), BigInt(msg.UserID), msg.Username, msg.Message)
+            addChatMessage(BigInt(json.MessageID), BigInt(json.ChannelID), BigInt(json.UserID), json.Username, json.Message)
             messages.scrollTo({
                 top: messages.scrollHeight,
                 behavior: 'smooth'
             })
             break
         case 2: // server sent the requested chat history
-            const history = JSON.parse(packetJson)
-            if (history.Messages === null) {
+            if (json.Messages === null) {
                 console.log('Chat history is empty')
                 return
             }
-            for (let i = 0; i < history.Messages.length; i++) {
-                addChatMessage(BigInt(history.Messages[i].MessageID), BigInt(history.Messages[i].ChannelID), BigInt(history.Messages[i].UserID), history.Messages[i].Username, history.Messages[i].Message)
+            for (let i = 0; i < json.Messages.length; i++) {
+                addChatMessage(BigInt(json.Messages[i].MessageID), BigInt(json.Messages[i].ChannelID), BigInt(json.Messages[i].UserID), json.Messages[i].Username, json.Messages[i].Message)
             }
             messages.scrollTo({
                 top: messages.scrollHeight,
@@ -51,23 +49,33 @@ wsClient.onmessage = function (event) {
             })
             break
         case 3: // server sent which message was deleted
-            const messageToDelete = JSON.parse(packetJson)
-            deleteChatMessage(messageToDelete.MessageID)
+            deleteChatMessage(json.MessageID)
             break
-        case 21: // server sent information of newly added chat server
-            const server = JSON.parse(packetJson)
-            addServer(BigInt(server.ServerID), server.Name)
+        case 21: // server responded to the add server request
+            addServer(BigInt(json.ServerID), json.Name, json.Picture)
             break
         case 22: // server sent the requested server list
-            const servers = JSON.parse(packetJson)
-            if (servers.Servers == null) {
-                console.log("Not being in any servers")
+            if (json.Servers == null) {
+                console.log('Not being in any servers')
                 break
             }
-            for (let i = 0; i < servers.Servers.length; i++) {
-                addServer(BigInt(servers.Servers[i].ServerID), servers.Servers[i].Name)
+            for (let i = 0; i < json.Servers.length; i++) {
+                addServer(BigInt(json.Servers[i].ServerID), json.Servers[i].Name, json.Servers[i].Picture)
             }
-            
+            break
+        case 31: // server responded to the add channel request
+            addChannel(json.ChannelID, json.Name)
+            break
+        case 32: // server sent the requested channel list
+            if (json.Channels == null) {
+                console.log(`No channels on server ID`)
+                break
+            }
+            for (let i = 0; i < json.Channels.length; i++) {
+                // addChannel
+                addChannel(BigInt(json.Channels[i].ChannelID), json.Channels[i].Name)
+            }
+            break
     }
 }
 
@@ -103,7 +111,7 @@ function preparePacket(type, struct) {
         wsClient.send(packet)
     }
     else {
-        console.log("Websocket is not open")
+        console.log('Websocket is not ope')
     }
 }
 
@@ -115,7 +123,7 @@ function sendChatMessage(message, channelID) { // type is 1
 }
 function requestChatHistory(channelID) {
     preparePacket(2, {
-        ChannelID: channelID
+        ChannelID: channelID.toString()
     })
 }
 function requestChatMessageDeletion(messageID) {
@@ -131,4 +139,18 @@ function requestAddServer(serverName) {
 
 function requestServerList() {
     preparePacket(22, null)
+}
+
+function requestAddChannel() {
+    const id = 1917
+    preparePacket(31, {
+        Name: 'Test Channel',
+        ServerID: id.toString()
+    })
+}
+
+function requestChannelList(serverID) {
+    preparePacket(32, {
+        ServerID: serverID.toString()
+    })
 }

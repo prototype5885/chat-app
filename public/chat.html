@@ -11,12 +11,8 @@
 
 <body>
     <div id="servers-column">
-        <div id="direct-messages">
-            <!-- <div></div> -->
-        </div>
-        <div id="server-list">
-            <!-- <button></button> -->
-        </div>
+        <button id="direct-messages"></button>
+        <div id="server-list"></div>
         <button id="add-server-button">+</button>
     </div>
     <div id="second-column">
@@ -25,19 +21,22 @@
         </div>
         <div id="channels">
             <div id="channels-visible-or-add-new">
-                <button>
+                <button id="channels-visibility-button" onclick="toggleChannelsVisibility()">
                     <div>></div>
                     <div>text channels</div>
                 </button>
-                <button>+</button>
+                <button id="add-channel-button" onclick="requestAddChannel()">+</button>
             </div>
             <div id="channels-list">
-                <button channel-id="">
+                <!-- <button id="1">
                     <div>Channel 1</div>
                 </button>
-                <button channel-id="">
+                <button id="2">
                     <div>Channel 2</div>
                 </button>
+                <button id="3">
+                    <div>Channel 3</div>
+                </button> -->
             </div>
         </div>
     </div>
@@ -56,7 +55,7 @@
                             <div id="attachment-button-icon" class="chat-button-icon">Atch</div>
                         </button>
                         <textarea id="chat-input" autocomplete="off" placeholder="Message someone"></textarea>
-                        <button id="send-button" class="chat-button">
+                        <button id="send-button" class="chat-button" onclick="readChatInput()">
                             <div id="send-button-icon" class="chat-button-icon">Send</div>
                         </button>
                     </div>

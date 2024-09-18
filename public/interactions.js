@@ -15,12 +15,6 @@ inputArea.addEventListener('input', () => {
     resizeChatInput()
 })
 
-// dynamically resize the chat input textarea to fit the text content
-function resizeChatInput() {
-    inputArea.style.height = 'auto'
-    inputArea.style.height = inputArea.scrollHeight + 'px'
-}
-
 // send the text message on enter
 inputArea.addEventListener('keydown', function (event) {
     // wont send if its shift enter so can make new lines
@@ -30,32 +24,10 @@ inputArea.addEventListener('keydown', function (event) {
     }
 })
 
-// send the text message on send button click
-const sendButton = document.getElementById('send-button')
-sendButton.addEventListener('click', () => {
-    readChatInput()
-})
-
-// read the text message for sending
-function readChatInput() {
-    if (inputArea.value) {
-        sendChatMessage(inputArea.value, 2002)
-        inputArea.value = ''
-        resizeChatInput()
-    }
-}
-
-// when clicking on any server button on the left
-function listenServerButtonsClick(button) {
-    button.addEventListener('click', () => {
-        console.log('Clicked:', button.id)
-    })
-}
-
-function listenChannelButtonsClick(button) {
-    button.addEventListener('click', () => {
-        console.log('clicked:', button.id)
-    })
+// dynamically resize the chat input textarea to fit the text content
+function resizeChatInput() {
+    inputArea.style.height = 'auto'
+    inputArea.style.height = inputArea.scrollHeight + 'px'
 }
 
 // create the right click menu on right click, delete existing one beforehand
@@ -75,3 +47,46 @@ const addServerButton = document.getElementById('add-server-button')
 addServerButton.addEventListener('click', () => {
     requestAddServer('test server')
 })
+
+// read the text message for sending
+function readChatInput() {
+    if (inputArea.value) {
+        sendChatMessage(inputArea.value, 2002)
+        inputArea.value = ''
+        resizeChatInput()
+    }
+}
+
+// when clicking on any server button on the left
+function listenServerButtonsClick(button) {
+    button.addEventListener('click', () => {
+        console.log('Clicked:', button.id)
+    })
+}
+
+var hidden = false
+function toggleChannelsVisibility() {
+    const list = document.getElementById('channels-list')
+    const channels = Array.from(list.children)
+
+    channels.forEach(channel => {
+        if (!hidden) {
+            if (channel.id != 2) {
+                channel.style.display = 'none'
+            }
+        } else {
+            channel.style.display = ''
+        }
+    })
+    if (!hidden) {
+        hidden = true
+    } else {
+        hidden = false
+    }
+}
+
+function listenChannelButtonsClick(button) {
+    button.addEventListener('click', () => {
+        console.log('clicked:', button.id)
+    })
+}

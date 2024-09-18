@@ -29,12 +29,12 @@ function createRightClickMenu(event) {
             type = 'message'
             break
         default:
-            actions = [
-                { text: 'Action 1', class: 'none' },
-                { text: 'Action 2', class: 'none' },
-                { text: 'Action 3', class: 'none' }
-            ]
-            // return
+            // actions = [
+            //     { text: 'Action 1', class: 'none' },
+            //     { text: 'Action 2', class: 'none' },
+            //     { text: 'Action 3', class: 'none' }
+            // ]
+            return
     }
 
     // create the right click menu
@@ -193,15 +193,29 @@ function addMember(id, where) {
     memberList.appendChild(li)
 }
 
-function addServer(serverID, serverName) {
+function addServer(serverID, serverName, picture) {
     const button = document.createElement('button')
-    button.className = 'server'
+    // button.className = 'server'
     button.id = serverID
     button.setAttribute('server-name', serverName)
+    button.style.backgroundImage = `url(${picture})`
     document.getElementById('server-list').append(button)
+
 
     // const serverElement = `<button class="server" id="${serverID}" server-name="${serverName}"></button>`
     // document.getElementById('server-list').insertAdjacentHTML('beforeend', serverElement)
     // const button = document.getElementById(serverID)
     listenServerButtonsClick(button)
+}
+
+function addChannel(channelID, channelName) {
+    const button = document.createElement('button')
+    button.id = channelID
+
+    const buttonName = document.createElement('div')
+    buttonName.textContent = channelName
+
+    button.appendChild(buttonName)
+
+    document.getElementById('channels-list').appendChild(button)
 }

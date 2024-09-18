@@ -2,12 +2,9 @@ package main
 
 import (
 	"encoding/binary"
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
-	"proto-chat/modules/snowflake"
-	"strconv"
 	"sync"
 	"time"
 
@@ -120,6 +117,12 @@ func (c *Client) readMessages(userID uint64) {
 			log.Printf("User ID [%d] is requesting server list\n", userID)
 			responseBytes = onServerListRequest(userID)
 			respondOnlyToSender = true
+		case 31: // client is requeting to add a channel
+			log.Printf("User ID [%d] wants to add a channel\n", userID)
+			responseBytes = onAddChannelRequest(packetJson, userID)
+		case 32: // client requested channel list
+			log.Printf("User ID [%d] is requesting channel list\n", userID)
+			responseBytes = onChannelListRequest(packetJson, userID)
 		}
 
 		if responseBytes == nil {
@@ -159,164 +162,4 @@ func pingClients() {
 		}
 	}
 
-}
-
-// when client sent a chat message
-func onChatMessageRequest(jsonBytes []byte, userID uint64, displayName string) []byte {
-	type ClientChatMsg struct {
-		ChannelID string
-		Message   string
-	}
-
-	var clientChatMsg ClientChatMsg
-
-	if err := json.Unmarshal(jsonBytes, &clientChatMsg); err != nil {
-		log.Printf("Error deserializing onChatMessageRequest json of user ID [%d], reason: %s\n", userID, err.Error())
-		return nil
-	}
-
-	log.Printf("ChannelID: %s, Msg: %s", clientChatMsg.ChannelID, clientChatMsg.Message)
-
-	// parse channel id string as uint64
-	channelID, parseErr := strconv.ParseUint(clientChatMsg.ChannelID, 10, 64)
-	if parseErr != nil {
-		log.Printf("Error parsing uint64 in onChatMessageRequest from user ID [%d], reason: %s\n", userID, parseErr.Error())
-		return nil
-	}
-
-	var serverChatMsg = ServerChatMessage{
-		MessageID: snowflake.Generate(),
-		ChannelID: channelID,
-		UserID:    userID,
-		Username:  displayName,
-		Message:   clientChatMsg.Message,
-	}
-
-	database.AddChatMessage(serverChatMsg.MessageID, serverChatMsg.ChannelID, serverChatMsg.UserID, serverChatMsg.Message)
-
-	jsonBytes, err := json.Marshal(serverChatMsg)
-	if err != nil {
-		log.Panic("Error serializing json at onChatMessage:", err)
-	}
-
-	return preparePacket(1, jsonBytes)
-}
-
-// when client wants to delete a message they own
-func onDeleteChatMessageRequest(jsonBytes []byte, userID uint64) []byte {
-	type MessageToDelete struct {
-		MessageID string
-	}
-
-	var messageToDelete = MessageToDelete{}
-
-	if err := json.Unmarshal(jsonBytes, &messageToDelete); err != nil {
-		log.Printf("Error deserializing onDeleteChatMessageRequest json of user ID [%d], reason: %s\n", userID, err.Error())
-		return nil
-	}
-
-	// parse message ID string as uint64
-	messageID, parseErr := strconv.ParseUint(messageToDelete.MessageID, 10, 64)
-	if parseErr != nil {
-		log.Printf("Error parsing uint64 in onDeleteChatMessageRequest from user ID [%d], reason: %s\n", userID, parseErr.Error())
-		return nil
-	}
-
-	ownerID, dbSuccess := database.GetChatMessageOwner(messageID)
-	if !dbSuccess {
-		return nil
-	}
-
-	if ownerID != userID {
-		log.Printf("User ID [%d] is trying to delete someone else's message [%d], aborting\n", userID, messageID)
-		return nil
-	}
-
-	database.DeleteChatMessage(messageID)
-
-	messagesBytes, err := json.Marshal(messageToDelete)
-	if err != nil {
-		log.Panicf("Error serializing json at onDeleteChatMessageRequest for user ID [%d], reason: %s\n:", userID, err.Error())
-	}
-	return preparePacket(3, messagesBytes)
-}
-
-// when client is requesting chat history for a channel
-func onChatHistoryRequest(packetJson []byte, userID uint64) []byte {
-	type ChatHistoryRequest struct {
-		ChannelID string
-	}
-
-	var chatHistoryRequest ChatHistoryRequest
-
-	if err := json.Unmarshal(packetJson, &chatHistoryRequest); err != nil {
-		log.Printf("Error deserializing onChatHistoryRequest json of user ID [%d], reason: %s\n", userID, err.Error())
-		return nil
-	}
-
-	// parse channel id string as uint64
-	channelID, parseErr := strconv.ParseUint(chatHistoryRequest.ChannelID, 10, 64)
-	if parseErr != nil {
-		printWithID(userID, "Error parsing uint64 in onChatHistoryRequest:"+parseErr.Error())
-		return nil
-	}
-
-	type ServerChatMessages struct {
-		Messages []ServerChatMessage
-	}
-
-	var messages = ServerChatMessages{
-		Messages: database.GetMessagesFromChannel(channelID),
-	}
-
-	messagesBytes, err := json.Marshal(messages)
-	if err != nil {
-		log.Panicf("Error serializing json at onChatHistoryRequest for user ID [%d], reason: %s\n:", userID, err.Error())
-	}
-	return preparePacket(2, messagesBytes)
-}
-
-// when client is requesting to add a new server
-func onAddServerRequest(packetJson []byte, userID uint64) []byte {
-	type AddServerRequest struct {
-		Name string
-	}
-
-	var addServerRequest = AddServerRequest{}
-
-	if err := json.Unmarshal(packetJson, &addServerRequest); err != nil {
-		log.Printf("Error deserializing addServerRequest json of user ID [%d], reason: %s\n", userID, err.Error())
-		return nil
-	}
-
-	var server = Server{
-		ServerID: snowflake.Generate(),
-		OwnerID:  userID,
-		Name:     addServerRequest.Name,
-		Picture:  "nothing.jpg",
-	}
-
-	database.AddServer(server)
-
-	messagesBytes, err := json.Marshal(server)
-	if err != nil {
-		log.Panicf("Error serializing json at onAddServerRequest for user ID [%d], reason: %s\n:", userID, err.Error())
-	}
-	return preparePacket(21, messagesBytes)
-}
-
-func onServerListRequest(userID uint64) []byte {
-	type ServersForClient struct {
-		Servers []ServerForClient
-	}
-
-	var servers = ServersForClient{
-		Servers: database.GetServerList(userID),
-	}
-
-	messagesBytes, err := json.Marshal(servers)
-	if err != nil {
-		log.Panicf("Error serializing json at onServerListRequest for user ID [%d], reason: %s\n:", userID, err.Error())
-	}
-	return preparePacket(22, messagesBytes)
 }

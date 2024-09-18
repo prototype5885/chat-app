@@ -277,7 +277,7 @@ func newToken(userID uint64) Token {
 	printWithID(userID, "Generating new token...")
 
 	// generate new token
-	var tokenBytes []byte = make([]byte, 32)
+	var tokenBytes []byte = make([]byte, 128)
 	_, err := io.ReadFull(rand.Reader, tokenBytes)
 	if err != nil {
 		log.Panicf("Error generating token for user ID [%d], reason: %s\n", userID, err.Error())
