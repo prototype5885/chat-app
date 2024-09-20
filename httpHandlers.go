@@ -7,6 +7,10 @@ import (
 	"net/http"
 )
 
+func printReceivedRequest(url string, method string) {
+	log.Printf("Received %s %s request\n", url, method)
+}
+
 func mainHandler(w http.ResponseWriter, r *http.Request) {
 	printReceivedRequest(r.URL.Path, r.Method)
 	// serve static files
@@ -94,14 +98,16 @@ func postRequestHandler(w http.ResponseWriter, r *http.Request) {
 		// serialize the response into json
 		responseJsonBytes, jsonErr := json.Marshal(result)
 		if jsonErr != nil {
-			log.Panicln("Error serializing log/reg POST request response:", jsonErr.Error())
+			log.Println(jsonErr.Error())
+			log.Panicln("Error serializing log/reg POST request response")
 		}
 
-		log.Println(string(responseJsonBytes))
+		log.Printf("Response for log/reg request: %s\n", string(responseJsonBytes))
 		i, err := w.Write(responseJsonBytes)
 		if err != nil {
-			log.Printf("Error sending %s POST request response: %s", r.URL.Path, err)
+			log.Println(err.Error())
+			log.Printf("Error sending %s POST request response\n", r.URL.Path)
 		}
-		log.Println(r.URL.Path, "POST request response was sent successfully:", i)
+		log.Printf("%s POST request response was sent: %d\n", r.URL.Path, i)
 	}
 }

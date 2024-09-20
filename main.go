@@ -62,3 +62,7 @@ func main() {
 		}
 	}
 }
+
+func ExitFunc() {
+	log.Println("ende")
+}

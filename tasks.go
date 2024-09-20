@@ -6,54 +6,16 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"io"
 	"io/fs"
 	"log"
 	"net/http"
 	"os"
 	"proto-chat/modules/snowflake"
-	"strconv"
 	"time"
 
-	"github.com/pquerna/otp/totp"
 	"golang.org/x/crypto/bcrypt"
 )
-
-func printWithName(username string, text string) {
-	log.Printf("[%s]: %s\n", username, text)
-}
-
-func printWithID(userID uint64, text string) {
-	log.Printf("[%d]: %s\n", userID, text)
-}
-
-func successWithName(username string, text string) {
-	log.Printf("[%s], SUCCESS: %s\n", username, text)
-}
-func successWithID(userID uint64, text string) {
-	log.Printf("[%d], SUCCESS: %s\n", userID, text)
-}
-
-func panicWithName(username string, text string, err string) {
-	log.Panicf("[%s]: %s: %s\n", username, text, err)
-}
-
-func panicWithID(userID uint64, text string, err string) {
-	log.Panicf("[%d]: %s: %s\n", userID, text, err)
-}
-
-func noUserIdFoundText(userID uint64) string {
-	return "No user found with given id: " + strconv.FormatUint(userID, 10)
-}
-
-func noUsernameFoundText(username string) string {
-	return "No user found with given name: " + username
-}
-
-func printReceivedRequest(url string, method string) {
-	log.Printf("Received %s %s request\n", url, method)
-}
 
 func setupLogging(logInFile bool) {
 	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
@@ -140,7 +102,7 @@ func loginOrRegister(bodyBytes []byte, pathURL string) (http.Cookie, Result) {
 		userID, logRegResult = loginUser(loginData.Username, passwordBytes)
 	} else {
 		// this is not supposed to happen ever
-		panicWithName(loginData.Username, "Invalid path URL:"+pathURL, "")
+		log.Panicf("Invalid path URL for user [%s], %s\n", loginData.Username, pathURL)
 	}
 
 	// generate token if login or registration was success,
@@ -159,13 +121,13 @@ func loginOrRegister(bodyBytes []byte, pathURL string) (http.Cookie, Result) {
 		}
 
 	}
-	printWithID(userID, logRegResult.Message)
+	log.Printf("User ID [%d]: %s\n", userID, logRegResult.Message)
 	return cookie, logRegResult
 }
 
 // Register user by adding it into the database
 func registerUser(username string, passwordBytes []byte) (uint64, Result) {
-	printWithName(username, "Starting registration...")
+	log.Printf("Starting registration for new user with name [%s]...\n", username)
 
 	// check if received password is in proper format
 	if len(passwordBytes) != 64 {
@@ -196,7 +158,7 @@ func registerUser(username string, passwordBytes []byte) (uint64, Result) {
 			Message: errMsg,
 		}
 	}
-	printWithName(username, fmt.Sprintf("%s: password hashing took: %d ms", username, time.Now().UnixMilli()-start))
+	log.Printf("Password hashing for user [%s] took %d ms,", username, time.Now().UnixMilli()-start)
 
 	// generate userID
 	var userID uint64 = snowflake.Generate()
@@ -210,8 +172,11 @@ func registerUser(username string, passwordBytes []byte) (uint64, Result) {
 
 	// add the new user to database
 	newUserResult := database.RegisterNewUser(userID, username, passwordHash, "")
-	if !newUserResult.Success {
-		return 0, newUserResult
+	if !newUserResult {
+		return 0, Result{
+			Success: false,
+			Message: "TODO",
+		}
 	}
 
 	// return the Success
@@ -224,23 +189,29 @@ func registerUser(username string, passwordBytes []byte) (uint64, Result) {
 // Login user, first checking if username exists in the database, then getting the password
 // hash and checking if user entered the correct password, returns the user's ID.
 func loginUser(username string, passwordBytes []byte) (uint64, Result) {
-	printWithName(username, "Starting login...")
+	log.Printf("Starting login of user [%s]...\n", username)
 
 	// get the user id from the database
-	userID, result := database.GetUserID(username)
-	if !result.Success {
-		return 0, result
-	}
-	printWithName(username, "Confirmed to be: "+strconv.FormatUint(userID, 10))
+	// var userID uint64 = database.GetUserID(username)
+	// if userID == 0 {
+	// 	return 0, Result{
+	// 		Success: false,
+	// 		Message: "No user was found with given name",
+	// 	}
+	// }
+	// printWithName(username, "Confirmed to be: "+strconv.FormatUint(userID, 10))
 
 	// get the password hash from the database
-	passwordHash, result := database.GetPassword(userID)
-	if !result.Success {
-		return 0, result
+	passwordHash, userID := database.GetPasswordAndID(username)
+	if passwordHash == nil {
+		return 0, Result{
+			Success: false,
+			Message: "No user was found with given",
+		}
 	}
 
 	// compare given password with the retrieved hash
-	printWithID(userID, "Comparing password hash and string...")
+	log.Printf("Comparing password hash and string for user [%s]...\n", username)
 	var start = time.Now().UnixMilli()
 	if err := bcrypt.CompareHashAndPassword(passwordHash, passwordBytes); err != nil {
 		return 0, Result{
@@ -258,21 +229,21 @@ func loginUser(username string, passwordBytes []byte) (uint64, Result) {
 	}
 }
 
-func generateTOTP(userID uint64) string {
-	printWithID(userID, "Generating TOTP secret key...")
+// func generateTOTP(userID uint64) string {
+// 	log.Printf("Generating TOTP secret key for user ID [%d]...\n", userID)
 
-	totpKey, err := totp.Generate(totp.GenerateOpts{
-		AccountName: strconv.FormatUint(userID, 10),
-		Issuer:      "ProToType",
-	})
-	if err != nil {
-		log.Panic("Error generating TOTP:", err)
-	}
-	return totpKey.Secret()
-}
+// 	totpKey, err := totp.Generate(totp.GenerateOpts{
+// 		AccountName: strconv.FormatUint(userID, 10),
+// 		Issuer:      "ProToType",
+// 	})
+// 	if err != nil {
+// 		log.Panic("Error generating TOTP:", err)
+// 	}
+// 	return totpKey.Secret()
+// }
 
 func newToken(userID uint64) Token {
-	printWithID(userID, "Generating new token...")
+	log.Printf("Generating new token for user ID [%d]...\n", userID)
 
 	// generate new token
 	var tokenBytes []byte = make([]byte, 128)
@@ -332,4 +303,21 @@ func preparePacket(typeByte byte, jsonBytes []byte) []byte {
 	log.Println("Prepared packet:", endIndex, packet[4], string(jsonBytes))
 
 	return packet
+}
+
+func setProblem(problem string) []byte {
+	type Issue struct {
+		Issue string
+	}
+	var issue = Issue{
+		Issue: problem,
+	}
+
+	json, err := json.Marshal(issue)
+	if err != nil {
+		log.Printf("Could not serialize issue in formatProblem\n")
+		log.Panicln(err.Error())
+	}
+
+	return preparePacket(0, json)
 }

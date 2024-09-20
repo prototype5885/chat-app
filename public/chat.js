@@ -33,8 +33,12 @@ wsClient.onmessage = function (event) {
     console.log('Received packet:', endIndex, packetType, packetJson)
 
     const messages = document.getElementById('chat-message-list')
+
     const json = JSON.parse(packetJson)
     switch (packetType) {
+        case 0:
+            console.log(json.Issue)
+            break
         case 1: // server sent a chat message
             addChatMessage(BigInt(json.MessageID), BigInt(json.ChannelID), BigInt(json.UserID), json.Username, json.Message)
             messages.scrollTo({
@@ -56,7 +60,7 @@ wsClient.onmessage = function (event) {
             })
             break
         case 3: // server sent which message was deleted
-            deleteChatMessage(json.MessageID)
+            deleteChatMessage(BigInt(json.MessageID))
             break
         case 21: // server responded to the add server request
             addServer(BigInt(json.ServerID), json.Name, json.Picture)
@@ -93,15 +97,22 @@ wsClient.onmessage = function (event) {
     }
 }
 
-function preparePacket(type, struct) {
+function preparePacket(type, bigintID, struct) {
     if (wsClient.readyState === WebSocket.OPEN) {
-        const json = JSON.stringify(struct)
         // convert the type value into a single byte value that will be the packet type
         const typeByte = new Uint8Array([1])
         typeByte[0] = type
 
+        let json = JSON.stringify(struct)
+
+        // workaround to turn uint64 value in json from string to normal number value
+        // since javascript cant serialize BigInt
+        if (bigintID != 0) {
+            json = json.replace(`"${bigintID}"`, bigintID)
+        }
+
         // serialize the struct into json then convert to byte array
-        var jsonBytes
+        let jsonBytes
         if (struct != null) {
             jsonBytes = new TextEncoder().encode(json)
         } else {
@@ -130,40 +141,40 @@ function preparePacket(type, struct) {
 }
 
 function sendChatMessage(message, channelID) { // type is 1
-    preparePacket(1, {
+    preparePacket(1, channelID, {
         ChannelID: channelID.toString(),
         Message: message
     })
 }
 function requestChatHistory(channelID) {
-    preparePacket(2, {
+    preparePacket(2, channelID, {
         ChannelID: channelID.toString()
     })
 }
 function requestChatMessageDeletion(messageID) {
-    preparePacket(3, {
+    preparePacket(3, messageID, {
         MessageID: messageID.toString()
     })
 }
 function requestAddServer(serverName) {
-    preparePacket(21, {
+    preparePacket(21, 0, {
         Name: serverName
     })
 }
 
 function requestServerList() {
-    preparePacket(22, null)
+    preparePacket(22, 0, null)
 }
 
 function requestAddChannel() {
-    preparePacket(31, {
+    preparePacket(31, getCurrentServerID(), {
         Name: 'Channel',
         ServerID: getCurrentServerID().toString()
     })
 }
 
 function requestChannelList() {
-    preparePacket(32, {
+    preparePacket(32, getCurrentServerID(), {
         ServerID: getCurrentServerID().toString()
     })
 }

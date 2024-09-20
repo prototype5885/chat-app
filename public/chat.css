@@ -240,6 +240,12 @@ body {
     font-size: 15px;
 }
 
+.user-name:hover,
+.msg-user-name:hover {
+    cursor: pointer;
+    text-decoration: underline;
+}
+
 
 .msg-date {
     color: #949BA4;
@@ -383,7 +389,7 @@ body {
 
 
 
-.right-click-menu {
+#right-click-menu {
     display: none;
     position: absolute;
     z-index: 1000;
@@ -394,44 +400,33 @@ body {
     box-shadow: 5px 5px 5px rgba(0, 0, 0, 0.25);
 }
 
-.right-click-menu ul {
+#right-click-menu ul {
     list-style: none;
     margin: 5%;
     padding: 0;
 }
 
 /* context menu items */
-.right-click-menu li {
+#right-click-menu li {
     padding: 8px 12px;
     font-size: small;
     cursor: pointer;
     border-radius: 5px;
 }
 
-.right-click-menu li:hover {
+#right-click-menu li:hover {
     background-color: #505cdc;
     color: white;
     /* backdrop-filter: blur(4px); */
 }
 
-.right-click-menu .delete-message,
-.right-click-menu .report-user,
-.right-click-menu .remove-friend {
+#right-click-menu li.cm-red {
     color: #F23F42;
 }
 
-.right-click-menu .delete-message:hover,
-.right-click-menu .report-user:hover,
-.right-click-menu .remove-friend:hover {
+#right-click-menu li.cm-red:hover {
     background-color: #F23F42;
-}
-
-.right-click-menu .delete-message:hover {
     color: white;
 }
 
-.user-name:hover,
-.msg-user-name:hover {
-    cursor: pointer;
-    text-decoration: underline;
-}
+

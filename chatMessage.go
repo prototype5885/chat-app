@@ -2,15 +2,15 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"proto-chat/modules/snowflake"
-	"strconv"
 )
 
 // when client sent a chat message
 func onChatMessageRequest(jsonBytes []byte, userID uint64, displayName string) []byte {
 	type ClientChatMsg struct {
-		ChannelID string
+		ChannelID uint64
 		Message   string
 	}
 
@@ -21,24 +21,18 @@ func onChatMessageRequest(jsonBytes []byte, userID uint64, displayName string) [
 		return nil
 	}
 
-	log.Printf("ChannelID: %s, Msg: %s", chatMessageRequest.ChannelID, chatMessageRequest.Message)
-
-	// parse channel id string as uint64
-	channelID, parseErr := strconv.ParseUint(chatMessageRequest.ChannelID, 10, 64)
-	if parseErr != nil {
-		log.Printf("Error parsing uint64 of user ID [%d] in onChatMessageRequest, reason: %s\n", userID, parseErr.Error())
-		return nil
-	}
+	log.Printf("ChannelID: %d, Msg: %s", chatMessageRequest.ChannelID, chatMessageRequest.Message)
 
 	var messageID = snowflake.Generate()
 
-	if !database.AddChatMessage(messageID, channelID, userID, chatMessageRequest.Message) {
-		return nil
+	problem := database.AddChatMessage(messageID, chatMessageRequest.ChannelID, userID, chatMessageRequest.Message)
+	if problem != "" {
+		return setProblem(problem)
 	}
 
 	var serverChatMsg = ServerChatMessage{
 		MessageID: messageID,
-		ChannelID: channelID,
+		ChannelID: chatMessageRequest.ChannelID,
 		UserID:    userID,
 		Username:  displayName,
 		Message:   chatMessageRequest.Message,
@@ -55,7 +49,7 @@ func onChatMessageRequest(jsonBytes []byte, userID uint64, displayName string) [
 // when client wants to delete a message they own
 func onDeleteChatMessageRequest(jsonBytes []byte, userID uint64) []byte {
 	type MessageToDelete struct {
-		MessageID string
+		MessageID uint64
 	}
 
 	var messageDeleteRequest = MessageToDelete{}
@@ -65,24 +59,20 @@ func onDeleteChatMessageRequest(jsonBytes []byte, userID uint64) []byte {
 		return nil
 	}
 
-	// parse message ID string as uint64
-	messageID, parseErr := strconv.ParseUint(messageDeleteRequest.MessageID, 10, 64)
-	if parseErr != nil {
-		log.Printf("Error parsing uint64 of user ID [%d] in onDeleteChatMessageRequest, reason: %s\n", userID, parseErr.Error())
-		return nil
-	}
-
-	ownerID, dbSuccess := database.GetChatMessageOwner(messageID)
+	ownerID, dbSuccess := database.GetChatMessageOwner(messageDeleteRequest.MessageID)
 	if !dbSuccess {
 		return nil
 	}
 
 	if ownerID != userID {
-		log.Printf("User ID [%d] is trying to delete someone else's message [%d], aborting\n", userID, messageID)
-		return nil
+		log.Printf("User ID [%d] is trying to delete someone else's message [%d], aborting\n", userID, messageDeleteRequest.MessageID)
+		return setProblem(fmt.Sprintf("Could not delete message ID [%d]\n", userID))
 	}
 
-	database.DeleteChatMessage(messageID)
+	success := database.DeleteChatMessage(messageDeleteRequest.MessageID)
+	if !success {
+		return setProblem(fmt.Sprintf("Could not delete message ID [%d]\n", userID))
+	}
 
 	messagesBytes, err := json.Marshal(messageDeleteRequest)
 	if err != nil {
@@ -94,7 +84,7 @@ func onDeleteChatMessageRequest(jsonBytes []byte, userID uint64) []byte {
 // when client is requesting chat history for a channel
 func onChatHistoryRequest(packetJson []byte, userID uint64) []byte {
 	type ChatHistoryRequest struct {
-		ChannelID string
+		ChannelID uint64
 	}
 
 	var chatHistoryRequest ChatHistoryRequest
@@ -104,19 +94,12 @@ func onChatHistoryRequest(packetJson []byte, userID uint64) []byte {
 		return nil
 	}
 
-	// parse channel id string as uint64
-	parsedChannelID, parseErr := strconv.ParseUint(chatHistoryRequest.ChannelID, 10, 64)
-	if parseErr != nil {
-		log.Printf("Error parsing uint64 of user ID [%d] in onChatHistoryRequest, reason: %s\n", userID, parseErr.Error())
-		return nil
-	}
-
 	type ServerChatMessages struct {
 		Messages []ServerChatMessage
 	}
 
 	var messages = ServerChatMessages{
-		Messages: database.GetMessagesFromChannel(parsedChannelID),
+		Messages: database.GetMessagesFromChannel(chatHistoryRequest.ChannelID),
 	}
 
 	messagesBytes, err := json.Marshal(messages)

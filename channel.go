@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"log"
 	"proto-chat/modules/snowflake"
-	"strconv"
 )
 
 type Channel struct {
@@ -22,7 +21,7 @@ type ChannelResponse struct { // this is whats sent to the client when client re
 func onAddChannelRequest(packetJson []byte, userID uint64) []byte {
 	type AddChannelRequest struct {
 		Name     string
-		ServerID string
+		ServerID uint64
 	}
 
 	var channelRequest = AddChannelRequest{}
@@ -32,18 +31,11 @@ func onAddChannelRequest(packetJson []byte, userID uint64) []byte {
 		return nil
 	}
 
-	// parse channel id string as uint64
-	parsedServerID, parseErr := strconv.ParseUint(channelRequest.ServerID, 10, 64)
-	if parseErr != nil {
-		log.Printf("Error parsing uint64 of user ID [%d] in onAddChannelRequest, reason: %s\n", userID, parseErr.Error())
-		return nil
-	}
-
 	// TODO check if user has permission to add the channel to the server
 
 	var channelID = snowflake.Generate()
 
-	if !database.AddChannel(channelID, parsedServerID, channelRequest.Name) {
+	if !database.AddChannel(channelID, channelRequest.ServerID, channelRequest.Name) {
 		return nil
 	}
 
@@ -62,19 +54,12 @@ func onAddChannelRequest(packetJson []byte, userID uint64) []byte {
 // when client requests list of server they are in
 func onChannelListRequest(packetJson []byte, userID uint64) []byte {
 	type ChannelListRequest struct {
-		ServerID string
+		ServerID uint64
 	}
 	var channelListRequest ChannelListRequest
 
 	if err := json.Unmarshal(packetJson, &channelListRequest); err != nil {
 		log.Printf("Error deserializing onChannelListRequest json of user ID [%d], reason: %s\n", userID, err.Error())
-		return nil
-	}
-
-	// parse channel id string as uint64
-	parsedServerID, parseErr := strconv.ParseUint(channelListRequest.ServerID, 10, 64)
-	if parseErr != nil {
-		log.Printf("Error parsing uint64 of user ID [%d] in onChannelListRequest, reason: %s\n", userID, parseErr.Error())
 		return nil
 	}
 
@@ -85,7 +70,7 @@ func onChannelListRequest(packetJson []byte, userID uint64) []byte {
 	}
 
 	var channelListResponse = ChannelListResponse{
-		Channels: database.GetChannelList(parsedServerID),
+		Channels: database.GetChannelList(channelListRequest.ServerID),
 	}
 
 	messagesBytes, err := json.Marshal(channelListResponse)
