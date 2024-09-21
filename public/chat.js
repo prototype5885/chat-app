@@ -7,12 +7,13 @@ if (typeof(Storage) !== "undefined") {
     console.log('Doesnt support storage')
 }
 
-
-var newSession = true
-
 wsClient.onopen = function (_event) {
     console.log('Connected to WebSocket successfully.')
     requestServerList()
+
+    // for (i = 0; i < 1 * 1; i++) {
+    //     addChannel(BigInt(Math.floor(Math.random() * (8192 - 0 + 1)) + 0), "test")
+    // }
 }
 
 // when server sends a message
@@ -40,19 +41,19 @@ wsClient.onmessage = function (event) {
             console.log(json.Issue)
             break
         case 1: // server sent a chat message
-            addChatMessage(BigInt(json.MessageID), BigInt(json.ChannelID), BigInt(json.UserID), json.Username, json.Message)
+            addChatMessage(BigInt(json.MessageID), BigInt(json.UserID), json.Message)
             messages.scrollTo({
                 top: messages.scrollHeight,
                 behavior: 'smooth'
             })
             break
         case 2: // server sent the requested chat history
-            if (json.Messages === null) {
+            if (json === null) {
                 console.log('Chat history is empty')
                 return
             }
-            for (let i = 0; i < json.Messages.length; i++) {
-                addChatMessage(BigInt(json.Messages[i].MessageID), BigInt(json.Messages[i].ChannelID), BigInt(json.Messages[i].UserID), json.Messages[i].Username, json.Messages[i].Message)
+            for (let i = 0; i < json.length; i++) {
+                addChatMessage(BigInt(json[i].IDm), BigInt(json[i].IDu), json[i].Msg) // messageID, userID, Message
             }
             messages.scrollTo({
                 top: messages.scrollHeight,
@@ -66,32 +67,25 @@ wsClient.onmessage = function (event) {
             addServer(BigInt(json.ServerID), json.Name, json.Picture)
             break
         case 22: // server sent the requested server list
-            if (json.Servers == null) {
+            if (json == null) {
                 console.log('Not being in any servers')
                 break
             }
-            for (let i = 0; i < json.Servers.length; i++) {
-                addServer(BigInt(json.Servers[i].ServerID), json.Servers[i].Name, json.Servers[i].Picture)
-            }
-            if (newSession) {
-                selectServer(getCurrentServerID())
+            for (let i = 0; i < json.length; i++) {
+                addServer(BigInt(json[i].ServerID), json[i].Name, json[i].Picture)
             }
             break
         case 31: // server responded to the add channel request
             addChannel(BigInt(json.ChannelID), json.Name)
             break
         case 32: // server sent the requested channel list
-            if (json.Channels == null) {
+            if (json == null) {
                 console.log(`No channels on server ID`)
                 break
             }
-            for (let i = 0; i < json.Channels.length; i++) {
+            for (let i = 0; i < json.length; i++) {
                 // addChannel
-                addChannel(BigInt(json.Channels[i].ChannelID), json.Channels[i].Name)
-            }
-            if (newSession) {
-                selectChannel(getCurrentChannelID())
-                newSession = false
+                addChannel(BigInt(json[i].ChannelID), json[i].Name)
             }
             break
     }

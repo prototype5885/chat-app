@@ -10,11 +10,21 @@
 </head>
 
 <body>
-    <div id="servers-column">
-        <button id="direct-messages"></button>
-        <div id="server-list"></div>
-        <button id="add-server-button" onclick="requestAddServer('server')">+</button>
-    </div>
+    <ol id="server-list">
+        <li id="dm">
+            <span class="server-notification"></span>
+            <button id="dm-button"></button>
+        </li>
+        <div id="dm-servers-separator"></div>
+        <!-- <li>
+            <span></span>
+            <button id="1810569853276258304" server-name="test server" style="background-image: url(&quot;profilepic2.jpg&quot;);"></button>
+        </li> -->
+        <li id="add-server">
+            <span class="server-notification"></span>
+            <button id="add-server-button" onclick="requestAddServer('server')">+</button>
+        </li>
+    </ol>
     <div id="second-column">
         <div id="above-friends-channels">
             <div>Friends top bar</div>
@@ -27,28 +37,16 @@
                 </button>
                 <button id="add-channel-button" onclick="requestAddChannel(getCurrentChannelID())">+</button>
             </div>
-            <div id="channels-list">
-                <!-- <button id="1">
-                    <div>Channel 1</div>
-                </button>
-                <button id="2">
-                    <div>Channel 2</div>
-                </button>
-                <button id="3">
-                    <div>Channel 3</div>
-                </button> -->
-            </div>
+            <div id="channels-list"></div>
         </div>
     </div>
     <div id="main-container">
         <div id="main-top">
-            <!-- <div>Chat name</div> -->
             <button id="hide-member-list-button"></button>
         </div>
         <div id="main-bottom">
             <div id="main-center-container">
-                <ol id="chat-message-list">
-                </ol>
+                <ol id="chat-message-list"></ol>
                 <div id="chat-input-form-container" action="">
                     <div id="chat-input-form">
                         <button id="attachment-button" class="chat-button">
@@ -69,6 +67,7 @@
     <script src="interactions.js"></script>
     <script src="dynamic-content.js"></script>
     <script src="chat.js"></script>
+    <script src="contextMenus.js"></script>
     <script src="localData.js"></script>
 </body>
 

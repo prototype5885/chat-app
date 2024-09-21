@@ -1,23 +1,15 @@
 
 const grey1 = '#949BA4'
-var lastRightClickMenu
 
-// start -- right click menu
-function createRightClickMenu(actions, event) {
-    event.preventDefault()
-    deleteRightClickMenu()
-
+function createContextMenu(actions, pageX, pageY) {
     // create the right click menu
     const rightClickMenu = document.createElement('div')
     rightClickMenu.id = 'right-click-menu'
-    // rightClickMenu.id = 'wtf'
     document.body.appendChild(rightClickMenu)
 
     // create ul that holds the menu items
     let ul = document.createElement('ul')
     rightClickMenu.appendChild(ul)
-
-    lastRightClickMenu = rightClickMenu
 
     // add a menu item for each action
     actions.forEach(function (action) {
@@ -26,8 +18,8 @@ function createRightClickMenu(actions, event) {
         if (action.color === 'red') {
             li.className = 'cm-red'
         }
-        //
-        li.onclick = function () { // runs the function thats inside the action
+        // this will assing the function for each element
+        li.onclick = function () { 
             action.func()
         }
 
@@ -36,43 +28,45 @@ function createRightClickMenu(actions, event) {
 
     // creates the right click menu on cursor position
     rightClickMenu.style.display = 'block'
-    rightClickMenu.style.left = event.pageX + 'px'
-    rightClickMenu.style.top = event.pageY + 'px'
+    rightClickMenu.style.left = pageX + 'px'
+    rightClickMenu.style.top = pageY + 'px'
 }
 
 function deleteRightClickMenu() {
-    if (lastRightClickMenu != null) {
-        lastRightClickMenu.remove()
+    const rightClickmenu = document.getElementById('right-click-menu')
+    if (rightClickmenu != null) {
+        rightClickmenu.remove()
     }
 }
 
 
 // adds the new chat message into html
-function addChatMessage(messageID, channelID, userID, username, message) {
+function addChatMessage(messageID, userID, message) {
     // extract the message date from messageID
     const msgDate = new Date(Number((BigInt(messageID) >> BigInt(20)))).toLocaleString()
 
     const chatNameColor = '#e7e7e7'
     const pic = 'profilepic.jpg'
+    const username = userID.toString()
 
     // create a <li> that holds the message
     const li = document.createElement('li')
     li.className = 'msg'
     li.id = messageID
-    li.setAttribute('on-context-menu', 'message')
-
     li.setAttribute('user-id', userID)
+
+    registerRightClick(li, (pageX, pageY) => { messageCtxMenu(messageID, pageX, pageY) })
 
     // create a <img> that shows profile pic on the left
     const img = document.createElement('img')
     // img.className = 'msg-profile-pic'
     img.className = 'msg-profile-pic'
-    img.setAttribute('on-context-menu', 'msgUser')
-    img.src = 'profilepic.jpg'
+    img.src = pic
     img.alt = 'pfpic'
     img.width = 40
     img.height = 40
 
+    registerRightClick(img, (pageX, pageY) => { userCtxMenu(userID, pageX, pageY) })
 
     // create a nested <div> that will contain sender name, message and date
     const msgDataDiv = document.createElement('div')
@@ -85,9 +79,10 @@ function addChatMessage(messageID, channelID, userID, username, message) {
     // and inside that create a <div> that displays the sender's name on the left
     const msgNameDiv = document.createElement('div')
     msgNameDiv.className = 'msg-user-name'
-    msgNameDiv.setAttribute('on-context-menu', 'msgUser')
     msgNameDiv.textContent = username
     msgDataDiv.style.color = chatNameColor
+
+    registerRightClick(msgNameDiv, (pageX, pageY) => { userCtxMenu(userID, pageX, pageY) })
 
     // and next to it create a <div> that displays the date of msg on the right
     const msgDateDiv = document.createElement('div')
@@ -101,7 +96,6 @@ function addChatMessage(messageID, channelID, userID, username, message) {
     // now create a <div> under name and date that displays the message
     const msgTextDiv = document.createElement('div')
     msgTextDiv.className = 'msg-text'
-    msgTextDiv.setAttribute('on-context-menu', 'message')
     msgTextDiv.textContent = message
 
     // append both name/date <div> and msg <div> to msgDatDiv
@@ -137,8 +131,6 @@ function addChatMessage(messageID, channelID, userID, username, message) {
 
     // document.getElementById('chat-message-list').insertAdjacentHTML('beforeend', chatElement)
 }
-
-
 
 
 function deleteChatMessage(messageID) {
@@ -188,60 +180,37 @@ function addMember(id, where) {
 }
 
 function addServer(serverID, serverName, picture) {
+    const li = document.createElement('li')
+    li.className = 'server'
+    document.getElementById('server-list').append(li)
+
+    const span = document.createElement('span')
+    span.className = 'server-notification'
+    li.append(span)
+
     const button = document.createElement('button')
-    // button.className = 'server'
     button.id = serverID
     button.setAttribute('server-name', serverName)
-    // button.setAttribute('clickable')
     button.style.backgroundImage = `url(${picture})`
-    document.getElementById('server-list').append(button)
-
-
-    // const serverElement = `<button class="server" id="${serverID}" server-name="${serverName}"></button>`
-    // document.getElementById('server-list').insertAdjacentHTML('beforeend', serverElement)
-    // const button = document.getElementById(serverID)
+    li.append(button)
     
-    button.addEventListener('click', () => {
-        selectServer(BigInt(button.id))
-    })
-
-    // button.addEventListener('contextmenu', function(event) {
-    //     console.log('rightclicked on server', button.id)
-
-    //     const actions = [
-    //         { text: 'Rename server', color: '', func: () => renameServer(serverID) },
-    //         { text: 'Delete server', color: 'red', func: () => deleteServer(serverID) }
-    //     ]
-
-    //     createRightClickMenu(actions, event)
-    // })
+    registerClick(button, () => { selectServer(serverID) })
+    registerRightClick(button, (pageX, pageY) => { serverCtxMenu(serverID, pageX, pageY) })
 }
 
 function addChannel(channelID, channelName) {
     const button = document.createElement('button')
-    button.className = 'channel'
     button.id = channelID
 
     const buttonName = document.createElement('div')
-    buttonName.textContent = channelName
+    buttonName.textContent = channelID.toString()
 
     button.appendChild(buttonName)
 
     document.getElementById('channels-list').appendChild(button)
 
-    button.addEventListener('click', () => {
-        selectChannel(button.id)
-    })
-
-    // button.addEventListener('contextmenu', function(event) {
-    //     console.log('rightclicked on channel', button.id)
-
-    //     const actions = [
-    //         { text: 'Rename channel', color: '', func: () => renameChannel(channelID) },
-    //         { text: 'Delete channel', color: 'red', func: () => deleteChannel(channelID) }
-    //     ]
-    //     createRightClickMenu(actions, event)
-    // })
+    registerClick(button, () => { selectChannel(channelID) })
+    registerRightClick(button, (pageX, pageY) => { channelCtxMenu(channelID, pageX, pageY) })
 }
 
 var channelsHidden = false
@@ -267,7 +236,6 @@ function toggleChannelsVisibility() {
 
 function setSelectedChannelBackground(channelID, previousChannelID) {
     document.getElementById(channelID.toString()).style.backgroundColor = '#36393f'
-    // document.getElementById(previousChannelID.toString()).style.background = 'transparent'
     document.getElementById(previousChannelID.toString()).removeAttribute('style')
 }
 
@@ -276,6 +244,14 @@ function resetChannels() {
 }
 
 function resetMessages() {
-    document.getElementById('chat-message-list').innerHTML = '' // empties chat
+    const chatMessageList = document.getElementById('chat-message-list')
+
+    // empties chat
+    chatMessageList.innerHTML = '' 
+
+    // this makes sure there will be a little gap between chat input box
+    // and the chat messages when user is viewing the latest message
+    const chatScrollGap = document.createElement('div')
+    chatMessageList.appendChild(chatScrollGap)
 }
 

@@ -7,8 +7,14 @@ import (
 	"proto-chat/modules/snowflake"
 )
 
+type ChatMessageResponse struct {
+	IDm uint64 // message ID
+	IDu uint64 // user ID
+	Msg string // message
+}
+
 // when client sent a chat message
-func onChatMessageRequest(jsonBytes []byte, userID uint64, displayName string) []byte {
+func onChatMessageRequest(jsonBytes []byte, userID uint64) []byte {
 	type ClientChatMsg struct {
 		ChannelID uint64
 		Message   string
@@ -30,12 +36,10 @@ func onChatMessageRequest(jsonBytes []byte, userID uint64, displayName string) [
 		return setProblem(problem)
 	}
 
-	var serverChatMsg = ServerChatMessage{
-		MessageID: messageID,
-		ChannelID: chatMessageRequest.ChannelID,
-		UserID:    userID,
-		Username:  displayName,
-		Message:   chatMessageRequest.Message,
+	var serverChatMsg = ChatMessageResponse{
+		IDm: messageID,
+		IDu: userID,
+		Msg: chatMessageRequest.Message,
 	}
 
 	jsonBytes, err := json.Marshal(serverChatMsg)
@@ -94,13 +98,15 @@ func onChatHistoryRequest(packetJson []byte, userID uint64) []byte {
 		return nil
 	}
 
-	type ServerChatMessages struct {
-		Messages []ServerChatMessage
-	}
+	// type ChatMessageResponseList struct {
+	// 	Messages []ChatMessageResponse
+	// }
 
-	var messages = ServerChatMessages{
-		Messages: database.GetMessagesFromChannel(chatHistoryRequest.ChannelID),
-	}
+	// var messages = ChatMessageResponseList{
+	// 	Messages: database.GetMessagesFromChannel(chatHistoryRequest.ChannelID),
+	// }
+
+	var messages []ChatMessageResponse = database.GetMessagesFromChannel(chatHistoryRequest.ChannelID)
 
 	messagesBytes, err := json.Marshal(messages)
 	if err != nil {

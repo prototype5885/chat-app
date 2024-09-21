@@ -99,7 +99,18 @@ func loginOrRegister(bodyBytes []byte, pathURL string) (http.Cookie, Result) {
 	if pathURL == "/register" {
 		userID, logRegResult = registerUser(loginData.Username, passwordBytes)
 	} else if pathURL == "/login" {
-		userID, logRegResult = loginUser(loginData.Username, passwordBytes)
+		userID = loginUser(loginData.Username, passwordBytes)
+		if userID == 0 {
+			logRegResult = Result{
+				Success: false,
+				Message: "Wrong username or password",
+			}
+		} else {
+			logRegResult = Result{
+				Success: true,
+				Message: "Successful login",
+			}
+		}
 	} else {
 		// this is not supposed to happen ever
 		log.Panicf("Invalid path URL for user [%s], %s\n", loginData.Username, pathURL)
@@ -188,45 +199,28 @@ func registerUser(username string, passwordBytes []byte) (uint64, Result) {
 
 // Login user, first checking if username exists in the database, then getting the password
 // hash and checking if user entered the correct password, returns the user's ID.
-func loginUser(username string, passwordBytes []byte) (uint64, Result) {
+func loginUser(username string, passwordBytes []byte) uint64 {
 	log.Printf("Starting login of user [%s]...\n", username)
-
-	// get the user id from the database
-	// var userID uint64 = database.GetUserID(username)
-	// if userID == 0 {
-	// 	return 0, Result{
-	// 		Success: false,
-	// 		Message: "No user was found with given name",
-	// 	}
-	// }
-	// printWithName(username, "Confirmed to be: "+strconv.FormatUint(userID, 10))
 
 	// get the password hash from the database
 	passwordHash, userID := database.GetPasswordAndID(username)
 	if passwordHash == nil {
-		return 0, Result{
-			Success: false,
-			Message: "No user was found with given",
-		}
+		log.Printf("No user was found with username [%s]\n", username)
+		return 0
 	}
 
 	// compare given password with the retrieved hash
 	log.Printf("Comparing password hash and string for user [%s]...\n", username)
 	var start = time.Now().UnixMilli()
 	if err := bcrypt.CompareHashAndPassword(passwordHash, passwordBytes); err != nil {
-		return 0, Result{
-			Success: false,
-			Message: "Wrong password",
-		}
+		log.Printf("User entered wrong password for username [%s]\n", username)
+		return 0
 	}
 
 	log.Printf("%s: password matches with hash, comparison took: %d ms\n", username, time.Now().UnixMilli()-start)
 
 	// return the Success
-	return userID, Result{
-		Success: true,
-		Message: "Successful login",
-	}
+	return userID
 }
 
 // func generateTOTP(userID uint64) string {

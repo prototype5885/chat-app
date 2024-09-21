@@ -65,15 +65,9 @@ func onChannelListRequest(packetJson []byte, userID uint64) []byte {
 
 	// TODO check if user has permission to access the server
 
-	type ChannelListResponse struct {
-		Channels []ChannelResponse
-	}
+	var channels []ChannelResponse = database.GetChannelList(channelListRequest.ServerID)
 
-	var channelListResponse = ChannelListResponse{
-		Channels: database.GetChannelList(channelListRequest.ServerID),
-	}
-
-	messagesBytes, err := json.Marshal(channelListResponse)
+	messagesBytes, err := json.Marshal(channels)
 	if err != nil {
 		log.Panicf("Error serializing json at onChannelListRequest for user ID [%d], reason: %s\n:", userID, err.Error())
 	}

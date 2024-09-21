@@ -30,51 +30,77 @@ function resizeChatInput() {
     inputArea.style.height = inputArea.scrollHeight + 'px'
 }
 
-// create the right click menu on right click, delete existing one beforehand
-document.addEventListener('contextmenu', function (event) {
-    console.log('Global context menu on:', event.target.getAttribute('on-context-menu'))
-
-    // this inner function is like a macro because it's needed multiple times later
-    function getUserContextMenuActions(userID) {
-        return [
-            { text: 'Add friend', func: () => addFriend(userID)},
-            { text: 'Report user', color: 'red', func: () => reportUser(userID) },
-            { text: 'Remove friend', color: 'red', func: () => removeFriend(userID) },
-            { text: 'Copy user ID', func: () => copyUserID(userID) }
-        ]
-    }
-
-    const value = event.target.getAttribute('on-context-menu')
-
-    if (value == 'msgUser') {
-        const userID = BigInt(event.target.closest('.msg').getAttribute('user-id'))
-        actions = getUserContextMenuActions(userID)
-        createRightClickMenu(actions, event)
-    } else if (value == 'user') {
-        const userID = BigInt(event.target.closest('.user').getAttribute('user-id'))
-        actions = getUserContextMenuActions(userID)
-        createRightClickMenu(actions, event)
-    } else if (value == 'message') {
-        const messageID = BigInt(event.target.closest('.msg').id)
-        actions = [
-            { text: 'Delete message', color: 'red', func: () => requestChatMessageDeletion(messageID)}
-        ]
-        createRightClickMenu(actions, event)
-    } else {
-        actions = [
-            { text: 'Action 1' },
-            { text: 'Action 2', color: 'red' },
-            { text: 'Action 3' }
-        ]
-        createRightClickMenu(actions, event)
-    }
-})
-
-// delete the right click menu when clicking elsewhere
-document.addEventListener('click', function () {
+// when clicked with left click
+document.addEventListener('click', function (event) {
     deleteRightClickMenu()
 
-    console.log('Global clicked on', event.target)
+    // console.log('Global clicked on', event.target)
+
+    // const value = event.target.getAttribute('on-click')
+
+    // if (value == 'channel') {
+    //     selectChannel(BigInt(event.target.id))
+    // }
+})
+
+// create the right click menu on right click, delete existing one beforehand
+document.addEventListener('contextmenu', function (event) {
+    event.preventDefault()
+    deleteRightClickMenu()
+
+    // console.log('Global context menu on:', event.target.getAttribute('on-context-menu'))
+
+    // // this inner function is like a macro because it's needed multiple times later
+    // function getUserContextMenuActions(userID) {
+    //     return [
+    //         { text: 'Add friend', func: () => addFriend(userID)},
+    //         { text: 'Report user', color: 'red', func: () => reportUser(userID) },
+    //         { text: 'Remove friend', color: 'red', func: () => removeFriend(userID) },
+    //         { text: 'Copy user ID', func: () => copyUserID(userID) }
+    //     ]
+    // }
+
+    // const value = event.target.getAttribute('on-ctx-menu')
+
+    // if (value == 'msgUser') { // if right clicked on msg profile pic or username
+    //     const userID = BigInt(event.target.closest('.msg').getAttribute('user-id'))
+    //     actions = getUserContextMenuActions(userID)
+    //     createRightClickMenu(actions, event)
+
+    // } else if (value == 'user') { // if right clicked on member list
+    //     const userID = BigInt(event.target.closest('.user').getAttribute('user-id'))
+    //     actions = getUserContextMenuActions(userID)
+    //     createRightClickMenu(actions, event)
+
+    // } else if (value == 'message') { // if right clicked on text message
+    //     const messageID = BigInt(event.target.closest('.msg').id)
+    //     actions = [
+    //         { text: 'Delete message', color: 'red', func: () => requestChatMessageDeletion(messageID)}
+    //     ]
+    //     createRightClickMenu(actions, event)
+        
+    // } else if (value == 'server') {
+    //     actions = [
+    //         { text: 'Rename channel', color: '', func: () => renameChannel(channelID) },
+    //         { text: 'Delete channel', color: 'red', func: () => deleteChannel(channelID) }
+    //     ]
+    //     createRightClickMenu(actions, event)
+
+    // } else if (value == 'channel') {
+    //     actions = [
+    //         { text: 'Rename channel', color: '', func: () => renameChannel(channelID) },
+    //         { text: 'Delete channel', color: 'red', func: () => deleteChannel(channelID) }
+    //     ]
+    //     createRightClickMenu(actions, event)
+    
+    // } else { // if right clicked elsewhere
+    //     actions = [
+    //         { text: 'Action 1' },
+    //         { text: 'Action 2', color: 'red' },
+    //         { text: 'Action 3' }
+    //     ]
+    //     createRightClickMenu(actions, event)
+    // }
 })
 
 // read the text message for sending
@@ -95,23 +121,15 @@ function selectServer(serverID) {
     requestChannelList()
 }
 
-function renameServer(serverID) {
-    console.log('renaming server', serverID)
-}
-
-function deleteServer(serverID) {
-    console.log('deleting server', serverID)
-}
-
 // when clicked on a channel from channel list
 function selectChannel(channelID) {
     console.log('Clicked on channel:', channelID)
     const previousChannelID = getCurrentChannelID()
 
-    if (channelID == previousChannelID) {
-        console.log('Channel clicked on is already the current one')
-        return
-    }
+    // if (channelID == previousChannelID) {
+    //     console.log('Channel clicked on is already the current one')
+    //     return
+    // }
 
     resetMessages()
     setCurrentChannelID(channelID)
@@ -120,27 +138,16 @@ function selectChannel(channelID) {
     setSelectedChannelBackground(channelID, previousChannelID)
 }
 
-function renameChannel(channelID) {
-    console.log('renaming channel', channelID)
+function clickedSomething(event) {
+    deleteRightClickMenu()
+    event.stopPropagation()
 }
 
-function deleteChannel(channelID) {
-    console.log('deleting channel', channelID)
+
+function registerClick(element, callback) {
+    element.addEventListener('click', (event) => {
+        clickedSomething(event)
+        callback()
+    })
 }
 
-function addFriend(userID) {
-    console.log('Adding friend', userID)
-}
-
-function reportUser(userID) {
-    console.log('Reporting user', userID)
-}
-
-function removeFriend(userID) {
-    console.log('Removing friend', userID)
-} 
-
-function copyUserID(userID) {
-    console.log('Copying user ID', userID)
-    navigator.clipboard.writeText(userID)
-}

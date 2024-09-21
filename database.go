@@ -200,8 +200,8 @@ func (d *Database) DeleteChatMessage(messageID uint64) bool {
 	return true
 }
 
-func (d *Database) GetMessagesFromChannel(channelID uint64) []ServerChatMessage {
-	const query string = "SELECT * FROM messages WHERE channel_id = ?"
+func (d *Database) GetMessagesFromChannel(channelID uint64) []ChatMessageResponse {
+	const query string = "SELECT message_id, user_id, message FROM messages WHERE channel_id = ?"
 
 	rows, err := d.db.Query(query, channelID)
 	if err != nil {
@@ -209,15 +209,13 @@ func (d *Database) GetMessagesFromChannel(channelID uint64) []ServerChatMessage 
 		log.Panicf("Error searching for messages on channel ID [%d]\n", channelID)
 	}
 
-	var messages []ServerChatMessage
+	var messages []ChatMessageResponse
 
 	var counter int = 0
 	for rows.Next() {
 		counter++
-		var message = ServerChatMessage{
-			Username: "test",
-		}
-		err := rows.Scan(&message.MessageID, &message.ChannelID, &message.UserID, &message.Message)
+		var message ChatMessageResponse
+		err := rows.Scan(&message.IDm, &message.IDu, &message.Msg)
 		if err != nil {
 			log.Println(err.Error())
 			log.Panicf("Error scanning message row into struct in channel ID [%d]\n:", channelID)
@@ -377,10 +375,10 @@ func (d *Database) GetUsername(userID uint64) string {
 
 func (d *Database) GetPasswordAndID(username string) ([]byte, uint64) {
 	log.Printf("Searching for password of user [%s] in database...\n", username)
-	const query string = "SELECT password, user_id FROM users WHERE username = ?"
+	const query string = "SELECT user_id, password FROM users WHERE username = ?"
 	var passwordHash []byte
 	var userID uint64
-	err := d.db.QueryRow(query, username).Scan(&passwordHash, userID)
+	err := d.db.QueryRow(query, username).Scan(&userID, &passwordHash)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			log.Printf("No user was found with user [%s]\n", username)

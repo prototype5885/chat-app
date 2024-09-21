@@ -13,15 +13,7 @@ type Server struct {
 	Picture  string
 }
 
-type ServerChatMessage struct {
-	MessageID uint64
-	ChannelID uint64
-	UserID    uint64
-	Username  string
-	Message   string
-}
-
-type ServerResponse struct { // this is whats sent to the client when client requests server
+type ServerResponse struct {
 	ServerID uint64
 	Name     string
 	Picture  string
@@ -60,15 +52,9 @@ func onAddServerRequest(packetJson []byte, userID uint64) []byte {
 
 // when client requests list of server they are in
 func onServerListRequest(userID uint64) []byte {
-	type ServerResponseList struct {
-		Servers []ServerResponse
-	}
+	var servers []ServerResponse = database.GetServerList(userID)
 
-	var serverListRequest = ServerResponseList{
-		Servers: database.GetServerList(userID),
-	}
-
-	messagesBytes, err := json.Marshal(serverListRequest)
+	messagesBytes, err := json.Marshal(servers)
 	if err != nil {
 		log.Panicf("Error serializing json at onServerListRequest for user ID [%d], reason: %s\n:", userID, err.Error())
 	}
