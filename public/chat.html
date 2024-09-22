@@ -11,10 +11,10 @@
 
 <body>
     <ol id="server-list">
-        <li id="dm">
+        <!-- <li id="dm">
             <button id="dm-button"></button>
             <span class="server-notification"></span>
-        </li>
+        </li> -->
         <div id="servers-separator"></div>
         <!-- <li>
             <span></span>
@@ -35,7 +35,7 @@
                     <div>></div>
                     <div>text channels</div>
                 </button>
-                <button id="add-channel-button" onclick="requestAddChannel(getCurrentChannelID())">+</button>
+                <button id="add-channel-button" onclick="requestAddChannel()">+</button>
             </div>
             <div id="channels-list"></div>
         </div>
@@ -64,12 +64,10 @@
             </ol>
         </div>
     </div>
-    <script src="interactions.js"></script>
-    <script src="dynamic-content.js"></script>
-    <script src="chat.js"></script>
     <script src="contextMenus.js"></script>
     <script src="hoverActions.js"></script>
-    <script src="localData.js"></script>
+    <script src="dynamic-content.js"></script>
+    <script src="chat.js"></script>
 </body>
 
 </html>

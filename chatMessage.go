@@ -50,41 +50,6 @@ func onChatMessageRequest(jsonBytes []byte, userID uint64) []byte {
 	return preparePacket(1, jsonBytes)
 }
 
-// when client wants to delete a message they own
-func onDeleteChatMessageRequest(jsonBytes []byte, userID uint64) []byte {
-	type MessageToDelete struct {
-		MessageID uint64
-	}
-
-	var messageDeleteRequest = MessageToDelete{}
-
-	if err := json.Unmarshal(jsonBytes, &messageDeleteRequest); err != nil {
-		log.Printf("Error deserializing onDeleteChatMessageRequest json of user ID [%d], reason: %s\n", userID, err.Error())
-		return nil
-	}
-
-	ownerID, dbSuccess := database.GetChatMessageOwner(messageDeleteRequest.MessageID)
-	if !dbSuccess {
-		return nil
-	}
-
-	if ownerID != userID {
-		log.Printf("User ID [%d] is trying to delete someone else's message [%d], aborting\n", userID, messageDeleteRequest.MessageID)
-		return setProblem(fmt.Sprintf("Could not delete message ID [%d]\n", userID))
-	}
-
-	success := database.DeleteChatMessage(messageDeleteRequest.MessageID)
-	if !success {
-		return setProblem(fmt.Sprintf("Could not delete message ID [%d]\n", userID))
-	}
-
-	messagesBytes, err := json.Marshal(messageDeleteRequest)
-	if err != nil {
-		log.Panicf("Error serializing json at onDeleteChatMessageRequest for user ID [%d], reason: %s\n:", userID, err.Error())
-	}
-	return preparePacket(3, messagesBytes)
-}
-
 // when client is requesting chat history for a channel
 func onChatHistoryRequest(packetJson []byte, userID uint64) []byte {
 	type ChatHistoryRequest struct {
@@ -113,4 +78,39 @@ func onChatHistoryRequest(packetJson []byte, userID uint64) []byte {
 		log.Panicf("Error serializing json at onChatHistoryRequest for user ID [%d], reason: %s\n:", userID, err.Error())
 	}
 	return preparePacket(2, messagesBytes)
+}
+
+// when client wants to delete a message they own
+func onDeleteChatMessageRequest(jsonBytes []byte, userID uint64) []byte {
+	type MessageToDelete struct {
+		MessageID uint64
+	}
+
+	var messageDeleteRequest = MessageToDelete{}
+
+	if err := json.Unmarshal(jsonBytes, &messageDeleteRequest); err != nil {
+		log.Printf("Error deserializing onDeleteChatMessageRequest json of user ID [%d], reason: %s\n", userID, err.Error())
+		return nil
+	}
+
+	// ownerID, dbSuccess := database.GetChatMessageOwner(messageDeleteRequest.MessageID)
+	// if !dbSuccess {
+	// 	return nil
+	// }
+
+	// if ownerID != userID {
+	// 	log.Printf("User ID [%d] is trying to delete someone else's message [%d], aborting\n", userID, messageDeleteRequest.MessageID)
+	// 	return setProblem(fmt.Sprintf("Could not delete message ID [%d]\n", userID))
+	// }
+
+	success := database.DeleteChatMessage(messageDeleteRequest.MessageID, userID)
+	if !success {
+		return setProblem(fmt.Sprintf("Couldn't delete message ID [%d]\n", userID))
+	}
+
+	messagesBytes, err := json.Marshal(messageDeleteRequest)
+	if err != nil {
+		log.Panicf("Error serializing json at onDeleteChatMessageRequest for user ID [%d], reason: %s\n:", userID, err.Error())
+	}
+	return preparePacket(3, messagesBytes)
 }

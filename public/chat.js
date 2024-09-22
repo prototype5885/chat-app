@@ -1,28 +1,29 @@
 const wsClient = new WebSocket('wss://' + window.location.host + "/wss")
 wsClient.binaryType = 'arraybuffer'
 
-if (typeof(Storage) !== "undefined") {
+if (typeof (Storage) !== "undefined") {
     console.log('Supports storage')
 } else {
     console.log('Doesnt support storage')
 }
 
-document.addEventListener("DOMContentLoaded", function() {
+document.addEventListener("DOMContentLoaded", function () {
+    // add the direct messages button
     {
-        const bubble = document.createElement('div')
-        bubble.textContent = 'Direct Messages'
-
-        const button = document.getElementById('dm-button')
-
-        registerHover(button, () => { createbubble(bubble, button) },  () => { deletebubble() })
+        addServer('home', 'Direct Messages', 'hs.svg', 'dm', discordGray, discordBlue)
     }
+    // add event listener for the add server button
     {
         const bubble = document.createElement('div')
         bubble.textContent = 'Add a Server'
 
         const button = document.getElementById('add-server-button')
 
-        registerHover(button, () => { createbubble(bubble, button) },  () => { deletebubble() })
+        // hide notification marker as this doesn't use it,
+        // but its needed for formatting reasons
+        button.nextElementSibling.style.backgroundColor = 'transparent'
+
+        registerHover(button, () => { createbubble(bubble, button) }, () => { deletebubble() })
     }
 })
 
@@ -57,10 +58,10 @@ wsClient.onmessage = function (event) {
     const json = JSON.parse(packetJson)
     switch (packetType) {
         case 0:
-            console.log(json.Issue)
+            console.warn(json.Issue)
             break
         case 1: // server sent a chat message
-            addChatMessage(BigInt(json.MessageID), BigInt(json.UserID), json.Message)
+            addChatMessage(BigInt(json.IDm), BigInt(json.IDu), json.Msg)
             messages.scrollTo({
                 top: messages.scrollHeight,
                 behavior: 'smooth'
@@ -83,7 +84,7 @@ wsClient.onmessage = function (event) {
             deleteChatMessage(BigInt(json.MessageID))
             break
         case 21: // server responded to the add server request
-            addServer(BigInt(json.ServerID), json.Name, json.Picture)
+            addServer(BigInt(json.ServerID), json.Name, json.Picture, 'server', discordGray, discordBlue)
             break
         case 22: // server sent the requested server list
             if (json == null) {
@@ -91,7 +92,7 @@ wsClient.onmessage = function (event) {
                 break
             }
             for (let i = 0; i < json.length; i++) {
-                addServer(BigInt(json[i].ServerID), json[i].Name, json[i].Picture)
+                addServer(BigInt(json[i].ServerID), json[i].Name, json[i].Picture, 'server', discordGray, discordBlue)
             }
             break
         case 31: // server responded to the add channel request
@@ -99,7 +100,7 @@ wsClient.onmessage = function (event) {
             break
         case 32: // server sent the requested channel list
             if (json == null) {
-                console.log(`No channels on server ID`)
+                console.warn(`No channels on server ID`)
                 break
             }
             for (let i = 0; i < json.length; i++) {
@@ -180,14 +181,14 @@ function requestServerList() {
 }
 
 function requestAddChannel() {
-    preparePacket(31, getCurrentServerID(), {
+    preparePacket(31, currentServerID, {
         Name: 'Channel',
-        ServerID: getCurrentServerID().toString()
+        ServerID: currentServerID.toString()
     })
 }
 
 function requestChannelList() {
-    preparePacket(32, getCurrentServerID(), {
-        ServerID: getCurrentServerID().toString()
+    preparePacket(32, currentServerID, {
+        ServerID: currentServerID.toString()
     })
 }

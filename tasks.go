@@ -186,7 +186,7 @@ func registerUser(username string, passwordBytes []byte) (uint64, Result) {
 	if !newUserResult {
 		return 0, Result{
 			Success: false,
-			Message: "TODO",
+			Message: "Registration failed",
 		}
 	}
 

@@ -78,11 +78,12 @@ func (d *Database) createTables() {
 	// users table
 	_, err = d.db.Exec(`CREATE TABLE IF NOT EXISTS users (
 		user_id BIGINT UNSIGNED PRIMARY KEY,
-		username VARCHAR(32) CHARACTER SET ascii,
-		display_name TEXT,
-		picture TEXT,
+		username VARCHAR(32),
+		display_name VARCHAR(64),
+		picture VARCHAR(255),
 		password BINARY(60),
-		totp CHAR(32)
+		totp CHAR(32),
+		UNIQUE(username)
 	)`)
 	if err != nil {
 		errorCreatingTable("users", err)
@@ -166,7 +167,6 @@ func (d *Database) AddChatMessage(messageID uint64, channelID uint64, userID uin
 			log.Printf("HACK: Failed adding message ID [%d] into database for channel ID [%d] from user ID [%d], there is no channel with given ID", messageID, channelID, userID)
 			return fmt.Sprintf("Can't add message ID [%d] to channel ID [%d] because channel doesn't exist", messageID, channelID)
 		}
-		log.Println(err.Error())
 		log.Panicf("Error adding chat message ID [%d] from user ID [%d] into database\n", messageID, userID)
 	}
 	log.Printf("Chat message ID [%d] from user ID [%d] has been added into database successfully\n", messageID, userID)
@@ -190,17 +190,17 @@ func (d *Database) GetChatMessageOwner(messageID uint64) (uint64, bool) {
 	return userID, true
 }
 
-func (d *Database) DeleteChatMessage(messageID uint64) bool {
+func (d *Database) DeleteChatMessage(messageID uint64, userID uint64) bool {
 	log.Printf("Deleting message ID [%d] from db table [messages]...", messageID)
 
-	stmt, err := d.db.Prepare("DELETE FROM messages where message_id = ?")
+	stmt, err := d.db.Prepare("DELETE FROM messages WHERE message_id = ? AND user_id = ?")
 	if err != nil {
 		log.Println(err.Error())
 		log.Panicf("Error preparing statement in DeleteChatMessage for message ID [%d]\n", messageID)
 	}
 	defer stmt.Close()
 
-	result, err := stmt.Exec(messageID)
+	result, err := stmt.Exec(messageID, userID)
 	if err != nil {
 		log.Println(err.Error())
 		log.Panicf("Error executing statement in DeleteChatMessage for message ID [%d]\n", messageID)
@@ -212,14 +212,17 @@ func (d *Database) DeleteChatMessage(messageID uint64) bool {
 		log.Panicf("Error getting rowsAffected in DeleteChatMessage\n")
 	}
 
-	if rowsAffected == 0 {
-		log.Printf("Message ID [%d] that was to be deleted was nowhere to be found\n", messageID)
+	if rowsAffected == 1 {
+		log.Printf("Message ID [%d] from user ID [%d] was deleted from database\n", messageID, userID)
+		return true
+	} else if rowsAffected == 0 {
+		log.Printf("No message ID [%d] from user ID [%d] was found\n", messageID, userID)
 		return false
-	} else if rowsAffected != 0 && rowsAffected != 1 {
+	} else {
 		// this is not supposed to happen at all since it's not possible to have 2 messages with same ID
 		log.Panicf("Multiple messages with same ID [%d] were found and deleted\n", messageID)
+		return false
 	}
-	return true
 }
 
 func (d *Database) GetMessagesFromChannel(channelID uint64) []ChatMessageResponse {
@@ -308,7 +311,6 @@ func (d *Database) AddChannel(channelID uint64, serverID uint64, channelName str
 			log.Printf("Failed adding channel ID [%d] into database for server ID [%d], there is no server with given ID", channelID, serverID)
 			return false
 		}
-		log.Println(err.Error())
 		log.Panicf("Error adding channel ID [%d] into database\n", channelID)
 	}
 	log.Printf("Successfully added channel ID [%d] into database\n", channelID)
@@ -354,6 +356,10 @@ func (d *Database) RegisterNewUser(userId uint64, username string, passwordHash 
 	_, err := d.db.Exec(query, userId, username, passwordHash, totpSecret)
 	if err != nil {
 		log.Println(err.Error())
+		if strings.Contains(err.Error(), "Error 1062") {
+			log.Printf("Failed registering user [%s], username is already taken\n", username)
+			return false
+		}
 		log.Panicf("Error registering username [%s] into database\n", username)
 	}
 	log.Printf("Username [%s] was registered into database successfully with id [%d]\n", username, userId)

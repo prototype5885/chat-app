@@ -6,52 +6,42 @@ body {
 }
 
 /* server list column on the left side */
-#server-list { 
-    overflow-y:scroll;
+#server-list {
+    overflow-y: scroll;
     scrollbar-width: none;
     min-width: 72px;
     max-width: min-content;
     background-color: #1E1F22;
     display: flex;
     flex-direction: column;
-    padding-top: 12px;
     padding: 0;
+    padding-top: 8px;
     margin: 0;
 }
 
 
 /* all the server buttons on the left side */
-#server-list button{
-    order: 1; /* so the white notification thing will appear on left */
-    background-color: #36393f;
-    flex-shrink: 0; /* prevent resizing button */
+#server-list button {
+    order: 1;
+    /* so the white notification thing will appear on left */
+    flex-shrink: 0;
+    /* prevent resizing button */
     width: 48px;
     height: 48px;
     margin-left: 8px;
     margin-right: 12px;
     background-size: 48px 48px;
     border-radius: 50%;
-    transition: border-radius 0.3s ease;;
+    transition: border-radius 0.3s ease, background-color 0.15s ease;
 }
 
 /* change their shape on hover */
-#server-list button:hover {
+/* #server-list button:hover {
     border-radius: 35%;
-}
-
-#server-list button:hover + .server-notification {
-    height: 24px;
-}
+} */
 
 #dm {
     order: 1;
-}
-
-/* top left dm messages button */
-#dm-button {
-    background-color: #5865F2;
-    background-image: url(hs.svg);
-    background-size: 48px 48px;
 }
 
 /* separator between dm and servers on top left */
@@ -76,7 +66,7 @@ body {
     height: 60px;
     width: 72px;
     flex: 0 0 auto;
-    display:flex;
+    display: flex;
     align-items: center;
 }
 
@@ -97,12 +87,13 @@ body {
 /* color and font of add server button */
 #add-server-button {
     font-size: x-large;
+    background-color: #36393f;
     color: #00b700;
 }
 
 /* make the add server button green on hover */
 #add-server-button:hover {
-    color:white;
+    color: white;
     background-color: green;
 }
 
@@ -150,7 +141,7 @@ body {
 }
 
 #channels-list {
-    overflow-y:scroll;
+    overflow-y: scroll;
     display: flex;
     flex-direction: column;
 }
@@ -430,7 +421,7 @@ body {
 #bubble {
     z-index: 999;
     display: block;
-    width: 14rem;
+    max-width: 14rem;
     height: auto;
     word-wrap: break-word;
     overflow-wrap: break-word;
@@ -477,5 +468,3 @@ body {
     background-color: #F23F42;
     color: white;
 }
-
-

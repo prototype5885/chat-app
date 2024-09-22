@@ -1,5 +1,72 @@
-
 const grey1 = '#949BA4'
+const discordGray = '#36393f'
+const discordBlue = '#5865F2'
+const discrodGreen = '#00b700'
+
+var currentServerID
+var currentChannelID
+
+
+// hide member list when pressing the button
+document.getElementById('hide-member-list-button').addEventListener('click', function () {
+    const memberList = document.getElementById('member-list')
+    if (memberList.style.display === 'none') {
+        memberList.style.display = 'flex'
+    } else {
+        memberList.style.display = 'none'
+    }
+})
+
+// runs whenever the chat input textarea content changes
+const inputArea = document.getElementById('chat-input')
+inputArea.addEventListener('input', () => {
+    resizeChatInput()
+})
+
+// send the text message on enter
+inputArea.addEventListener('keydown', function (event) {
+    // wont send if its shift enter so can make new lines
+    if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault()
+        readChatInput()
+    }
+})
+
+// dynamically resize the chat input textarea to fit the text content
+function resizeChatInput() {
+    inputArea.style.height = 'auto'
+    inputArea.style.height = inputArea.scrollHeight + 'px'
+}
+
+// delete context menu if left clicked somewhere thats not
+// a context menu list element
+document.addEventListener('click', function (event) {
+    deleteRightClickMenu()
+})
+
+// delete context menu if right clicked somewhere thats not registered
+// with context menu listener
+document.addEventListener('contextmenu', function (event) {
+    event.preventDefault()
+    deleteRightClickMenu()
+})
+
+// read the text message for sending
+function readChatInput() {
+    if (inputArea.value) {
+        sendChatMessage(inputArea.value, currentChannelID)
+        inputArea.value = ''
+        resizeChatInput()
+    }
+}
+
+function registerClick(element, callback) {
+    element.addEventListener('click', (event) => {
+        deleteRightClickMenu()
+        event.stopPropagation()
+        callback()
+    })
+}
 
 function getCenterCoordinates(element) {
     const rect = element.getBoundingClientRect();
@@ -38,7 +105,7 @@ function createContextMenu(actions, pageX, pageY) {
             li.className = 'cm-red' // to make the text red from css
         }
         // this will assing the function for each element
-        li.onclick = function () { 
+        li.onclick = function () {
             action.func()
         }
 
@@ -77,14 +144,16 @@ function createbubble(content, element) {
     const height = bubble.getBoundingClientRect().height
 
     // set the bubble position
-    bubble.style.left = `${center.x+40}px`
-    bubble.style.top = `${center.y-height/2}px`
+    bubble.style.left = `${center.x + 40}px`
+    bubble.style.top = `${center.y - height / 2}px`
 }
 
 function deletebubble() {
     const bubble = document.getElementById('bubble')
     if (bubble != null) {
         bubble.remove()
+    } else {
+        console.warn("A bubble was to be deleted but was nowhere to be found")
     }
 }
 
@@ -175,7 +244,7 @@ function addChatMessage(messageID, userID, message) {
     // const message
     // const msgProfilePic = document.getElementById(messageID)
     // const msgUserName = document.getElementById(messageID).querySelector('.msg-user-name')
-    
+
 
     // document.getElementById('chat-message-list').insertAdjacentHTML('beforeend', chatElement)
 }
@@ -227,16 +296,31 @@ function addMember(id, where) {
     memberList.appendChild(li)
 }
 
-function addServer(serverID, serverName, picture) {
+function updateServerImage(button, picture, defaultColor, firstCharacter) {
+    if (picture !== '') {
+        button.style.backgroundImage = `url(${picture})`
+
+    } else {
+        button.style.backgroundColor = defaultColor
+        button.textContent = firstCharacter.toUpperCase()
+    }
+}
+
+function addServer(serverID, serverName, picture, className, defaultColor, hoverColor) {
+    // this li will hold the server and notification thing, which is the span
     const li = document.createElement('li')
-    li.className = 'server'
+    li.className = className
     document.getElementById('server-list').append(li)
 
+    // create the server button itself
     const button = document.createElement('button')
     button.id = serverID
     button.setAttribute('server-name', serverName)
-    button.style.backgroundImage = `url(${picture})`
     li.append(button)
+
+    // set picture of server
+    updateServerImage(button, picture, defaultColor, serverName[0])
+
 
     const span = document.createElement('span')
     span.className = 'server-notification'
@@ -246,10 +330,62 @@ function addServer(serverID, serverName, picture) {
     const bubbleText = document.createElement('div')
     bubbleText.textContent = serverID.toString()
 
-    
-    registerClick(button, () => { selectServer(serverID) })
+
+
+    // this will reset the previously selected server's
+    // notification's white thing's size
+    function resetPreviousNotificationSize(previousButton) {
+        if (previousButton != null) {
+            previousButton.nextElementSibling.style.height = '4px'
+        }
+    }
+
+    function onClick() {
+        console.log('Clicked on server:', serverID)
+
+        const previousButton = document.getElementById(currentServerID)
+
+        if (serverID == currentServerID) {
+            console.log('Selected server is already the current one')
+            return
+        }
+        resetPreviousNotificationSize(previousButton)
+
+        button.style.backgroundColor = hoverColor
+        if (previousButton != null) {
+            previousButton.style.backgroundColor = defaultColor
+            previousButton.style.borderRadius = '50%'
+        }
+
+        currentServerID = serverID
+
+        resetChannels()
+        resetMessages()
+        requestChannelList()
+    }
+
+    function onHoverIn() {
+        createbubble(bubbleText, button)
+        if (serverID != currentServerID) {
+            button.style.backgroundColor = hoverColor
+            button.style.borderRadius = '35%'
+        }
+        span.style.height = '24px'
+    }
+
+    function onHoverOut() {
+        if (serverID != currentServerID) {
+            span.style.height = '4px'
+            button.style.backgroundColor = defaultColor
+            button.style.borderRadius = '50%'
+        }
+
+        deletebubble()
+    }
+
+    registerClick(button, () => { onClick() })
     registerRightClick(button, (pageX, pageY) => { serverCtxMenu(serverID, pageX, pageY) })
-    registerHover(button, () => { createbubble(bubbleText, button) },  () => { deletebubble() })
+    registerHover(button, () => { onHoverIn() }, () => { onHoverOut() })
 }
 
 function addChannel(channelID, channelName) {
@@ -263,7 +399,27 @@ function addChannel(channelID, channelName) {
 
     document.getElementById('channels-list').appendChild(button)
 
-    registerClick(button, () => { selectChannel(channelID) })
+    // when clicked on the channel from channel list
+    function onClick(channelID) {
+        console.log('Clicked on channel:', channelID)
+
+        if (channelID == currentChannelID) {
+            console.log('Channel clicked on is already the current one')
+            return
+        }
+
+        document.getElementById(channelID).style.backgroundColor = discordGray
+        const previousChannel = document.getElementById(currentChannelID)
+        if (previousChannel != null) {
+            document.getElementById(currentChannelID).removeAttribute('style')
+        }
+
+        resetMessages()
+        currentChannelID = channelID
+        requestChatHistory(channelID)
+    }
+
+    registerClick(button, () => { onClick(channelID) })
     registerRightClick(button, (pageX, pageY) => { channelCtxMenu(channelID, pageX, pageY) })
 }
 
@@ -274,7 +430,7 @@ function toggleChannelsVisibility() {
 
     channels.forEach(channel => {
         if (!channelsHidden) {
-            if (channel.id != getCurrentChannelID()) {
+            if (channel.id != currentChannelID) {
                 channel.style.display = 'none'
             }
         } else {
@@ -288,10 +444,6 @@ function toggleChannelsVisibility() {
     }
 }
 
-function setSelectedChannelBackground(channelID, previousChannelID) {
-    document.getElementById(channelID.toString()).style.backgroundColor = '#36393f'
-    document.getElementById(previousChannelID.toString()).removeAttribute('style')
-}
 
 function resetChannels() {
     document.getElementById('channels-list').innerHTML = ''
@@ -301,7 +453,7 @@ function resetMessages() {
     const chatMessageList = document.getElementById('chat-message-list')
 
     // empties chat
-    chatMessageList.innerHTML = '' 
+    chatMessageList.innerHTML = ''
 
     // this makes sure there will be a little gap between chat input box
     // and the chat messages when user is viewing the latest message

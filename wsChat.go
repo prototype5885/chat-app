@@ -124,43 +124,46 @@ func (c *Client) readMessages(userID uint64) {
 		log.Println("Received packet:", endIndex, packetType, string(packetJson))
 
 		switch packetType {
-		case 1: // client sent a chat message
+		case 1: // user sent a chat message on x channel
 			log.Printf("User ID [%d] sent a chat message\n", userID)
 			responseBytes = onChatMessageRequest(packetJson, userID)
 			c.sendToEveryone(responseBytes)
 
-		case 2: // client requested server history
+		case 2: // user requesting chat history for x channel
 			log.Printf("User ID [%d] is asking for chat history\n", userID)
 			responseBytes = onChatHistoryRequest(packetJson, userID)
 			c.respondOnlyToSender(userID, responseBytes)
 
-		case 3: // client sent a delete message request
+		case 3: // user deleting a chat message
 			log.Printf("User ID [%d] wants to delete a chat message\n", userID)
 			responseBytes = onDeleteChatMessageRequest(packetJson, userID)
 			c.sendToEveryone(responseBytes)
 
-		case 21: // client is requesting to add a server
+		case 21: // user added a server
 			log.Printf("User ID [%d] wants to create a server\n", userID)
 			responseBytes = onAddServerRequest(packetJson, userID)
 			c.respondOnlyToSender(userID, responseBytes)
 
-		case 22: // client requested server list
+		case 22: // user requesting their joined server list
 			log.Printf("User ID [%d] is requesting server list\n", userID)
 			responseBytes = onServerListRequest(userID)
 			c.respondOnlyToSender(userID, responseBytes)
 
-		case 31: // client is requeting to add a channel
+		case 23: // user deleting a server
+			log.Printf("User ID [%d] wants to delete a server\n", userID)
+
+		case 31: // user added a channel to their server
 			log.Printf("User ID [%d] wants to add a channel\n", userID)
 			responseBytes = onAddChannelRequest(packetJson, userID)
 			c.sendToEveryone(responseBytes)
 
-		case 32: // client requested channel list
+		case 32: // user requesting channel list for x server
 			log.Printf("User ID [%d] is requesting channel list\n", userID)
 			responseBytes = onChannelListRequest(packetJson, userID)
 			c.respondOnlyToSender(userID, responseBytes)
 
-		case 42: // client is requesting to send names
-			log.Printf("User ID [%d] is requesting name/names of servers/channels/users\n", userID)
+		// case 42: // client is requesting to send names
+		// 	log.Printf("User ID [%d] is requesting name/names of servers/channels/users\n", userID)
 
 		default:
 			log.Printf("Unable to process message that user ID [%d] sent\n", userID)
