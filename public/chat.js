@@ -7,6 +7,25 @@ if (typeof(Storage) !== "undefined") {
     console.log('Doesnt support storage')
 }
 
+document.addEventListener("DOMContentLoaded", function() {
+    {
+        const bubble = document.createElement('div')
+        bubble.textContent = 'Direct Messages'
+
+        const button = document.getElementById('dm-button')
+
+        registerHover(button, () => { createbubble(bubble, button) },  () => { deletebubble() })
+    }
+    {
+        const bubble = document.createElement('div')
+        bubble.textContent = 'Add a Server'
+
+        const button = document.getElementById('add-server-button')
+
+        registerHover(button, () => { createbubble(bubble, button) },  () => { deletebubble() })
+    }
+})
+
 wsClient.onopen = function (_event) {
     console.log('Connected to WebSocket successfully.')
     requestServerList()

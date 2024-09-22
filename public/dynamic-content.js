@@ -1,6 +1,25 @@
 
 const grey1 = '#949BA4'
 
+function getCenterCoordinates(element) {
+    const rect = element.getBoundingClientRect();
+
+    const center = {
+        x: rect.left + rect.width / 2 + window.scrollX,
+        y: rect.top + rect.height / 2 + window.scrollY
+    }
+    return center
+}
+// function getElementDimension(element) {
+//     const rect = element.getBoundingClientRect();
+
+//     const dimension = {
+//         x: rect.width,
+//         y: rect.height
+//     }
+//     return dimension
+// }
+
 function createContextMenu(actions, pageX, pageY) {
     // create the right click menu
     const rightClickMenu = document.createElement('div')
@@ -16,7 +35,7 @@ function createContextMenu(actions, pageX, pageY) {
         const li = document.createElement('li')
         li.textContent = action.text
         if (action.color === 'red') {
-            li.className = 'cm-red'
+            li.className = 'cm-red' // to make the text red from css
         }
         // this will assing the function for each element
         li.onclick = function () { 
@@ -28,8 +47,8 @@ function createContextMenu(actions, pageX, pageY) {
 
     // creates the right click menu on cursor position
     rightClickMenu.style.display = 'block'
-    rightClickMenu.style.left = pageX + 'px'
-    rightClickMenu.style.top = pageY + 'px'
+    rightClickMenu.style.left = `${pageX}px`
+    rightClickMenu.style.top = `${pageY}px`
 }
 
 function deleteRightClickMenu() {
@@ -39,6 +58,35 @@ function deleteRightClickMenu() {
     }
 }
 
+function createbubble(content, element) {
+    // create bubble div that will hold the content
+    const bubble = document.createElement('div')
+    bubble.id = 'bubble'
+    document.body.appendChild(bubble)
+
+    // add the content into it
+    bubble.appendChild(content)
+
+    // center of the element that created the bubble
+    // bubble will be created relative to this
+    const center = getCenterCoordinates(element)
+
+    // get how tall the bubble will be, so can
+    // offset the Y position to make it appear
+    // centered next to the element
+    const height = bubble.getBoundingClientRect().height
+
+    // set the bubble position
+    bubble.style.left = `${center.x+40}px`
+    bubble.style.top = `${center.y-height/2}px`
+}
+
+function deletebubble() {
+    const bubble = document.getElementById('bubble')
+    if (bubble != null) {
+        bubble.remove()
+    }
+}
 
 // adds the new chat message into html
 function addChatMessage(messageID, userID, message) {
@@ -184,18 +232,24 @@ function addServer(serverID, serverName, picture) {
     li.className = 'server'
     document.getElementById('server-list').append(li)
 
-    const span = document.createElement('span')
-    span.className = 'server-notification'
-    li.append(span)
-
     const button = document.createElement('button')
     button.id = serverID
     button.setAttribute('server-name', serverName)
     button.style.backgroundImage = `url(${picture})`
     li.append(button)
+
+    const span = document.createElement('span')
+    span.className = 'server-notification'
+    li.append(span)
+
+    // bubble on hover
+    const bubbleText = document.createElement('div')
+    bubbleText.textContent = serverID.toString()
+
     
     registerClick(button, () => { selectServer(serverID) })
     registerRightClick(button, (pageX, pageY) => { serverCtxMenu(serverID, pageX, pageY) })
+    registerHover(button, () => { createbubble(bubbleText, button) },  () => { deletebubble() })
 }
 
 function addChannel(channelID, channelName) {

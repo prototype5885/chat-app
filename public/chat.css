@@ -22,6 +22,7 @@ body {
 
 /* all the server buttons on the left side */
 #server-list button{
+    order: 1; /* so the white notification thing will appear on left */
     background-color: #36393f;
     flex-shrink: 0; /* prevent resizing button */
     width: 48px;
@@ -38,6 +39,10 @@ body {
     border-radius: 35%;
 }
 
+#server-list button:hover + .server-notification {
+    height: 24px;
+}
+
 #dm {
     order: 1;
 }
@@ -49,10 +54,8 @@ body {
     background-size: 48px 48px;
 }
 
-
-
 /* separator between dm and servers on top left */
-#dm-servers-separator {
+#servers-separator {
     order: 2;
     flex: 0 0 auto;
     width: 32px;
@@ -84,6 +87,7 @@ body {
     border-top-right-radius: 4px;
     border-bottom-right-radius: 4px;
     background-color: white;
+    transition: height 0.3s ease;
 }
 
 #add-server {
@@ -413,17 +417,35 @@ body {
     font-size: 12px;
 }
 
-
-
+#bubble,
 #right-click-menu {
     display: none;
     position: absolute;
-    z-index: 1000;
-    width: 150px;
     background-color: #111214d1;
     border-radius: 5px;
     backdrop-filter: blur(4px);
     box-shadow: 5px 5px 5px rgba(0, 0, 0, 0.25);
+}
+
+#bubble {
+    z-index: 999;
+    display: block;
+    width: 14rem;
+    height: auto;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+#bubble div {
+    padding: 8px;
+    padding-left: 12px;
+    padding-right: 12px;
+    font-size: larger;
+}
+
+#right-click-menu {
+    z-index: 1000;
+    width: 150px;
 }
 
 #right-click-menu ul {
@@ -434,7 +456,9 @@ body {
 
 /* context menu items */
 #right-click-menu li {
-    padding: 8px 12px;
+    padding: 8px;
+    padding-left: 12px;
+    padding-right: 12px;
     font-size: small;
     cursor: pointer;
     border-radius: 5px;

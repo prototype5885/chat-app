@@ -21,8 +21,8 @@ func wssHandler(w http.ResponseWriter, r *http.Request) {
 	printReceivedRequest(r.URL.Path, r.Method)
 
 	// check if the user trying to connect to websocket has token
-	userID, valid := checkIfTokenIsValid(r)
-	if valid {
+	userID := checkIfTokenIsValid(r)
+	if userID != 0 {
 		acceptWsClient(userID, w, r)
 		return
 	}
@@ -39,8 +39,8 @@ func loginRegisterHandler(w http.ResponseWriter, r *http.Request) {
 	printReceivedRequest(r.URL.Path, r.Method)
 
 	// check if user requesting login/registration already has a token
-	_, valid := checkIfTokenIsValid(r)
-	if valid { // if user is trying to login but has a token
+	userID := checkIfTokenIsValid(r)
+	if userID != 0 { // if user is trying to login but has a token
 		log.Println("User is trying to access /login-register.html but already has authorized token")
 		log.Println("Redirecting user to /chat.html ...")
 		http.Redirect(w, r, "/chat.html", http.StatusMovedPermanently)
@@ -55,8 +55,8 @@ func chatHandler(w http.ResponseWriter, r *http.Request) {
 	printReceivedRequest(r.URL.Path, r.Method)
 
 	// check if user requesting login/registration already has a token
-	_, valid := checkIfTokenIsValid(r)
-	if !valid { // if user tries to use the chat but has no token
+	userID := checkIfTokenIsValid(r)
+	if userID == 0 { // if user tries to use the chat but has no token
 		log.Println("Someone is trying to access /chat.html without authorized token")
 		log.Println("Redirecting to / ...")
 		http.Redirect(w, r, "/", http.StatusMovedPermanently)

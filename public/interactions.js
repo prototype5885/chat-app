@@ -138,15 +138,10 @@ function selectChannel(channelID) {
     setSelectedChannelBackground(channelID, previousChannelID)
 }
 
-function clickedSomething(event) {
-    deleteRightClickMenu()
-    event.stopPropagation()
-}
-
-
 function registerClick(element, callback) {
     element.addEventListener('click', (event) => {
-        clickedSomething(event)
+        deleteRightClickMenu()
+        event.stopPropagation()
         callback()
     })
 }

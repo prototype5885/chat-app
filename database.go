@@ -60,17 +60,32 @@ func (d *Database) ConnectMariadb(username string, password string, address stri
 }
 
 func (d *Database) createTables() {
-	// users table
+	errorCreatingTable := func(s string, err error) {
+		log.Println(err.Error())
+		log.Panicf("Error creating [%s] table in database\n", s)
+	}
+
 	var err error
+
+	// snoflake IDs table
+	// _, err = d.db.Exec(`CREATE TABLE IF NOT EXISTS snowflakes (
+	// 	id BIGINT UNSIGNED PRIMARY KEY
+	// )`)
+	// if err != nil {
+	// 	errorCreatingTable("snowflakes", err)
+	// }
+
+	// users table
 	_, err = d.db.Exec(`CREATE TABLE IF NOT EXISTS users (
 		user_id BIGINT UNSIGNED PRIMARY KEY,
-		username TEXT,
+		username VARCHAR(32) CHARACTER SET ascii,
+		display_name TEXT,
 		picture TEXT,
 		password BINARY(60),
 		totp CHAR(32)
 	)`)
 	if err != nil {
-		log.Panic("Error creating users table in database:", err)
+		errorCreatingTable("users", err)
 	}
 
 	// servers table
@@ -82,8 +97,7 @@ func (d *Database) createTables() {
 			FOREIGN KEY (owner_id) REFERENCES users(user_id)
 		)`)
 	if err != nil {
-		log.Println(err.Error())
-		log.Panic("Error creating server table in database")
+		errorCreatingTable("servers", err)
 	}
 
 	// channels table
@@ -94,8 +108,18 @@ func (d *Database) createTables() {
 			FOREIGN KEY (server_id) REFERENCES servers(server_id)
 		)`)
 	if err != nil {
-		log.Println(err.Error())
-		log.Panic("Error creating channels table in database")
+		errorCreatingTable("channels", err)
+	}
+
+	// server members table
+	_, err = d.db.Exec(`CREATE TABLE IF NOT EXISTS server_members (
+		server_id BIGINT UNSIGNED,
+		user_id BIGINT UNSIGNED,
+		FOREIGN KEY (server_id) REFERENCES servers(server_id),
+		FOREIGN KEY (user_id) REFERENCES users(user_id)
+	)`)
+	if err != nil {
+		errorCreatingTable("server_members", err)
 	}
 
 	// messages table
@@ -104,11 +128,11 @@ func (d *Database) createTables() {
 		channel_id BIGINT UNSIGNED,
 		user_id BIGINT UNSIGNED,
 		message TEXT,
-		FOREIGN KEY (channel_id) REFERENCES channels(channel_id)
+		FOREIGN KEY (channel_id) REFERENCES channels(channel_id),
+		FOREIGN KEY (user_id) REFERENCES users(user_id)
 	)`)
 	if err != nil {
-		log.Println(err.Error())
-		log.Panic("Error creating messages table in database")
+		errorCreatingTable("messages", err)
 	}
 
 	// tokens table
@@ -119,8 +143,7 @@ func (d *Database) createTables() {
 		FOREIGN KEY (user_id) REFERENCES users(user_id)
 	)`)
 	if err != nil {
-		log.Println(err.Error())
-		log.Panic("Error creating tokens table in database")
+		errorCreatingTable("tokens", err)
 	}
 
 	// profile pictures table
@@ -129,8 +152,7 @@ func (d *Database) createTables() {
 			file_name TEXT
 		)`)
 	if err != nil {
-		log.Println(err.Error())
-		log.Panic("Error creating profilepics table in database")
+		errorCreatingTable("profilepics", err)
 	}
 }
 
@@ -402,24 +424,25 @@ func (d *Database) AddToken(token Token) {
 	log.Printf("added a new token for user ID [%d] into database\n", token.UserID)
 }
 
-func (d *Database) GetToken(tokenBytes []byte) (Token, bool) {
+func (d *Database) ConfirmToken(tokenBytes []byte) uint64 {
 	log.Println("Searching for token in database...")
 
-	const query string = "SELECT * FROM tokens WHERE token = ?"
+	const query string = "SELECT user_id, expiration FROM tokens WHERE token = ?"
 
-	var token Token
-	var text uint64
+	var userID uint64
+	var expiration uint64
 
-	err := d.db.QueryRow(query, tokenBytes).Scan(&token.Token, &token.UserID, &text)
+	err := d.db.QueryRow(query, tokenBytes).Scan(&userID, &expiration)
 	if err != nil {
 		if err == sql.ErrNoRows { // token was not found
-			log.Printf("Given token was not found in database: [%s]\n", hex.EncodeToString(tokenBytes))
-			return Token{}, false
+			log.Printf("Token was not found in database: [%s]\n", hex.EncodeToString(tokenBytes))
+			return 0
 		}
-		log.Panic("Error retrieving given token from database: " + err.Error())
+		log.Println(err.Error())
+		log.Panicf("Error retrieving token [%s] from database\n", hex.EncodeToString(tokenBytes))
 	}
-	log.Printf("Given token was successfully found in database: [%s]\n", hex.EncodeToString(tokenBytes))
-	return token, true
+	log.Printf("Given token was successfully found in database, it belongs to user ID [%d]\n", userID)
+	return userID
 }
 
 // func getUserRowDB(userIDArgs uint64) (uint64, string, string, string, string, Result) {

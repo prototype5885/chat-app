@@ -159,6 +159,9 @@ func (c *Client) readMessages(userID uint64) {
 			responseBytes = onChannelListRequest(packetJson, userID)
 			c.respondOnlyToSender(userID, responseBytes)
 
+		case 42: // client is requesting to send names
+			log.Printf("User ID [%d] is requesting name/names of servers/channels/users\n", userID)
+
 		default:
 			log.Printf("Unable to process message that user ID [%d] sent\n", userID)
 			responseBytes = preparePacket(0, nil)

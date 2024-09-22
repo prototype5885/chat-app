@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"proto-chat/modules/snowflake"
 	"strconv"
 )
 
@@ -14,12 +15,13 @@ func main() {
 
 	setupLogging(config.LogInFile)
 
-	// database
 	if config.Sqlite {
 		database.ConnectSqlite()
 	} else {
 		database.ConnectMariadb(config.Username, config.Password, config.Address, strconv.Itoa(int(config.DatabasePort)), config.DatabaseName)
 	}
+
+	snowflake.SetSnowflakeServerID(0)
 
 	// websocket
 	go pingClients()

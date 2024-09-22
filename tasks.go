@@ -243,7 +243,8 @@ func newToken(userID uint64) Token {
 	var tokenBytes []byte = make([]byte, 128)
 	_, err := io.ReadFull(rand.Reader, tokenBytes)
 	if err != nil {
-		log.Panicf("Error generating token for user ID [%d], reason: %s\n", userID, err.Error())
+		log.Println(err.Error())
+		log.Panicf("Error generating token for user ID [%d]\n", userID)
 	}
 
 	var tokenRow = Token{
@@ -259,7 +260,7 @@ func newToken(userID uint64) Token {
 	return tokenRow
 }
 
-func checkIfTokenIsValid(r *http.Request) (uint64, bool) {
+func checkIfTokenIsValid(r *http.Request) uint64 {
 	log.Println("Checking if received token is valid...")
 
 	cookieToken, found := findCookie(r.Cookies(), "token")
@@ -267,19 +268,21 @@ func checkIfTokenIsValid(r *http.Request) (uint64, bool) {
 		// decode to bytes
 		tokenBytes, err := hex.DecodeString(cookieToken.Value)
 		if err != nil {
-			log.Println("Error decoding token from cookie to byte array:", err.Error())
-			return 0, false
+			log.Println(err.Error())
+			log.Println("Error decoding token from cookie to byte array")
+			return 0
 		}
 
 		// check if token exists in the database
-		token, found := database.GetToken(tokenBytes)
-		if !found {
-			return 0, false
-		} else {
-			return token.UserID, true
-		}
+		return database.ConfirmToken(tokenBytes)
+		// var userID uint64 = database.ConfirmToken(tokenBytes)
+		// if userID == 0 {
+		// 	return 0
+		// } else {
+		// 	return userID
+		// }
 	}
-	return 0, false
+	return 0
 }
 
 func preparePacket(typeByte byte, jsonBytes []byte) []byte {
