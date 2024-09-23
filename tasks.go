@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/fs"
 	"log"
@@ -16,6 +17,17 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 )
+
+func errorDeserializing(errStr string, jsonType string, userID uint64) []byte {
+	log.Println(errStr)
+	log.Printf("Error deserializing json type [%s] of user ID [%d]\n", jsonType, userID)
+	return respondFailureReason(fmt.Sprintf("Couldn't deserialize json of [%s] request", jsonType))
+}
+
+func errorSerializing(errStr string, jsonType string, userID uint64) {
+	log.Println(errStr)
+	log.Panicf("Fatal error serializing response json type [%s] for user ID [%d]\n", jsonType, userID)
+}
 
 func setupLogging(logInFile bool) {
 	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
@@ -182,7 +194,7 @@ func registerUser(username string, passwordBytes []byte) (uint64, Result) {
 	//printWithName(username, totpResult.Message)
 
 	// add the new user to database
-	newUserResult := database.RegisterNewUser(userID, username, passwordHash, "")
+	newUserResult := database.RegisterNewUser(userID, username, "placeholder name", passwordHash, "")
 	if !newUserResult {
 		return 0, Result{
 			Success: false,
@@ -302,18 +314,18 @@ func preparePacket(typeByte byte, jsonBytes []byte) []byte {
 	return packet
 }
 
-func setProblem(problem string) []byte {
-	type Issue struct {
-		Issue string
+func respondFailureReason(reason string) []byte {
+	type Failure struct {
+		Reason string
 	}
-	var issue = Issue{
-		Issue: problem,
+	var failure = Failure{
+		Reason: reason,
 	}
 
-	json, err := json.Marshal(issue)
+	json, err := json.Marshal(failure)
 	if err != nil {
-		log.Printf("Could not serialize issue in formatProblem\n")
-		log.Panicln(err.Error())
+		log.Println(err.Error())
+		log.Panicln("Could not serialize issue in respondFailureReason")
 	}
 
 	return preparePacket(0, json)

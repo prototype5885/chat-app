@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"log"
 	"proto-chat/modules/snowflake"
 )
 
@@ -17,8 +16,10 @@ type ChannelResponse struct { // this is whats sent to the client when client re
 	Name      string
 }
 
-// when client is requesting to add a new channel
-func onAddChannelRequest(packetJson []byte, userID uint64) []byte {
+// when client is requesting to add a new channel, type 31
+func (c *Client) onAddChannelRequest(packetJson []byte) []byte {
+	const jsonType string = "add channel"
+
 	type AddChannelRequest struct {
 		Name     string
 		ServerID uint64
@@ -27,8 +28,7 @@ func onAddChannelRequest(packetJson []byte, userID uint64) []byte {
 	var channelRequest = AddChannelRequest{}
 
 	if err := json.Unmarshal(packetJson, &channelRequest); err != nil {
-		log.Printf("Error deserializing addChannelRequest json of user ID [%d], reason: %s\n", userID, err.Error())
-		return nil
+		return errorDeserializing(err.Error(), jsonType, c.userID)
 	}
 
 	// TODO check if user has permission to add the channel to the server
@@ -36,7 +36,7 @@ func onAddChannelRequest(packetJson []byte, userID uint64) []byte {
 	var channelID = snowflake.Generate()
 
 	if !database.AddChannel(channelID, channelRequest.ServerID, channelRequest.Name) {
-		return nil
+		return respondFailureReason("Error adding channel")
 	}
 
 	var channelResponse = ChannelResponse{
@@ -46,21 +46,22 @@ func onAddChannelRequest(packetJson []byte, userID uint64) []byte {
 
 	messagesBytes, err := json.Marshal(channelResponse)
 	if err != nil {
-		log.Panicf("Error serializing json at onAddChannelRequest for user ID [%d], reason: %s\n:", userID, err.Error())
+		errorSerializing(err.Error(), jsonType, c.userID)
 	}
 	return preparePacket(31, messagesBytes)
 }
 
-// when client requests list of server they are in
-func onChannelListRequest(packetJson []byte, userID uint64) []byte {
+// when client requests list of server they are in, type 32
+func (c *Client) onChannelListRequest(packetJson []byte) []byte {
+	const jsonType string = "channel list"
+
 	type ChannelListRequest struct {
 		ServerID uint64
 	}
 	var channelListRequest ChannelListRequest
 
 	if err := json.Unmarshal(packetJson, &channelListRequest); err != nil {
-		log.Printf("Error deserializing onChannelListRequest json of user ID [%d], reason: %s\n", userID, err.Error())
-		return nil
+		errorDeserializing(err.Error(), jsonType, c.userID)
 	}
 
 	// TODO check if user has permission to access the server
@@ -69,7 +70,7 @@ func onChannelListRequest(packetJson []byte, userID uint64) []byte {
 
 	messagesBytes, err := json.Marshal(channels)
 	if err != nil {
-		log.Panicf("Error serializing json at onChannelListRequest for user ID [%d], reason: %s\n:", userID, err.Error())
+		errorSerializing(err.Error(), jsonType, c.userID)
 	}
 	return preparePacket(32, messagesBytes)
 }

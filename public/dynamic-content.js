@@ -336,7 +336,7 @@ function addServer(serverID, serverName, picture, className, defaultColor, hover
     // notification's white thing's size
     function resetPreviousNotificationSize(previousButton) {
         if (previousButton != null) {
-            previousButton.nextElementSibling.style.height = '4px'
+            previousButton.nextElementSibling.style.height = '8px'
         }
     }
 
@@ -375,7 +375,7 @@ function addServer(serverID, serverName, picture, className, defaultColor, hover
 
     function onHoverOut() {
         if (serverID != currentServerID) {
-            span.style.height = '4px'
+            span.style.height = '8px'
             button.style.backgroundColor = defaultColor
             button.style.borderRadius = '50%'
         }
@@ -386,6 +386,11 @@ function addServer(serverID, serverName, picture, className, defaultColor, hover
     registerClick(button, () => { onClick() })
     registerRightClick(button, (pageX, pageY) => { serverCtxMenu(serverID, pageX, pageY) })
     registerHover(button, () => { onHoverIn() }, () => { onHoverOut() })
+}
+
+function deleteServer(serverID) {
+    console.log('Deleting server ID:', serverID)
+    document.getElementById(serverID).parentNode.remove()
 }
 
 function addChannel(channelID, channelName) {

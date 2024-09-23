@@ -4,12 +4,30 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
 	"proto-chat/modules/snowflake"
 	"strconv"
+	"syscall"
 )
 
 func main() {
+	// handle termination signal
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		<-sigChan
+		log.Println("Received termination signal...")
+		log.Println("Closing db connection...")
+		err := database.CloseDatabaseConnection()
+		if err != nil {
+			log.Println("Error closing db connection")
+		}
+		os.Exit(0)
+	}()
+
 	log.Println("Starting server...")
+	// log.SetOutput(ioutil.Discard)
 
 	config := readConfigFile()
 
@@ -24,7 +42,8 @@ func main() {
 	snowflake.SetSnowflakeServerID(0)
 
 	// websocket
-	go pingClients()
+	// this will allow sending messages to multiple clients
+	go broadCastChannel()
 
 	var wsType string
 	if config.TLS {

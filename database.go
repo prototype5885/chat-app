@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 
 	_ "github.com/go-sql-driver/mysql"
 	_ "modernc.org/sqlite"
@@ -59,6 +60,10 @@ func (d *Database) ConnectMariadb(username string, password string, address stri
 	d.createTables()
 }
 
+func (d *Database) CloseDatabaseConnection() error {
+	return d.db.Close()
+}
+
 func (d *Database) createTables() {
 	errorCreatingTable := func(s string, err error) {
 		log.Println(err.Error())
@@ -78,10 +83,10 @@ func (d *Database) createTables() {
 	// users table
 	_, err = d.db.Exec(`CREATE TABLE IF NOT EXISTS users (
 		user_id BIGINT UNSIGNED PRIMARY KEY,
-		username VARCHAR(32),
-		display_name VARCHAR(64),
+		username VARCHAR(32) NOT NULL,
+		display_name VARCHAR(64) NOT NULL,
 		picture VARCHAR(255),
-		password BINARY(60),
+		password BINARY(60) NOT NULL,
 		totp CHAR(32),
 		UNIQUE(username)
 	)`)
@@ -95,7 +100,7 @@ func (d *Database) createTables() {
 			owner_id BIGINT UNSIGNED,
 			name TEXT,
 			picture TEXT,
-			FOREIGN KEY (owner_id) REFERENCES users(user_id)
+			FOREIGN KEY (owner_id) REFERENCES users(user_id) ON DELETE CASCADE
 		)`)
 	if err != nil {
 		errorCreatingTable("servers", err)
@@ -106,7 +111,7 @@ func (d *Database) createTables() {
 			channel_id BIGINT UNSIGNED PRIMARY KEY,
 			server_id BIGINT UNSIGNED,
 			name TEXT,
-			FOREIGN KEY (server_id) REFERENCES servers(server_id)
+			FOREIGN KEY (server_id) REFERENCES servers(server_id) ON DELETE CASCADE
 		)`)
 	if err != nil {
 		errorCreatingTable("channels", err)
@@ -116,8 +121,8 @@ func (d *Database) createTables() {
 	_, err = d.db.Exec(`CREATE TABLE IF NOT EXISTS server_members (
 		server_id BIGINT UNSIGNED,
 		user_id BIGINT UNSIGNED,
-		FOREIGN KEY (server_id) REFERENCES servers(server_id),
-		FOREIGN KEY (user_id) REFERENCES users(user_id)
+		FOREIGN KEY (server_id) REFERENCES servers(server_id) ON DELETE CASCADE,
+		FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
 	)`)
 	if err != nil {
 		errorCreatingTable("server_members", err)
@@ -129,8 +134,8 @@ func (d *Database) createTables() {
 		channel_id BIGINT UNSIGNED,
 		user_id BIGINT UNSIGNED,
 		message TEXT,
-		FOREIGN KEY (channel_id) REFERENCES channels(channel_id),
-		FOREIGN KEY (user_id) REFERENCES users(user_id)
+		FOREIGN KEY (channel_id) REFERENCES channels(channel_id) ON DELETE CASCADE,
+		FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
 	)`)
 	if err != nil {
 		errorCreatingTable("messages", err)
@@ -141,7 +146,7 @@ func (d *Database) createTables() {
 		token BINARY(128) PRIMARY KEY,
 		user_id BIGINT UNSIGNED,
 		expiration BIGINT UNSIGNED,
-		FOREIGN KEY (user_id) REFERENCES users(user_id)
+		FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
 	)`)
 	if err != nil {
 		errorCreatingTable("tokens", err)
@@ -158,14 +163,14 @@ func (d *Database) createTables() {
 }
 
 func (d *Database) AddChatMessage(messageID uint64, channelID uint64, userID uint64, message string) string {
-	log.Printf("Adding chat message ID [%d] from user ID [%d] into database...\n", messageID, userID)
+	log.Printf("Adding chat message ID [%d] from user ID [%d] to channel ID [%d]...\n", messageID, userID, channelID)
 	const query string = "INSERT INTO messages (message_id, channel_id, user_id, Message) VALUES (?, ?, ?, ?)"
 	_, err := d.db.Exec(query, messageID, channelID, userID, message)
 	if err != nil {
 		log.Println(err.Error())
 		if strings.Contains(err.Error(), "Error 1452") {
 			log.Printf("HACK: Failed adding message ID [%d] into database for channel ID [%d] from user ID [%d], there is no channel with given ID", messageID, channelID, userID)
-			return fmt.Sprintf("Can't add message ID [%d] to channel ID [%d] because channel doesn't exist", messageID, channelID)
+			return fmt.Sprintf("Can't add message ID [%d] to channel ID [%d]", messageID, channelID)
 		}
 		log.Panicf("Error adding chat message ID [%d] from user ID [%d] into database\n", messageID, userID)
 	}
@@ -301,6 +306,43 @@ func (d *Database) GetServerList(userID uint64) []ServerResponse {
 	return servers
 }
 
+func (d *Database) DeleteServer(serverID uint64, userID uint64) bool {
+	log.Printf("Deleting server ID [%d] of user ID [%d]...", serverID, userID)
+
+	stmt, err := d.db.Prepare("DELETE FROM servers WHERE server_id = ? AND owner_id = ?")
+	if err != nil {
+		log.Println(err.Error())
+		log.Panicf("Error preparing statement in DeleteServer for server ID [%d] of user ID [%d]\n", serverID, userID)
+	}
+	defer stmt.Close()
+
+	var start = time.Now().UnixMilli()
+	result, err := stmt.Exec(serverID, userID)
+	if err != nil {
+		log.Println(err.Error())
+		log.Panicf("Error executing statement in DeleteServer for server ID [%d] of user ID [%d]\n", serverID, userID)
+	}
+	log.Printf("Deletion of server ID [%d] took [%d ms]\n", serverID, time.Now().UnixMilli()-start)
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		log.Println(err.Error())
+		log.Panicf("Error getting rowsAffected in DeleteServer for server ID [%d] of user ID [%d]\n", serverID, userID)
+	}
+
+	if rowsAffected == 1 {
+		log.Printf("Server ID [%d] of user ID [%d] was deleted\n", serverID, userID)
+		return true
+	} else if rowsAffected == 0 {
+		log.Printf("No server ID [%d] of user ID [%d] was found\n", serverID, userID)
+		return false
+	} else {
+		// this is not supposed to happen at all since it's not possible to have 2 servers with same ID
+		log.Panicf("Multiple [%d] servers with same server ID [%d] and user ID [%d] were found and deleted\n", rowsAffected, serverID, userID)
+		return false
+	}
+}
+
 func (d *Database) AddChannel(channelID uint64, serverID uint64, channelName string) bool {
 	log.Printf("Adding channel ID [%d] into database...\n", channelID)
 	const query string = "INSERT INTO channels (channel_id, server_id, name) VALUES (?, ?, ?)"
@@ -350,10 +392,10 @@ func (d *Database) GetChannelList(serverID uint64) []ChannelResponse {
 	return channels
 }
 
-func (d *Database) RegisterNewUser(userId uint64, username string, passwordHash []byte, totpSecret string) bool {
+func (d *Database) RegisterNewUser(userId uint64, username string, displayName string, passwordHash []byte, totpSecret string) bool {
 	log.Printf("Registering new username [%s] into database...\n", username)
-	const query string = "INSERT INTO users (user_id, username, password, totp) VALUES (?, ?, ?, ?)"
-	_, err := d.db.Exec(query, userId, username, passwordHash, totpSecret)
+	const query string = "INSERT INTO users (user_id, username, display_name, password, totp) VALUES (?, ?, ?, ?, ?)"
+	_, err := d.db.Exec(query, userId, username, displayName, passwordHash, totpSecret)
 	if err != nil {
 		log.Println(err.Error())
 		if strings.Contains(err.Error(), "Error 1062") {

@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"log"
 	"proto-chat/modules/snowflake"
 )
 
@@ -19,8 +18,10 @@ type ServerResponse struct {
 	Picture  string
 }
 
-// when client is requesting to add a new server
-func onAddServerRequest(packetJson []byte, userID uint64) []byte {
+// when client is requesting to add a new server, type 21
+func (c *Client) onAddServerRequest(packetJson []byte) []byte {
+	const jsonType string = "add new server"
+
 	type AddServerRequest struct {
 		Name string
 	}
@@ -28,14 +29,13 @@ func onAddServerRequest(packetJson []byte, userID uint64) []byte {
 	var addServerRequest = AddServerRequest{}
 
 	if err := json.Unmarshal(packetJson, &addServerRequest); err != nil {
-		log.Printf("Error deserializing addServerRequest json of user ID [%d], reason: %s\n", userID, err.Error())
-		return nil
+		return errorDeserializing(err.Error(), jsonType, c.userID)
 	}
 
 	var serverID uint64 = snowflake.Generate()
 	var picture string = "profilepic2.jpg"
 
-	database.AddServer(serverID, userID, addServerRequest.Name, picture)
+	database.AddServer(serverID, c.userID, addServerRequest.Name, picture)
 
 	var serverForClient = ServerResponse{
 		ServerID: serverID,
@@ -45,53 +45,46 @@ func onAddServerRequest(packetJson []byte, userID uint64) []byte {
 
 	messagesBytes, err := json.Marshal(serverForClient)
 	if err != nil {
-		log.Panicf("Error serializing json at onAddServerRequest for user ID [%d], reason: %s\n:", userID, err.Error())
+		errorSerializing(err.Error(), jsonType, c.userID)
 	}
 	return preparePacket(21, messagesBytes)
 }
 
-// when client requests list of server they are in
-func onServerListRequest(userID uint64) []byte {
-	var servers []ServerResponse = database.GetServerList(userID)
+// when client requests list of server they are in, type 22
+func (c *Client) onServerListRequest() []byte {
+	const jsonType string = "server list"
+
+	var servers []ServerResponse = database.GetServerList(c.userID)
 
 	messagesBytes, err := json.Marshal(servers)
 	if err != nil {
-		log.Panicf("Error serializing json at onServerListRequest for user ID [%d], reason: %s\n:", userID, err.Error())
+		errorSerializing(err.Error(), jsonType, c.userID)
 	}
 	return preparePacket(22, messagesBytes)
 }
 
-// when client wants to delete a server
-// func onDeleteServerRequest(jsonBytes []byte, userID uint64) []byte {
-// 	type ServerToDelete struct {
-// 		ServerID uint64
-// 	}
+// when client wants to delete a server, type 23
+func (c *Client) onServerDeleteRequest(jsonBytes []byte) []byte {
+	const jsonType string = "server deletion"
 
-// 	var serverDeleteRequest = ServerToDelete{}
+	type ServerToDelete struct {
+		ServerID uint64
+	}
 
-// 	if err := json.Unmarshal(jsonBytes, &serverDeleteRequest); err != nil {
-// 		log.Printf("Error deserializing onDeleteChatMessageRequest json of user ID [%d], reason: %s\n", userID, err.Error())
-// 		return nil
-// 	}
+	var serverDeleteRequest = ServerToDelete{}
 
-// 	ownerID, dbSuccess := database.GetChatMessageOwner(serverDeleteRequest.ServerID)
-// 	if !dbSuccess {
-// 		return nil
-// 	}
+	if err := json.Unmarshal(jsonBytes, &serverDeleteRequest); err != nil {
+		return errorDeserializing(err.Error(), jsonType, c.userID)
+	}
 
-// 	if ownerID != userID {
-// 		log.Printf("User ID [%d] is trying to delete someone else's message [%d], aborting\n", userID, serverDeleteRequest.MessageID)
-// 		return setProblem(fmt.Sprintf("Could not delete message ID [%d]\n", userID))
-// 	}
+	success := database.DeleteServer(serverDeleteRequest.ServerID, c.userID)
+	if !success {
+		return respondFailureReason("Couldn't delete server")
+	}
 
-// 	success := database.DeleteChatMessage(serverDeleteRequest.MessageID)
-// 	if !success {
-// 		return setProblem(fmt.Sprintf("Could not delete message ID [%d]\n", userID))
-// 	}
-
-// 	messagesBytes, err := json.Marshal(serverDeleteRequest)
-// 	if err != nil {
-// 		log.Panicf("Error serializing json at onDeleteChatMessageRequest for user ID [%d], reason: %s\n:", userID, err.Error())
-// 	}
-// 	return preparePacket(3, messagesBytes)
-// }
+	messagesBytes, err := json.Marshal(serverDeleteRequest)
+	if err != nil {
+		errorSerializing(err.Error(), jsonType, c.userID)
+	}
+	return preparePacket(23, messagesBytes)
+}

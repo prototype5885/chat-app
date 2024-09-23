@@ -31,13 +31,14 @@ wsClient.onopen = function (_event) {
     console.log('Connected to WebSocket successfully.')
     requestServerList()
 
-    // for (i = 0; i < 1 * 1; i++) {
-    //     addChannel(BigInt(Math.floor(Math.random() * (8192 - 0 + 1)) + 0), "test")
+    // for (i = 0; i < 1000000; i++) {
+    //     sendChatMessage(Math.random().toString(), BigInt(1810996904781152256n))
     // }
 }
 
 // when server sends a message
 wsClient.onmessage = function (event) {
+    // return
     const receivedBytes = new Uint8Array(event.data)
 
     // convert the first 4 bytes into uint32 to get the endIndex,
@@ -58,7 +59,7 @@ wsClient.onmessage = function (event) {
     const json = JSON.parse(packetJson)
     switch (packetType) {
         case 0:
-            console.warn(json.Issue)
+            console.warn(json.Reason)
             break
         case 1: // server sent a chat message
             addChatMessage(BigInt(json.IDm), BigInt(json.IDu), json.Msg)
@@ -94,6 +95,9 @@ wsClient.onmessage = function (event) {
             for (let i = 0; i < json.length; i++) {
                 addServer(BigInt(json[i].ServerID), json[i].Name, json[i].Picture, 'server', discordGray, discordBlue)
             }
+            break
+        case 23: // server sent which server was deleted
+            deleteServer(BigInt(json.ServerID))
             break
         case 31: // server responded to the add channel request
             addChannel(BigInt(json.ChannelID), json.Name)
@@ -173,6 +177,17 @@ function requestChatMessageDeletion(messageID) {
 function requestAddServer(serverName) {
     preparePacket(21, 0, {
         Name: serverName
+    })
+}
+
+function requestRenameServer(serverID) {
+    console.log('Requesting to rename server ID:', serverID)
+}
+
+function requestDeleteServer(serverID) {
+    console.log('Requesting to delete server ID:', serverID)
+    preparePacket(23, serverID, {
+        ServerID: serverID.toString()
     })
 }
 
