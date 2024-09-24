@@ -8,10 +8,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/fs"
-	"log"
 	"net/http"
 	"os"
+	log "proto-chat/modules/logging"
 	"proto-chat/modules/snowflake"
 	"time"
 
@@ -19,62 +18,60 @@ import (
 )
 
 func errorDeserializing(errStr string, jsonType string, userID uint64) []byte {
-	log.Println(errStr)
-	log.Printf("Error deserializing json type [%s] of user ID [%d]\n", jsonType, userID)
+	log.Error(errStr)
+	log.Warn("Error deserializing json type [%s] of user ID [%d]", jsonType, userID)
 	return respondFailureReason(fmt.Sprintf("Couldn't deserialize json of [%s] request", jsonType))
 }
 
 func errorSerializing(errStr string, jsonType string, userID uint64) {
-	log.Println(errStr)
-	log.Panicf("Fatal error serializing response json type [%s] for user ID [%d]\n", jsonType, userID)
-}
-
-func setupLogging(logInFile bool) {
-	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
-	if logInFile {
-		err := os.MkdirAll("logs", fs.FileMode(os.ModePerm))
-		if err != nil {
-			log.Panic("Error creating log folder:", err)
-		}
-		file, err := os.OpenFile("./logs/protochat.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
-		if err != nil {
-			log.Panic("Error opening log file:", err)
-		}
-		log.SetOutput(file)
-	}
+	log.Error(errStr)
+	log.Warn("Fatal error serializing response json type [%s] for user ID [%d]", jsonType, userID)
 }
 
 func readConfigFile() ConfigFile {
 	configFile := "config.json"
 	file, err := os.Open(configFile)
 	if err != nil {
-		log.Panicln("Error opening config file:", err)
+		log.Error(err.Error())
+		log.Fatal("Error opening config file")
+
 	}
 	defer func(file *os.File) {
 		err := file.Close()
 		if err != nil {
-			log.Panicln("Error closing config file:", err)
+			log.Error(err.Error())
+			log.Fatal("Error closing config file")
 		}
 	}(file)
 
 	var config ConfigFile
 	err = json.NewDecoder(file).Decode(&config)
 	if err != nil {
-		log.Panicln("Error decoding config file:", err)
+		log.Error(err.Error())
+		log.Fatal("Error decoding config file")
 	}
 	return config
 }
 
+func getTimestamp() int64 {
+	return time.Now().UnixMilli()
+}
+
+func measureTime(start int64, msg string) {
+	log.Time("%s took [%d ms]", msg, getTimestamp()-start)
+}
+
 func findCookie(cookies []*http.Cookie, cookieName string) (http.Cookie, bool) {
-	log.Printf("Searching for cookie called: %s...\n", cookieName)
+	log.Debug("Searching for cookie called: %s...", cookieName)
 
 	for _, cookie := range cookies {
-		log.Printf("Cookie: %s=%s\n", cookie.Name, cookie.Value)
+		log.Debug("Cookie called %s found", cookieName)
+		log.Trace("%s=%s", cookie.Name, cookie.Value)
 		if cookie.Name == cookieName {
 			return *cookie, true
 		}
 	}
-	log.Printf("No cookie with the following name was found: [%s]\n", cookieName)
+	log.Debug("No cookie with the following name was found: [%s]", cookieName)
 	return http.Cookie{}, false
 }
 
@@ -125,7 +122,7 @@ func loginOrRegister(bodyBytes []byte, pathURL string) (http.Cookie, Result) {
 		}
 	} else {
 		// this is not supposed to happen ever
-		log.Panicf("Invalid path URL for user [%s], %s\n", loginData.Username, pathURL)
+		log.Fatal("Invalid path URL for user [%s], %s", loginData.Username, pathURL)
 	}
 
 	// generate token if login or registration was success,
@@ -144,13 +141,13 @@ func loginOrRegister(bodyBytes []byte, pathURL string) (http.Cookie, Result) {
 		}
 
 	}
-	log.Printf("User ID [%d]: %s\n", userID, logRegResult.Message)
+	log.Info("User ID [%d]: %s", userID, logRegResult.Message)
 	return cookie, logRegResult
 }
 
 // Register user by adding it into the database
 func registerUser(username string, passwordBytes []byte) (uint64, Result) {
-	log.Printf("Starting registration for new user with name [%s]...\n", username)
+	log.Info("Starting registration for new user with name [%s]...", username)
 
 	// check if received password is in proper format
 	if len(passwordBytes) != 64 {
@@ -181,7 +178,7 @@ func registerUser(username string, passwordBytes []byte) (uint64, Result) {
 			Message: errMsg,
 		}
 	}
-	log.Printf("Password hashing for user [%s] took %d ms,", username, time.Now().UnixMilli()-start)
+	log.Debug("Password hashing for user [%s] took %d ms,", username, time.Now().UnixMilli()-start)
 
 	// generate userID
 	var userID uint64 = snowflake.Generate()
@@ -212,31 +209,31 @@ func registerUser(username string, passwordBytes []byte) (uint64, Result) {
 // Login user, first checking if username exists in the database, then getting the password
 // hash and checking if user entered the correct password, returns the user's ID.
 func loginUser(username string, passwordBytes []byte) uint64 {
-	log.Printf("Starting login of user [%s]...\n", username)
+	log.Info("Starting login of user [%s]...", username)
 
 	// get the password hash from the database
 	passwordHash, userID := database.GetPasswordAndID(username)
 	if passwordHash == nil {
-		log.Printf("No user was found with username [%s]\n", username)
+		log.Info("No user was found with username [%s]", username)
 		return 0
 	}
 
 	// compare given password with the retrieved hash
-	log.Printf("Comparing password hash and string for user [%s]...\n", username)
+	log.Debug("Comparing password hash and string for user [%s]...", username)
 	var start = time.Now().UnixMilli()
 	if err := bcrypt.CompareHashAndPassword(passwordHash, passwordBytes); err != nil {
-		log.Printf("User entered wrong password for username [%s]\n", username)
+		log.Info("User entered wrong password for username [%s]", username)
 		return 0
 	}
 
-	log.Printf("%s: password matches with hash, comparison took: %d ms\n", username, time.Now().UnixMilli()-start)
+	log.Debug("%s: password matches with hash, comparison took: %d ms", username, time.Now().UnixMilli()-start)
 
 	// return the Success
 	return userID
 }
 
 // func generateTOTP(userID uint64) string {
-// 	log.Printf("Generating TOTP secret key for user ID [%d]...\n", userID)
+// 	log.Printf("Generating TOTP secret key for user ID [%d]...", userID)
 
 // 	totpKey, err := totp.Generate(totp.GenerateOpts{
 // 		AccountName: strconv.FormatUint(userID, 10),
@@ -249,14 +246,14 @@ func loginUser(username string, passwordBytes []byte) uint64 {
 // }
 
 func newToken(userID uint64) Token {
-	log.Printf("Generating new token for user ID [%d]...\n", userID)
+	log.Debug("Generating new token for user ID [%d]...", userID)
 
 	// generate new token
 	var tokenBytes []byte = make([]byte, 128)
 	_, err := io.ReadFull(rand.Reader, tokenBytes)
 	if err != nil {
-		log.Println(err.Error())
-		log.Panicf("Error generating token for user ID [%d]\n", userID)
+		log.Error(err.Error())
+		log.Fatal("Error generating token for user ID [%d]", userID)
 	}
 
 	var tokenRow = Token{
@@ -273,26 +270,18 @@ func newToken(userID uint64) Token {
 }
 
 func checkIfTokenIsValid(r *http.Request) uint64 {
-	log.Println("Checking if received token is valid...")
-
 	cookieToken, found := findCookie(r.Cookies(), "token")
 	if found { // if user has a token
 		// decode to bytes
 		tokenBytes, err := hex.DecodeString(cookieToken.Value)
 		if err != nil {
-			log.Println(err.Error())
-			log.Println("Error decoding token from cookie to byte array")
+			log.Error(err.Error())
+			log.Warn("Error decoding token from cookie to byte array")
 			return 0
 		}
 
 		// check if token exists in the database
 		return database.ConfirmToken(tokenBytes)
-		// var userID uint64 = database.ConfirmToken(tokenBytes)
-		// if userID == 0 {
-		// 	return 0
-		// } else {
-		// 	return userID
-		// }
 	}
 	return 0
 }
@@ -309,7 +298,7 @@ func preparePacket(typeByte byte, jsonBytes []byte) []byte {
 	packet[4] = typeByte        // 5th byte will be the packet type
 	copy(packet[5:], jsonBytes) // rest will be the json byte array
 
-	log.Println("Prepared packet:", endIndex, packet[4], string(jsonBytes))
+	log.Trace("Prepared packet: endIndex [%d], type [%d], json [%s]", endIndex, packet[4], string(jsonBytes))
 
 	return packet
 }
@@ -324,8 +313,8 @@ func respondFailureReason(reason string) []byte {
 
 	json, err := json.Marshal(failure)
 	if err != nil {
-		log.Println(err.Error())
-		log.Panicln("Could not serialize issue in respondFailureReason")
+		log.Error(err.Error())
+		log.Fatal("Could not serialize issue in respondFailureReason")
 	}
 
 	return preparePacket(0, json)

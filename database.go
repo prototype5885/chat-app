@@ -4,8 +4,8 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
-	"log"
 	"os"
+	log "proto-chat/modules/logging"
 	"strings"
 	"time"
 
@@ -28,18 +28,18 @@ type Database struct {
 var database Database = Database{}
 
 func (d *Database) ConnectSqlite() {
-	log.Println("Opening sqlite database...")
+	log.Info("Opening sqlite database...")
 
 	//os.Remove("./database/database.db")
 
 	if err := os.MkdirAll("database", os.ModePerm); err != nil {
-		log.Panic("Error creating sqlite database folder:", err)
+		log.FatalError(err.Error(), "Error creating sqlite database folder")
 	}
 
 	var err error
 	d.db, err = sql.Open("sqlite", "./database/database.db")
 	if err != nil {
-		log.Panic("Error opening sqlite file:", err)
+		log.FatalError(err.Error(), "Error opening sqlite file")
 	}
 
 	d.db.SetMaxOpenConns(1)
@@ -47,13 +47,12 @@ func (d *Database) ConnectSqlite() {
 }
 
 func (d *Database) ConnectMariadb(username string, password string, address string, port string, dbName string) {
-	log.Println("Opening MySQL/MariaDB database...")
+	log.Info("Opening MySQL/MariaDB database...")
 
 	var err error
 	d.db, err = sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", username, password, address, port, dbName))
 	if err != nil {
-		log.Println(err.Error())
-		log.Panic("Error opening mariadb connection")
+		log.FatalError(err.Error(), "Error opening mariadb connection")
 	}
 
 	d.db.SetMaxOpenConns(100)
@@ -61,13 +60,14 @@ func (d *Database) ConnectMariadb(username string, password string, address stri
 }
 
 func (d *Database) CloseDatabaseConnection() error {
-	return d.db.Close()
+	err := d.db.Close()
+	fmt.Println("Closed main db connection...")
+	return err
 }
 
 func (d *Database) createTables() {
 	errorCreatingTable := func(s string, err error) {
-		log.Println(err.Error())
-		log.Panicf("Error creating [%s] table in database\n", s)
+		log.FatalError(err.Error(), "Error creating [%s] table in database", s)
 	}
 
 	var err error
@@ -163,71 +163,56 @@ func (d *Database) createTables() {
 }
 
 func (d *Database) AddChatMessage(messageID uint64, channelID uint64, userID uint64, message string) string {
-	log.Printf("Adding chat message ID [%d] from user ID [%d] to channel ID [%d]...\n", messageID, userID, channelID)
+	log.Debug("Adding chat message ID [%d] from user ID [%d] to channel ID [%d]...", messageID, userID, channelID)
 	const query string = "INSERT INTO messages (message_id, channel_id, user_id, Message) VALUES (?, ?, ?, ?)"
 	_, err := d.db.Exec(query, messageID, channelID, userID, message)
 	if err != nil {
-		log.Println(err.Error())
+		log.Error(err.Error())
 		if strings.Contains(err.Error(), "Error 1452") {
-			log.Printf("HACK: Failed adding message ID [%d] into database for channel ID [%d] from user ID [%d], there is no channel with given ID", messageID, channelID, userID)
+			log.Hack("Failed adding message ID [%d] into database for channel ID [%d] from user ID [%d], there is no channel with given ID", messageID, channelID, userID)
 			return fmt.Sprintf("Can't add message ID [%d] to channel ID [%d]", messageID, channelID)
 		}
-		log.Panicf("Error adding chat message ID [%d] from user ID [%d] into database\n", messageID, userID)
+		log.Fatal("Error adding chat message ID [%d] from user ID [%d] into database", messageID, userID)
 	}
-	log.Printf("Chat message ID [%d] from user ID [%d] has been added into database successfully\n", messageID, userID)
+	log.Debug("Chat message ID [%d] from user ID [%d] has been added into database successfully", messageID, userID)
 	return ""
 }
 
 func (d *Database) GetChatMessageOwner(messageID uint64) (uint64, bool) {
-	log.Printf("Searching for owner of message ID [%d]...\n", messageID)
+	log.Debug("Searching for owner of message ID [%d]...", messageID)
 	const query string = "SELECT user_id FROM messages WHERE message_id = ?"
 	var userID uint64
 	err := d.db.QueryRow(query, messageID).Scan(&userID)
 	if err != nil {
 		if err == sql.ErrNoRows { // there is no user with this name
-			log.Printf("No message found in messages with ID %d\n", messageID)
+			log.Warn("No message found in messages with ID %d", messageID)
 			return 0, false
 		}
-		log.Println(err.Error())
-		log.Panicf("Error getting user ID of the owner of message ID [%d]\n", messageID)
+		log.FatalError(err.Error(), "Error getting user ID of the owner of message ID [%d]", messageID)
 	}
-	log.Printf("Owner ID of message ID [%d] was confirmed to be: [%d]\n", messageID, userID)
+	log.Debug("Owner ID of message ID [%d] was confirmed to be: [%d]", messageID, userID)
 	return userID, true
 }
 
-func (d *Database) DeleteChatMessage(messageID uint64, userID uint64) bool {
-	log.Printf("Deleting message ID [%d] from db table [messages]...", messageID)
+func (d *Database) DeleteChatMessage(messageID uint64, userID uint64) uint64 {
+	log.Debug("Deleting message ID [%d] from db table [messages]...", messageID)
 
-	stmt, err := d.db.Prepare("DELETE FROM messages WHERE message_id = ? AND user_id = ?")
+	const query string = "DELETE FROM messages WHERE message_id = ? AND user_id = ? RETURNING channel_id"
+
+	var channelID uint64
+
+	err := d.db.QueryRow(query, messageID, userID).Scan(&channelID)
 	if err != nil {
-		log.Println(err.Error())
-		log.Panicf("Error preparing statement in DeleteChatMessage for message ID [%d]\n", messageID)
-	}
-	defer stmt.Close()
-
-	result, err := stmt.Exec(messageID, userID)
-	if err != nil {
-		log.Println(err.Error())
-		log.Panicf("Error executing statement in DeleteChatMessage for message ID [%d]\n", messageID)
+		log.Error(err.Error())
+		if err == sql.ErrNoRows {
+			log.Hack("User ID [%d] doesn't own any message with ID [%d]", userID, messageID)
+			return 0
+		}
+		log.Fatal("Error deleting message ID [%d] of user ID [%d]", messageID, userID)
 	}
 
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		log.Println(err.Error())
-		log.Panicf("Error getting rowsAffected in DeleteChatMessage\n")
-	}
-
-	if rowsAffected == 1 {
-		log.Printf("Message ID [%d] from user ID [%d] was deleted from database\n", messageID, userID)
-		return true
-	} else if rowsAffected == 0 {
-		log.Printf("No message ID [%d] from user ID [%d] was found\n", messageID, userID)
-		return false
-	} else {
-		// this is not supposed to happen at all since it's not possible to have 2 messages with same ID
-		log.Panicf("Multiple messages with same ID [%d] were found and deleted\n", messageID)
-		return false
-	}
+	log.Debug("Message ID [%d] from user ID [%d] was deleted from database", messageID, userID)
+	return channelID
 }
 
 func (d *Database) GetMessagesFromChannel(channelID uint64) []ChatMessageResponse {
@@ -235,8 +220,7 @@ func (d *Database) GetMessagesFromChannel(channelID uint64) []ChatMessageRespons
 
 	rows, err := d.db.Query(query, channelID)
 	if err != nil {
-		log.Println(err.Error())
-		log.Panicf("Error searching for messages on channel ID [%d]\n", channelID)
+		log.FatalError(err.Error(), "Error searching for messages on channel ID [%d]", channelID)
 	}
 
 	var messages []ChatMessageResponse
@@ -247,40 +231,37 @@ func (d *Database) GetMessagesFromChannel(channelID uint64) []ChatMessageRespons
 		var message ChatMessageResponse
 		err := rows.Scan(&message.IDm, &message.IDu, &message.Msg)
 		if err != nil {
-			log.Println(err.Error())
-			log.Panicf("Error scanning message row into struct in channel ID [%d]\n:", channelID)
+			log.FatalError(err.Error(), "Error scanning message row into struct in channel ID [%d]:", channelID)
 		}
 		messages = append(messages, message)
 	}
 
 	if counter == 0 {
-		log.Printf("No messages found on channel ID: [%d]\n", channelID)
+		log.Debug("No messages found on channel ID: [%d]", channelID)
 		return messages
 	}
 
-	log.Printf("Messages from channel ID [%d] were retrieved successfully\n", channelID)
+	log.Debug("Messages from channel ID [%d] were retrieved successfully", channelID)
 	return messages
 }
 
 func (d *Database) AddServer(serverID uint64, ownerID uint64, serverName string, picture string) {
-	log.Printf("Adding server ID [%d] of owner ID [%d] into database...\n", serverID, ownerID)
+	log.Debug("Adding server ID [%d] of owner ID [%d] into database...", serverID, ownerID)
 	const query string = "INSERT INTO servers (server_id, owner_id, name, picture) VALUES (?, ?, ?, ?)"
 	_, err := d.db.Exec(query, serverID, ownerID, serverName, picture)
 	if err != nil {
-		log.Println(err.Error())
-		log.Panicf("Error adding server ID [%d] into database\n", serverID)
+		log.FatalError(err.Error(), "Error adding server ID [%d] into database", serverID)
 	}
-	log.Printf("Successfully added server ID [%d] into database\n", serverID)
+	log.Debug("Successfully added server ID [%d] into database", serverID)
 }
 
 func (d *Database) GetServerList(userID uint64) []ServerResponse {
-	log.Printf("Getting server list of user ID [%d]...\n", userID)
+	log.Debug("Getting server list of user ID [%d]...", userID)
 	const query string = "SELECT server_id, name, picture FROM servers"
 
 	rows, err := d.db.Query(query)
 	if err != nil {
-		log.Println(err.Error())
-		log.Panicf("Error searching for server list of user ID [%d]\n", userID)
+		log.FatalError(err.Error(), "Error searching for server list of user ID [%d]", userID)
 	}
 
 	var servers []ServerResponse
@@ -291,82 +272,73 @@ func (d *Database) GetServerList(userID uint64) []ServerResponse {
 		var server = ServerResponse{}
 		err := rows.Scan(&server.ServerID, &server.Name, &server.Picture)
 		if err != nil {
-			log.Println(err.Error())
-			log.Panicf("Error scanning server row into struct for user ID [%d]\n:", userID)
+			log.FatalError(err.Error(), "Error scanning server row into struct for user ID [%d]:", userID)
 		}
 		servers = append(servers, server)
 	}
 
 	if counter == 0 {
-		log.Printf("User ID [%d] is not in any servers\n", userID)
+		log.Debug("User ID [%d] is not in any servers", userID)
 		return servers
 	}
 
-	log.Printf("Servers for user ID [%d] were retrieved successfully\n", userID)
+	log.Debug("Servers for user ID [%d] were retrieved successfully", userID)
 	return servers
 }
 
 func (d *Database) DeleteServer(serverID uint64, userID uint64) bool {
-	log.Printf("Deleting server ID [%d] of user ID [%d]...", serverID, userID)
+	log.Debug("Deleting server ID [%d] of user ID [%d]...", serverID, userID)
 
-	stmt, err := d.db.Prepare("DELETE FROM servers WHERE server_id = ? AND owner_id = ?")
-	if err != nil {
-		log.Println(err.Error())
-		log.Panicf("Error preparing statement in DeleteServer for server ID [%d] of user ID [%d]\n", serverID, userID)
-	}
-	defer stmt.Close()
+	const query string = "DELETE FROM servers WHERE server_id = ? AND owner_id = ?"
 
 	var start = time.Now().UnixMilli()
-	result, err := stmt.Exec(serverID, userID)
+	result, err := d.db.Exec(query, serverID, userID)
 	if err != nil {
-		log.Println(err.Error())
-		log.Panicf("Error executing statement in DeleteServer for server ID [%d] of user ID [%d]\n", serverID, userID)
+		log.FatalError(err.Error(), "Error deleting server ID [%d] of user ID [%d]", serverID, userID)
 	}
-	log.Printf("Deletion of server ID [%d] took [%d ms]\n", serverID, time.Now().UnixMilli()-start)
+	log.Debug("Server deletion query took [%d ms]", time.Now().UnixMilli()-start)
 
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		log.Println(err.Error())
-		log.Panicf("Error getting rowsAffected in DeleteServer for server ID [%d] of user ID [%d]\n", serverID, userID)
+		log.FatalError(err.Error(), "Error getting rowsAffected while deleting server ID [%d] of user ID [%d]", serverID, userID)
 	}
 
 	if rowsAffected == 1 {
-		log.Printf("Server ID [%d] of user ID [%d] was deleted\n", serverID, userID)
+		log.Debug("Server ID [%d] of user ID [%d] was deleted successfully", serverID, userID)
 		return true
 	} else if rowsAffected == 0 {
-		log.Printf("No server ID [%d] of user ID [%d] was found\n", serverID, userID)
+		log.Hack("User ID [%d] doesn't own any server with ID [%d]", userID, serverID)
 		return false
 	} else {
-		// this is not supposed to happen at all since it's not possible to have 2 servers with same ID
-		log.Panicf("Multiple [%d] servers with same server ID [%d] and user ID [%d] were found and deleted\n", rowsAffected, serverID, userID)
+		// this is not supposed to happen at all since it's not possible to have 2 messages with same ID
+		log.Fatal("Multiple servers with same server ID [%d] were found and deleted", serverID)
 		return false
 	}
 }
 
 func (d *Database) AddChannel(channelID uint64, serverID uint64, channelName string) bool {
-	log.Printf("Adding channel ID [%d] into database...\n", channelID)
+	log.Debug("Adding channel ID [%d] into database...", channelID)
 	const query string = "INSERT INTO channels (channel_id, server_id, name) VALUES (?, ?, ?)"
 	_, err := d.db.Exec(query, channelID, serverID, channelName)
 	if err != nil {
-		log.Println(err.Error())
+		log.Error(err.Error())
 		if strings.Contains(err.Error(), "Error 1452") {
-			log.Printf("Failed adding channel ID [%d] into database for server ID [%d], there is no server with given ID", channelID, serverID)
+			log.Hack("Failed adding channel ID [%d] into database for server ID [%d], there is no server with given ID", channelID, serverID)
 			return false
 		}
-		log.Panicf("Error adding channel ID [%d] into database\n", channelID)
+		log.Fatal("Error adding channel ID [%d] into database", channelID)
 	}
-	log.Printf("Successfully added channel ID [%d] into database\n", channelID)
+	log.Debug("Successfully added channel ID [%d] into database", channelID)
 	return true
 }
 
 func (d *Database) GetChannelList(serverID uint64) []ChannelResponse {
-	log.Printf("Getting channel list of server ID [%d]...\n", serverID)
+	log.Debug("Getting channel list of server ID [%d]...", serverID)
 	const query string = "SELECT channel_id, name FROM channels WHERE server_id = ?"
 
 	rows, err := d.db.Query(query, serverID)
 	if err != nil {
-		log.Println(err.Error())
-		log.Panicf("Error searching for channels list of server ID [%d]\n", serverID)
+		log.FatalError(err.Error(), "Error searching for channels list of server ID [%d]", serverID)
 	}
 
 	var channels []ChannelResponse
@@ -377,34 +349,33 @@ func (d *Database) GetChannelList(serverID uint64) []ChannelResponse {
 		var channel = ChannelResponse{}
 		err := rows.Scan(&channel.ChannelID, &channel.Name)
 		if err != nil {
-			log.Println(err.Error())
-			log.Panicf("Error scanning channel row into struct from server ID [%d]\n:", serverID)
+			log.FatalError(err.Error(), "Error scanning channel row into struct from server ID [%d]:", serverID)
 		}
 		channels = append(channels, channel)
 	}
 
 	if counter == 0 {
-		log.Printf("Server ID [%d] doesn't have any channels\n", serverID)
+		log.Debug("Server ID [%d] doesn't have any channels", serverID)
 		return channels
 	}
 
-	log.Printf("Channels from server ID [%d] were retrieved successfully\n", serverID)
+	log.Debug("Channels from server ID [%d] were retrieved successfully", serverID)
 	return channels
 }
 
 func (d *Database) RegisterNewUser(userId uint64, username string, displayName string, passwordHash []byte, totpSecret string) bool {
-	log.Printf("Registering new username [%s] into database...\n", username)
+	log.Debug("Registering new username [%s] into database...", username)
 	const query string = "INSERT INTO users (user_id, username, display_name, password, totp) VALUES (?, ?, ?, ?, ?)"
 	_, err := d.db.Exec(query, userId, username, displayName, passwordHash, totpSecret)
 	if err != nil {
-		log.Println(err.Error())
+		log.Error(err.Error())
 		if strings.Contains(err.Error(), "Error 1062") {
-			log.Printf("Failed registering user [%s], username is already taken\n", username)
+			log.Debug("Failed registering user [%s], username is already taken", username)
 			return false
 		}
-		log.Panicf("Error registering username [%s] into database\n", username)
+		log.Fatal("Error registering username [%s] into database", username)
 	}
-	log.Printf("Username [%s] was registered into database successfully with id [%d]\n", username, userId)
+	log.Debug("Username [%s] was registered into database successfully with id [%d]", username, userId)
 	return true
 }
 
@@ -415,65 +386,63 @@ func (d *Database) RegisterNewUser(userId uint64, username string, displayName s
 // 	err := d.db.QueryRow(query, username).Scan(&userID)
 // 	if err != nil {
 // 		if err == sql.ErrNoRows {
-// 			log.Println("No user was found with username [%s]\n", username)
+// 			log.Println("No user was found with username [%s]", username)
 // 			return 0
 // 		}
 // 		log.Println(err.Error())
-// 		log.Panicf("Error getting user ID of username [%s] from database\n", username)
+// 		log.Panicf("Error getting user ID of username [%s] from database", username)
 // 	}
-// 	log.Println("User ID of username [%s] was retrieved from database successfully\n", username)
+// 	log.Println("User ID of username [%s] was retrieved from database successfully", username)
 // 	return userID
 // }
 
 func (d *Database) GetUsername(userID uint64) string {
-	log.Printf("Searching for field [username] in database using user ID [%d]...", userID)
+	log.Debug("Searching for field [username] in database using user ID [%d]...", userID)
 	const query string = "SELECT username FROM users WHERE user_id = ?"
 	var userName string
 	err := d.db.QueryRow(query, userID).Scan(&userName)
 	if err != nil {
-		log.Println(err.Error())
+		log.Error(err.Error())
 		if err == sql.ErrNoRows { // there is no user with this id
-			log.Printf("No user was found with user ID [%d]\n", userID)
+			log.Debug("No user was found with user ID [%d]", userID)
 			return ""
 		}
-		log.Println(err.Error())
-		log.Panicf("Error getting username of user ID [%d] from database\n", userID)
+		log.Fatal("Error getting username of user ID [%d] from database", userID)
 	}
-	log.Printf("Username of user ID [%d] was retrieved from database successfully\n", userID)
+	log.Debug("Username of user ID [%d] was retrieved from database successfully", userID)
 	return userName
 }
 
 func (d *Database) GetPasswordAndID(username string) ([]byte, uint64) {
-	log.Printf("Searching for password of user [%s] in database...\n", username)
+	log.Debug("Searching for password of user [%s] in database...", username)
 	const query string = "SELECT user_id, password FROM users WHERE username = ?"
 	var passwordHash []byte
 	var userID uint64
 	err := d.db.QueryRow(query, username).Scan(&userID, &passwordHash)
 	if err != nil {
+		log.Error(err.Error())
 		if err == sql.ErrNoRows {
-			log.Printf("No user was found with user [%s]\n", username)
+			log.Debug("No user was found with user [%s]", username)
 			return nil, 0
 		}
-		log.Println(err.Error())
-		log.Panicf("Error getting password of user [%s] from database\n", username)
+		log.Fatal("Error getting password of user [%s] from database", username)
 	}
-	log.Printf("Password of user  [%s] was retreived from database successfully\n", username)
+	log.Debug("Password of user  [%s] was retreived from database successfully", username)
 	return passwordHash, userID
 }
 
 func (d *Database) AddToken(token Token) {
-	log.Printf("Adding new token of user ID [%d] into database...\n", token.UserID)
+	log.Debug("Adding new token of user ID [%d] into database...", token.UserID)
 	const query string = "INSERT INTO tokens (token, user_id, expiration) VALUES (?, ?, ?)"
 	_, err := d.db.Exec(query, token.Token, token.UserID, token.Expiration)
 	if err != nil {
-		log.Println(err.Error())
-		log.Panicf("Error adding new token for user ID [%d] into database\n", token.UserID)
+		log.FatalError(err.Error(), "Error adding new token for user ID [%d] into database", token.UserID)
 	}
-	log.Printf("added a new token for user ID [%d] into database\n", token.UserID)
+	log.Debug("Added a new token for user ID [%d] into database", token.UserID)
 }
 
 func (d *Database) ConfirmToken(tokenBytes []byte) uint64 {
-	log.Println("Searching for token in database...")
+	log.Debug("Searching for token in database...")
 
 	const query string = "SELECT user_id, expiration FROM tokens WHERE token = ?"
 
@@ -482,14 +451,14 @@ func (d *Database) ConfirmToken(tokenBytes []byte) uint64 {
 
 	err := d.db.QueryRow(query, tokenBytes).Scan(&userID, &expiration)
 	if err != nil {
+		log.Error(err.Error())
 		if err == sql.ErrNoRows { // token was not found
-			log.Printf("Token was not found in database: [%s]\n", hex.EncodeToString(tokenBytes))
+			log.Debug("Token was not found in database: [%s]", hex.EncodeToString(tokenBytes))
 			return 0
 		}
-		log.Println(err.Error())
-		log.Panicf("Error retrieving token [%s] from database\n", hex.EncodeToString(tokenBytes))
+		log.Fatal("Error retrieving token [%s] from database", hex.EncodeToString(tokenBytes))
 	}
-	log.Printf("Given token was successfully found in database, it belongs to user ID [%d]\n", userID)
+	log.Debug("Given token was successfully found in database, it belongs to user ID [%d]", userID)
 	return userID
 }
 
@@ -512,7 +481,7 @@ func (d *Database) ConfirmToken(tokenBytes []byte) uint64 {
 // 				Message: noUserIdFoundText(userIDArgs),
 // 			}
 // 		} else {
-// 			log.Panicf("%s: Error executing SELECT query: %s\n", userIDArgs, err)
+// 			log.Panicf("%s: Error executing SELECT query: %s", userIDArgs, err)
 // 			return 0, "", "", "", "", Result{
 // 				Success: false,
 // 				Message: "PANIC: Error searching for user in database",

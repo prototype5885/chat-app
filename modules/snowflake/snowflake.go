@@ -2,8 +2,8 @@ package snowflake
 
 import (
 	"fmt"
-	"log"
 	"math"
+	log "proto-chat/modules/logging"
 	"sync"
 	"time"
 )
@@ -29,7 +29,7 @@ func SetSnowflakeServerID(id uint64) {
 		serverID = id
 		alreadyHasServerID = true
 	} else {
-		log.Panic("Server ID for snowflake generator has been already set, exiting...")
+		log.Fatal("Server ID for snowflake generator has been already set, exiting...")
 	}
 }
 

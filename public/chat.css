@@ -45,8 +45,8 @@ body {
 }
 
 /* separator between dm and servers on top left */
-#servers-separator {
-    order: 2;
+#first-servers-separator,
+#second-servers-separator {
     flex: 0 0 auto;
     width: 32px;
     height: 2px;
@@ -54,6 +54,14 @@ body {
     margin-top: 2px;
     margin-bottom: 2px;
     background-color: #3c3c3c;
+}
+
+#first-servers-separator {
+    order: 2;
+}
+
+#second-servers-separator {
+    order: 4;
 }
 
 .server {
@@ -81,7 +89,7 @@ body {
 }
 
 #add-server {
-    order: 4;
+    order: 5;
 }
 
 /* color and font of add server button */

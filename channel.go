@@ -17,7 +17,7 @@ type ChannelResponse struct { // this is whats sent to the client when client re
 }
 
 // when client is requesting to add a new channel, type 31
-func (c *Client) onAddChannelRequest(packetJson []byte) []byte {
+func (c *Client) onAddChannelRequest(packetJson []byte) BroadcastData {
 	const jsonType string = "add channel"
 
 	type AddChannelRequest struct {
@@ -28,7 +28,9 @@ func (c *Client) onAddChannelRequest(packetJson []byte) []byte {
 	var channelRequest = AddChannelRequest{}
 
 	if err := json.Unmarshal(packetJson, &channelRequest); err != nil {
-		return errorDeserializing(err.Error(), jsonType, c.userID)
+		return BroadcastData{
+			MessageBytes: errorDeserializing(err.Error(), jsonType, c.userID),
+		}
 	}
 
 	// TODO check if user has permission to add the channel to the server
@@ -36,7 +38,9 @@ func (c *Client) onAddChannelRequest(packetJson []byte) []byte {
 	var channelID = snowflake.Generate()
 
 	if !database.AddChannel(channelID, channelRequest.ServerID, channelRequest.Name) {
-		return respondFailureReason("Error adding channel")
+		return BroadcastData{
+			MessageBytes: respondFailureReason("Error adding channel"),
+		}
 	}
 
 	var channelResponse = ChannelResponse{
@@ -48,7 +52,10 @@ func (c *Client) onAddChannelRequest(packetJson []byte) []byte {
 	if err != nil {
 		errorSerializing(err.Error(), jsonType, c.userID)
 	}
-	return preparePacket(31, messagesBytes)
+	return BroadcastData{
+		MessageBytes: preparePacket(31, messagesBytes),
+		ID:           channelRequest.ServerID,
+	}
 }
 
 // when client requests list of server they are in, type 32

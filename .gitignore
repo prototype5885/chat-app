@@ -9,3 +9,4 @@ protochat.log
 identifier.sqlite
 config.json
 proto-chat
+*.log

@@ -19,7 +19,7 @@ type ServerResponse struct {
 }
 
 // when client is requesting to add a new server, type 21
-func (c *Client) onAddServerRequest(packetJson []byte) []byte {
+func (c *Client) onAddServerRequest(packetJson []byte) BroadcastData {
 	const jsonType string = "add new server"
 
 	type AddServerRequest struct {
@@ -29,11 +29,13 @@ func (c *Client) onAddServerRequest(packetJson []byte) []byte {
 	var addServerRequest = AddServerRequest{}
 
 	if err := json.Unmarshal(packetJson, &addServerRequest); err != nil {
-		return errorDeserializing(err.Error(), jsonType, c.userID)
+		return BroadcastData{
+			MessageBytes: errorDeserializing(err.Error(), jsonType, c.userID),
+		}
 	}
 
 	var serverID uint64 = snowflake.Generate()
-	var picture string = "profilepic2.jpg"
+	var picture string = "profilepic2.webp"
 
 	database.AddServer(serverID, c.userID, addServerRequest.Name, picture)
 
@@ -47,7 +49,9 @@ func (c *Client) onAddServerRequest(packetJson []byte) []byte {
 	if err != nil {
 		errorSerializing(err.Error(), jsonType, c.userID)
 	}
-	return preparePacket(21, messagesBytes)
+	return BroadcastData{
+		MessageBytes: preparePacket(21, messagesBytes),
+	}
 }
 
 // when client requests list of server they are in, type 22
@@ -64,7 +68,7 @@ func (c *Client) onServerListRequest() []byte {
 }
 
 // when client wants to delete a server, type 23
-func (c *Client) onServerDeleteRequest(jsonBytes []byte) []byte {
+func (c *Client) onServerDeleteRequest(jsonBytes []byte) BroadcastData {
 	const jsonType string = "server deletion"
 
 	type ServerToDelete struct {
@@ -74,17 +78,19 @@ func (c *Client) onServerDeleteRequest(jsonBytes []byte) []byte {
 	var serverDeleteRequest = ServerToDelete{}
 
 	if err := json.Unmarshal(jsonBytes, &serverDeleteRequest); err != nil {
-		return errorDeserializing(err.Error(), jsonType, c.userID)
+		return BroadcastData{
+			MessageBytes: errorDeserializing(err.Error(), jsonType, c.userID),
+		}
 	}
 
 	success := database.DeleteServer(serverDeleteRequest.ServerID, c.userID)
 	if !success {
-		return respondFailureReason("Couldn't delete server")
+		return BroadcastData{
+			MessageBytes: respondFailureReason("Couldn't delete server"),
+		}
 	}
 
-	messagesBytes, err := json.Marshal(serverDeleteRequest)
-	if err != nil {
-		errorSerializing(err.Error(), jsonType, c.userID)
+	return BroadcastData{
+		MessageBytes: preparePacket(23, jsonBytes),
 	}
-	return preparePacket(23, messagesBytes)
 }

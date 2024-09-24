@@ -1,6 +1,8 @@
 const wsClient = new WebSocket('wss://' + window.location.host + "/wss")
 wsClient.binaryType = 'arraybuffer'
 
+var ownUserID
+
 if (typeof (Storage) !== "undefined") {
     console.log('Supports storage')
 } else {
@@ -112,6 +114,12 @@ wsClient.onmessage = function (event) {
                 addChannel(BigInt(json[i].ChannelID), json[i].Name)
             }
             break
+        case 241: // server sent the client's own user ID
+            ownUserID = BigInt(json)
+            console.log('Received own user ID:', ownUserID)
+            break
+        default:
+            console.log('Server sent unknown message type')
     }
 }
 

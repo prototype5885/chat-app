@@ -2,8 +2,9 @@ package main
 
 import (
 	"encoding/binary"
-	"log"
+	"encoding/json"
 	"net/http"
+	log "proto-chat/modules/logging"
 	"sync"
 	"time"
 
@@ -32,12 +33,7 @@ type Client struct {
 	closeChan      chan bool
 }
 
-type BroadcastData struct {
-	MessageBytes []byte
-	ChannelID    uint64
-}
-
-var broadcastChan = make(chan BroadcastData)
+var broadcastChan = make(chan BroadcastData, 100)
 
 // var mutex sync.Mutex // used so only 1 goroutine can access the clients list at one time
 
@@ -45,16 +41,15 @@ var clients = make(map[uint64]*Client)
 
 // client is connecting to the websocket
 func acceptWsClient(userID uint64, w http.ResponseWriter, r *http.Request) {
-	log.Printf("User ID [%d] is connecting to websocket...\n", userID)
 	wsConn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Println(err.Error())
-		log.Printf("Error upgrading connection of user ID [%d] to websocket protocol\n", userID)
+		log.Error(err.Error())
+		log.Warn("Error upgrading connection of user ID [%d] to websocket protocol", userID)
 		return
 	}
 	username := database.GetUsername(userID)
 	if username == "" {
-		log.Panicf("After accepting websocket client, user ID [%d] has no username set in the database\n", userID)
+		log.Fatal("After accepting websocket client, user ID [%d] has no username set in the database", userID)
 	}
 
 	// sending and reading messages are two separate goroutines
@@ -66,12 +61,12 @@ func acceptWsClient(userID uint64, w http.ResponseWriter, r *http.Request) {
 		wsConn:         wsConn,
 		userID:         userID,
 		currentChannel: 0,
-		writeChan:      make(chan []byte),
+		writeChan:      make(chan []byte, 10),
 		closeChan:      make(chan bool),
 	}
 
 	clients[userID] = client
-	log.Printf("Added user ID %d to the connected clients list\n", userID)
+	log.Info("Added user ID %d to the connected websocket clients list", userID)
 
 	var wg sync.WaitGroup
 
@@ -80,17 +75,25 @@ func acceptWsClient(userID uint64, w http.ResponseWriter, r *http.Request) {
 	go client.readMessages(&wg)
 	go client.writeMessages(&wg)
 
-	log.Printf("User ID [%d] has connected to the websocket\n", userID)
+	log.Debug("User ID [%d] has connected to the websocket", userID)
+
+	jsonUserID, jsonErr := json.Marshal(userID)
+	if jsonErr != nil {
+		log.Error(jsonErr.Error())
+		log.Fatal("Error serializing user ID [%d] for sending", userID)
+	}
+
+	client.writeChan <- preparePacket(241, jsonUserID)
 
 	wg.Wait()
 
-	log.Printf("User ID [%d] has been disconnected successfully\n", userID)
+	log.Info("User ID [%d] has been disconnected successfully from websocket", userID)
 }
 
 func (c *Client) removeClient() {
 	c.wsConn.Close()
 	delete(clients, c.userID)
-	log.Printf("Removed user ID [%d] from the connected clients\n", c.userID)
+	log.Debug("Removed user ID [%d] from the connected clients", c.userID)
 }
 
 func (c *Client) readMessages(wg *sync.WaitGroup) {
@@ -106,7 +109,8 @@ func (c *Client) readMessages(wg *sync.WaitGroup) {
 	for {
 		_, receivedBytes, err := c.wsConn.ReadMessage()
 		if err != nil {
-			log.Printf("User ID [%d]: %s\n", c.userID, err.Error())
+			log.Error(err.Error())
+			log.Warn("Failed reading message from User ID [%d]", c.userID)
 			break
 		}
 
@@ -115,7 +119,7 @@ func (c *Client) readMessages(wg *sync.WaitGroup) {
 		// this func would throw an index out of range exception
 		// not supposed to happen in normal cases
 		if len(receivedBytes) < 5 {
-			log.Printf("HACK: User ID [%d] sent a byte array shorter than 5 length\n", c.userID)
+			log.Hack("User ID [%d] sent a byte array shorter than 5 length", c.userID)
 			c.writeChan <- respondFailureReason("Sent byte array length is less than 5")
 			continue
 		}
@@ -128,61 +132,68 @@ func (c *Client) readMessages(wg *sync.WaitGroup) {
 		// check if the extracted endIndex is outside of the received array bounds to avoid exception
 		// not supposed to happen in normal cases
 		if endIndex > uint32(len(receivedBytes)) {
-			log.Printf("HACK: User ID [%d] sent a byte array where the extracted endIndex was larger than the received byte array\n", c.userID)
+			log.Hack("User ID [%d] sent a byte array where the extracted endIndex was larger than the received byte array", c.userID)
+			log.Hack("Byte array of user ID [%d]: [%s]", c.userID, receivedBytes)
 			c.writeChan <- respondFailureReason("Sent byte array is longer than the given endIndex value")
 			continue
 		}
 
 		// 5th byte is a 1 byte number which states the type of the packet
 		var packetType byte = receivedBytes[4]
-		// log.Println("packetType:", packetType)
 
 		// get the json byte array from the 6th byte to the end
 		var packetJson []byte = receivedBytes[5:endIndex]
 
-		log.Println("Received packet:", endIndex, packetType, string(packetJson))
+		log.Trace("Received packet: endIndex [%d], type [%d], json [%s]", endIndex, packetType, string(packetJson))
 
 		switch packetType {
 		case 1: // user sent a chat message on x channel
-			log.Printf("User ID [%d] sent a chat message\n", c.userID)
-			broadcastChan <- BroadcastData{
-				MessageBytes: c.onChatMessageRequest(packetJson),
-				ChannelID:    1811029797519753216,
-			}
+			log.Debug("User ID [%d] sent a chat message", c.userID)
+			var broadcastData BroadcastData = c.onChatMessageRequest(packetJson)
+			broadcastData.Type = packetType
+			broadcastChan <- broadcastData
 
 		case 2: // user entered a channel, requesting chat history
-			log.Printf("User ID [%d] is asking for chat history\n", c.userID)
+			log.Debug("User ID [%d] is asking for chat history", c.userID)
 			c.writeChan <- c.onChatHistoryRequest(packetJson)
 
 		case 3: // user deleting a chat message
-			log.Printf("User ID [%d] wants to delete a chat message\n", c.userID)
-			// broadcastChan <- c.onChatMessageDeleteRequest(packetJson)
+			log.Debug("User ID [%d] wants to delete a chat message", c.userID)
+			var broadcastData BroadcastData = c.onChatMessageDeleteRequest(packetJson)
+			broadcastData.Type = packetType
+			broadcastChan <- broadcastData
 
 		case 21: // user adding a server
-			log.Printf("User ID [%d] wants to create a server\n", c.userID)
-			// broadcastChan <- c.onAddServerRequest(packetJson)
+			log.Debug("User ID [%d] wants to create a server", c.userID)
+			var broadcastData BroadcastData = c.onAddServerRequest(packetJson)
+			broadcastData.Type = packetType
+			broadcastChan <- broadcastData
 
 		case 22: // user requesting their joined server list
-			log.Printf("User ID [%d] is requesting server list\n", c.userID)
+			log.Debug("User ID [%d] is requesting server list", c.userID)
 			c.writeChan <- c.onServerListRequest()
 
 		case 23: // user deleting a server
-			log.Printf("User ID [%d] wants to delete a server\n", c.userID)
-			// broadcastChan <- c.onServerDeleteRequest(packetJson)
+			log.Debug("User ID [%d] wants to delete a server", c.userID)
+			var broadcastData BroadcastData = c.onServerDeleteRequest(packetJson)
+			broadcastData.Type = packetType
+			broadcastChan <- broadcastData
 
 		case 31: // user added a channel to their server
-			log.Printf("User ID [%d] wants to add a channel\n", c.userID)
-			// broadcastChan <- c.onAddChannelRequest(packetJson)
+			log.Debug("User ID [%d] wants to add a channel", c.userID)
+			var broadcastData BroadcastData = c.onAddChannelRequest(packetJson)
+			broadcastData.Type = packetType
+			broadcastChan <- broadcastData
 
 		case 32: // user requesting channel list for x server
-			log.Printf("User ID [%d] is requesting channel list\n", c.userID)
+			log.Debug("User ID [%d] is requesting channel list", c.userID)
 			c.writeChan <- c.onChannelListRequest(packetJson)
 
 		// case 42: // client is requesting to send names
-		// 	log.Printf("User ID [%d] is requesting name/names of servers/channels/users\n", userID)
+		// 	log.Printf("User ID [%d] is requesting name/names of servers/channels/users", userID)
 
 		default: // if unknown
-			log.Printf("User ID [%d] sent invalid packet type: [%d]\n", c.userID, packetType)
+			log.Hack("User ID [%d] sent invalid packet type: [%d]", c.userID, packetType)
 			c.writeChan <- respondFailureReason("Packet type is invalid")
 		}
 	}
@@ -203,7 +214,7 @@ func (c *Client) writeMessages(wg *sync.WaitGroup) {
 			if err := c.wsConn.WriteMessage(websocket.BinaryMessage, messageBytes); err != nil {
 				return
 			}
-			log.Printf("Wrote to user ID [%d]\n", c.userID)
+			// log.Printf("Wrote to user ID [%d]", c.userID)
 		case <-ticker.C:
 			// log.Println("Pinging:", c.userID)
 			c.wsConn.SetWriteDeadline(time.Now().Add(timeoutWrite))
@@ -212,7 +223,7 @@ func (c *Client) writeMessages(wg *sync.WaitGroup) {
 			}
 		case close := <-c.closeChan:
 			if close {
-				log.Printf("User ID [%d] received a signal to close writeMessages goroutine\n", c.userID)
+				log.Debug("User ID [%d] received a signal to close writeMessages goroutine", c.userID)
 				return
 			}
 		}
@@ -224,9 +235,18 @@ func broadCastChannel() {
 	for {
 		select {
 		case broadcastData := <-broadcastChan:
-			for _, client := range clients {
-				if client.currentChannel == broadcastData.ChannelID {
+			switch broadcastData.Type {
+			case 1, 3: // chat messages
+				for userID, client := range clients {
+					if client.currentChannel == broadcastData.ID {
+						log.Debug("Broadcasting message type [%d] to user ID [%d]", broadcastData.Type, userID)
+						client.writeChan <- broadcastData.MessageBytes
+					}
+				}
+			case 21, 23: // servers
+				for _, client := range clients {
 					client.writeChan <- broadcastData.MessageBytes
+
 				}
 			}
 		}

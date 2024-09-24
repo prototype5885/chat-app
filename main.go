@@ -2,41 +2,48 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
+	log "proto-chat/modules/logging"
 	"proto-chat/modules/snowflake"
 	"strconv"
 	"syscall"
 )
 
 func main() {
+	fmt.Println("Starting server...")
+
 	// handle termination signal
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
 		<-sigChan
-		log.Println("Received termination signal...")
-		log.Println("Closing db connection...")
+		fmt.Println("Received termination signal...")
 		err := database.CloseDatabaseConnection()
 		if err != nil {
-			log.Println("Error closing db connection")
+			log.Error("Error closing db connection")
 		}
+
+		// log.CloseChan <- 0
+		// time.Sleep(1 * time.Second)
 		os.Exit(0)
 	}()
 
-	log.Println("Starting server...")
-	// log.SetOutput(ioutil.Discard)
-
 	config := readConfigFile()
+	log.SetupLogging("TRACE", config.LogConsole, config.LogFile)
 
-	setupLogging(config.LogInFile)
+	// start := getTimestamp()
+	// for i := 0; i < 10000; i++ {
+	// 	log.Info("Starting server...")
+	// }
+
+	// measureTime(start, "test")
 
 	if config.Sqlite {
 		database.ConnectSqlite()
 	} else {
-		database.ConnectMariadb(config.Username, config.Password, config.Address, strconv.Itoa(int(config.DatabasePort)), config.DatabaseName)
+		database.ConnectMariadb(config.DatabaseUsername, config.DatabasePassword, config.DatabaseAddress, strconv.Itoa(int(config.DatabasePort)), config.DatabaseName)
 	}
 
 	snowflake.SetSnowflakeServerID(0)
@@ -64,26 +71,25 @@ func main() {
 	http.HandleFunc("/", mainHandler)
 
 	var address string
+
 	if config.LocalhostOnly {
 		address = fmt.Sprintf("%s:%d", "127.0.0.1", config.Port)
 	} else {
 		address = fmt.Sprintf("%s:%d", "0.0.0.0", config.Port)
 	}
 
-	log.Printf("Listening on port %d", config.Port)
+	log.Info("Listening on port %d", config.Port)
 	if config.TLS {
 		const certFile = "./sslcert/cert.crt"
 		const keyFile = "./sslcert/key.key"
 		if err := http.ListenAndServeTLS(address, certFile, keyFile, nil); err != nil {
-			log.Panic("Error starting TLS server:", err)
+			log.Error(err.Error())
+			log.Fatal("Error starting TLS server")
 		}
 	} else {
 		if err := http.ListenAndServe(address, nil); err != nil {
-			log.Panic("Error starting server:", err)
+			log.Error(err.Error())
+			log.Fatal("Error starting server")
 		}
 	}
-}
-
-func ExitFunc() {
-	log.Println("ende")
 }

@@ -163,7 +163,7 @@ function addChatMessage(messageID, userID, message) {
     const msgDate = new Date(Number((BigInt(messageID) >> BigInt(20)))).toLocaleString()
 
     const chatNameColor = '#e7e7e7'
-    const pic = 'profilepic.jpg'
+    const pic = 'profilepic.webp'
     const username = userID.toString()
 
     // create a <li> that holds the message
@@ -172,7 +172,12 @@ function addChatMessage(messageID, userID, message) {
     li.id = messageID
     li.setAttribute('user-id', userID)
 
-    registerRightClick(li, (pageX, pageY) => { messageCtxMenu(messageID, pageX, pageY) })
+    var owner = false
+    if (userID == ownUserID) {
+        owner = true
+    }
+
+    registerRightClick(li, (pageX, pageY) => { messageCtxMenu(messageID, owner, pageX, pageY) })
 
     // create a <img> that shows profile pic on the left
     const img = document.createElement('img')
@@ -383,8 +388,10 @@ function addServer(serverID, serverName, picture, className, defaultColor, hover
         deletebubble()
     }
 
+    var owner = true
+
     registerClick(button, () => { onClick() })
-    registerRightClick(button, (pageX, pageY) => { serverCtxMenu(serverID, pageX, pageY) })
+    registerRightClick(button, (pageX, pageY) => { serverCtxMenu(serverID, owner, pageX, pageY) })
     registerHover(button, () => { onHoverIn() }, () => { onHoverOut() })
 }
 

@@ -7,11 +7,12 @@ function registerRightClick(element, callback) {
     })
 }
 
-function serverCtxMenu(serverID, pageX, pageY) {
-    const actions = [
-        { text: 'Rename server', func: () => requestRenameServer(serverID) },
-        { text: 'Delete server', color: 'red', func: () => requestDeleteServer(serverID) }
-    ]
+function serverCtxMenu(serverID, owner, pageX, pageY) {
+    const actions = []
+
+    if (owner) { actions.push({ text: 'Rename server', func: () => requestRenameServer(serverID) }) }
+    if (owner) { actions.push({ text: 'Delete server', color: 'red', func: () => requestDeleteServer(serverID) }) }
+
     createContextMenu(actions, pageX, pageY)
 }
 
@@ -58,9 +59,16 @@ function userCtxMenu(userID, pageX, pageY) {
     createContextMenu(actions, pageX, pageY)
 }
 
-function messageCtxMenu(messageID, pageX, pageY) {
-    const actions = [
-        { text: 'Delete message', color: 'red', func: () => requestChatMessageDeletion(messageID) }
-    ]
+function messageCtxMenu(messageID, owner, pageX, pageY) {
+    function copyText() {
+        const chatMsg = document.getElementById(messageID).querySelector('.msg-text').textContent
+        console.log('Copied to clipboard:', chatMsg)
+        navigator.clipboard.writeText(chatMsg)
+    }
+
+    const actions = []
+    actions.push({ text: 'Copy text', func: () => copyText() })
+    if (owner) { actions.push({ text: 'Delete message', color: 'red', func: () => requestChatMessageDeletion(messageID) }) }
+    if (!owner) { actions.push({ text: 'Report message', color: 'red' }) }
     createContextMenu(actions, pageX, pageY)
 }
