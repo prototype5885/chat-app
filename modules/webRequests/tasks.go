@@ -1,65 +1,20 @@
-package main
+package webRequests
 
 import (
 	"crypto/rand"
 	"encoding/base64"
-	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
-	"os"
+	"proto-chat/modules/database"
 	log "proto-chat/modules/logging"
 	"proto-chat/modules/snowflake"
+	"proto-chat/modules/structs"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
 )
-
-func errorDeserializing(errStr string, jsonType string, userID uint64) []byte {
-	log.Error(errStr)
-	log.Warn("Error deserializing json type [%s] of user ID [%d]", jsonType, userID)
-	return respondFailureReason(fmt.Sprintf("Couldn't deserialize json of [%s] request", jsonType))
-}
-
-func errorSerializing(errStr string, jsonType string, userID uint64) {
-	log.Error(errStr)
-	log.Warn("Fatal error serializing response json type [%s] for user ID [%d]", jsonType, userID)
-}
-
-func readConfigFile() ConfigFile {
-	configFile := "config.json"
-	file, err := os.Open(configFile)
-	if err != nil {
-		log.Error(err.Error())
-		log.Fatal("Error opening config file")
-
-	}
-	defer func(file *os.File) {
-		err := file.Close()
-		if err != nil {
-			log.Error(err.Error())
-			log.Fatal("Error closing config file")
-		}
-	}(file)
-
-	var config ConfigFile
-	err = json.NewDecoder(file).Decode(&config)
-	if err != nil {
-		log.Error(err.Error())
-		log.Fatal("Error decoding config file")
-	}
-	return config
-}
-
-func getTimestamp() int64 {
-	return time.Now().UnixMilli()
-}
-
-func measureTime(start int64, msg string) {
-	log.Time("%s took [%d ms]", msg, getTimestamp()-start)
-}
 
 func findCookie(cookies []*http.Cookie, cookieName string) (http.Cookie, bool) {
 	log.Debug("Searching for cookie called: %s...", cookieName)
@@ -75,7 +30,7 @@ func findCookie(cookies []*http.Cookie, cookieName string) (http.Cookie, bool) {
 	return http.Cookie{}, false
 }
 
-func loginOrRegister(bodyBytes []byte, pathURL string) (http.Cookie, Result) {
+func loginOrRegister(bodyBytes []byte, pathURL string) (http.Cookie, structs.Result) {
 	// deserialize the body message into LoginData struct
 	type LoginData struct {
 		Username string
@@ -84,7 +39,7 @@ func loginOrRegister(bodyBytes []byte, pathURL string) (http.Cookie, Result) {
 	var loginData LoginData
 	jsonErr := json.Unmarshal(bodyBytes, &loginData)
 	if jsonErr != nil {
-		return http.Cookie{}, Result{
+		return http.Cookie{}, structs.Result{
 			Success: false,
 			Message: "Error deserializing received loginData json from POST request",
 		}
@@ -94,14 +49,14 @@ func loginOrRegister(bodyBytes []byte, pathURL string) (http.Cookie, Result) {
 	// so the server can't really know what the original password was
 	passwordBytes, err := base64.StdEncoding.DecodeString(loginData.Password)
 	if err != nil {
-		return http.Cookie{}, Result{
+		return http.Cookie{}, structs.Result{
 			Success: false,
 			Message: "Error decoding base64 password to byte array",
 		}
 	}
 
 	// the values received next will be stored in this
-	var logRegResult Result
+	var logRegResult structs.Result
 	var userID uint64
 
 	// run depending on if its registration or login request
@@ -110,12 +65,12 @@ func loginOrRegister(bodyBytes []byte, pathURL string) (http.Cookie, Result) {
 	} else if pathURL == "/login" {
 		userID = loginUser(loginData.Username, passwordBytes)
 		if userID == 0 {
-			logRegResult = Result{
+			logRegResult = structs.Result{
 				Success: false,
 				Message: "Wrong username or password",
 			}
 		} else {
-			logRegResult = Result{
+			logRegResult = structs.Result{
 				Success: true,
 				Message: "Successful login",
 			}
@@ -129,7 +84,7 @@ func loginOrRegister(bodyBytes []byte, pathURL string) (http.Cookie, Result) {
 	// otherwise it will remain empty as it won't be needed
 	var cookie http.Cookie
 	if logRegResult.Success {
-		var token Token = newToken(userID)
+		var token database.Token = newToken(userID)
 		cookie = http.Cookie{
 			Name:     "token",
 			Value:    hex.EncodeToString(token.Token),
@@ -146,17 +101,17 @@ func loginOrRegister(bodyBytes []byte, pathURL string) (http.Cookie, Result) {
 }
 
 // Register user by adding it into the database
-func registerUser(username string, passwordBytes []byte) (uint64, Result) {
+func registerUser(username string, passwordBytes []byte) (uint64, structs.Result) {
 	log.Info("Starting registration for new user with name [%s]...", username)
 
 	// check if received password is in proper format
 	if len(passwordBytes) != 64 {
-		return 0, Result{
+		return 0, structs.Result{
 			Success: false,
 			Message: "Password byte array length isn't 64 bytes",
 		}
 	} else if len(username) > 16 {
-		return 0, Result{
+		return 0, structs.Result{
 			Success: false,
 			Message: "Username is longer than 16 bytes",
 		}
@@ -173,7 +128,7 @@ func registerUser(username string, passwordBytes []byte) (uint64, Result) {
 		} else {
 			errMsg = "Error generating bcrypt hash"
 		}
-		return 0, Result{
+		return 0, structs.Result{
 			Success: false,
 			Message: errMsg,
 		}
@@ -191,16 +146,24 @@ func registerUser(username string, passwordBytes []byte) (uint64, Result) {
 	//printWithName(username, totpResult.Message)
 
 	// add the new user to database
-	newUserResult := database.RegisterNewUser(userID, username, "placeholder name", passwordHash, "")
+	var user = database.User{
+		UserID:      userID,
+		Username:    username,
+		DisplayName: "placeholder name",
+		Password:    passwordHash,
+		Totp:        "",
+	}
+
+	newUserResult := database.Insert(user)
 	if !newUserResult {
-		return 0, Result{
+		return 0, structs.Result{
 			Success: false,
 			Message: "Registration failed",
 		}
 	}
 
 	// return the Success
-	return userID, Result{
+	return userID, structs.Result{
 		Success: true,
 		Message: "Successful registration",
 	}
@@ -212,7 +175,7 @@ func loginUser(username string, passwordBytes []byte) uint64 {
 	log.Info("Starting login of user [%s]...", username)
 
 	// get the password hash from the database
-	passwordHash, userID := database.GetPasswordAndID(username)
+	passwordHash, userID := database.UsersTable.GetPasswordAndID(username)
 	if passwordHash == nil {
 		log.Info("No user was found with username [%s]", username)
 		return 0
@@ -245,7 +208,7 @@ func loginUser(username string, passwordBytes []byte) uint64 {
 // 	return totpKey.Secret()
 // }
 
-func newToken(userID uint64) Token {
+func newToken(userID uint64) database.Token {
 	log.Debug("Generating new token for user ID [%d]...", userID)
 
 	// generate new token
@@ -256,17 +219,17 @@ func newToken(userID uint64) Token {
 		log.Fatal("Error generating token for user ID [%d]", userID)
 	}
 
-	var tokenRow = Token{
+	var token = database.Token{
 		Token:      tokenBytes,
 		UserID:     userID,
 		Expiration: uint64(time.Now().Add(30 * 24 * time.Hour).Unix()), // 3 months
 	}
 
 	// add the newly generated token into the database
-	database.AddToken(tokenRow)
+	database.Insert(token)
 
 	// return the new token
-	return tokenRow
+	return token
 }
 
 func checkIfTokenIsValid(r *http.Request) uint64 {
@@ -281,41 +244,7 @@ func checkIfTokenIsValid(r *http.Request) uint64 {
 		}
 
 		// check if token exists in the database
-		return database.ConfirmToken(tokenBytes)
+		return database.TokensTable.ConfirmToken(tokenBytes)
 	}
 	return 0
-}
-
-func preparePacket(typeByte byte, jsonBytes []byte) []byte {
-	// convert the end index uint32 value into 4 bytes
-	var endIndex uint32 = uint32(5 + len(jsonBytes))
-	var endIndexBytes []byte = make([]byte, 4)
-	binary.LittleEndian.PutUint32(endIndexBytes, endIndex)
-
-	// merge them into a single packet
-	var packet []byte = make([]byte, 5+len(jsonBytes))
-	copy(packet, endIndexBytes) // first 4 bytes will be the length
-	packet[4] = typeByte        // 5th byte will be the packet type
-	copy(packet[5:], jsonBytes) // rest will be the json byte array
-
-	log.Trace("Prepared packet: endIndex [%d], type [%d], json [%s]", endIndex, packet[4], string(jsonBytes))
-
-	return packet
-}
-
-func respondFailureReason(reason string) []byte {
-	type Failure struct {
-		Reason string
-	}
-	var failure = Failure{
-		Reason: reason,
-	}
-
-	json, err := json.Marshal(failure)
-	if err != nil {
-		log.Error(err.Error())
-		log.Fatal("Could not serialize issue in respondFailureReason")
-	}
-
-	return preparePacket(0, json)
 }

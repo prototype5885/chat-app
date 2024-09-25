@@ -1,10 +1,13 @@
-package main
+package websocket
 
 import (
 	"encoding/binary"
 	"encoding/json"
 	"net/http"
+	"proto-chat/modules/database"
 	log "proto-chat/modules/logging"
+	"proto-chat/modules/macros"
+	"proto-chat/modules/structs"
 	"sync"
 	"time"
 
@@ -33,21 +36,25 @@ type Client struct {
 	closeChan      chan bool
 }
 
-var broadcastChan = make(chan BroadcastData, 100)
+var broadcastChan = make(chan structs.BroadcastData, 100)
 
 // var mutex sync.Mutex // used so only 1 goroutine can access the clients list at one time
 
 var clients = make(map[uint64]*Client)
 
+func Init() {
+	go broadCastChannel()
+}
+
 // client is connecting to the websocket
-func acceptWsClient(userID uint64, w http.ResponseWriter, r *http.Request) {
+func AcceptWsClient(userID uint64, w http.ResponseWriter, r *http.Request) {
 	wsConn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Error(err.Error())
 		log.Warn("Error upgrading connection of user ID [%d] to websocket protocol", userID)
 		return
 	}
-	username := database.GetUsername(userID)
+	username := database.UsersTable.GetUsername(userID)
 	if username == "" {
 		log.Fatal("After accepting websocket client, user ID [%d] has no username set in the database", userID)
 	}
@@ -83,7 +90,7 @@ func acceptWsClient(userID uint64, w http.ResponseWriter, r *http.Request) {
 		log.Fatal("Error serializing user ID [%d] for sending", userID)
 	}
 
-	client.writeChan <- preparePacket(241, jsonUserID)
+	client.writeChan <- macros.PreparePacket(241, jsonUserID)
 
 	wg.Wait()
 
@@ -94,6 +101,11 @@ func (c *Client) removeClient() {
 	c.wsConn.Close()
 	delete(clients, c.userID)
 	log.Debug("Removed user ID [%d] from the connected clients", c.userID)
+}
+
+func (c *Client) changedChannel(channelID uint64) {
+	c.currentChannel = channelID
+	log.Trace("User ID [%d] is now on channel ID [%d]", c.userID, channelID)
 }
 
 func (c *Client) readMessages(wg *sync.WaitGroup) {
@@ -120,7 +132,7 @@ func (c *Client) readMessages(wg *sync.WaitGroup) {
 		// not supposed to happen in normal cases
 		if len(receivedBytes) < 5 {
 			log.Hack("User ID [%d] sent a byte array shorter than 5 length", c.userID)
-			c.writeChan <- respondFailureReason("Sent byte array length is less than 5")
+			c.writeChan <- macros.RespondFailureReason("Sent byte array length is less than 5")
 			continue
 		}
 
@@ -134,7 +146,7 @@ func (c *Client) readMessages(wg *sync.WaitGroup) {
 		if endIndex > uint32(len(receivedBytes)) {
 			log.Hack("User ID [%d] sent a byte array where the extracted endIndex was larger than the received byte array", c.userID)
 			log.Hack("Byte array of user ID [%d]: [%s]", c.userID, receivedBytes)
-			c.writeChan <- respondFailureReason("Sent byte array is longer than the given endIndex value")
+			c.writeChan <- macros.RespondFailureReason("Sent byte array is longer than the given endIndex value")
 			continue
 		}
 
@@ -145,11 +157,10 @@ func (c *Client) readMessages(wg *sync.WaitGroup) {
 		var packetJson []byte = receivedBytes[5:endIndex]
 
 		log.Trace("Received packet: endIndex [%d], type [%d], json [%s]", endIndex, packetType, string(packetJson))
-
 		switch packetType {
 		case 1: // user sent a chat message on x channel
 			log.Debug("User ID [%d] sent a chat message", c.userID)
-			var broadcastData BroadcastData = c.onChatMessageRequest(packetJson)
+			var broadcastData structs.BroadcastData = c.onChatMessageRequest(packetJson)
 			broadcastData.Type = packetType
 			broadcastChan <- broadcastData
 
@@ -159,13 +170,13 @@ func (c *Client) readMessages(wg *sync.WaitGroup) {
 
 		case 3: // user deleting a chat message
 			log.Debug("User ID [%d] wants to delete a chat message", c.userID)
-			var broadcastData BroadcastData = c.onChatMessageDeleteRequest(packetJson)
+			var broadcastData structs.BroadcastData = c.onChatMessageDeleteRequest(packetJson)
 			broadcastData.Type = packetType
 			broadcastChan <- broadcastData
 
 		case 21: // user adding a server
 			log.Debug("User ID [%d] wants to create a server", c.userID)
-			var broadcastData BroadcastData = c.onAddServerRequest(packetJson)
+			var broadcastData structs.BroadcastData = c.onAddServerRequest(packetJson)
 			broadcastData.Type = packetType
 			broadcastChan <- broadcastData
 
@@ -175,13 +186,13 @@ func (c *Client) readMessages(wg *sync.WaitGroup) {
 
 		case 23: // user deleting a server
 			log.Debug("User ID [%d] wants to delete a server", c.userID)
-			var broadcastData BroadcastData = c.onServerDeleteRequest(packetJson)
+			var broadcastData structs.BroadcastData = c.onServerDeleteRequest(packetJson)
 			broadcastData.Type = packetType
 			broadcastChan <- broadcastData
 
 		case 31: // user added a channel to their server
 			log.Debug("User ID [%d] wants to add a channel", c.userID)
-			var broadcastData BroadcastData = c.onAddChannelRequest(packetJson)
+			var broadcastData structs.BroadcastData = c.onAddChannelRequest(packetJson)
 			broadcastData.Type = packetType
 			broadcastChan <- broadcastData
 
@@ -194,7 +205,7 @@ func (c *Client) readMessages(wg *sync.WaitGroup) {
 
 		default: // if unknown
 			log.Hack("User ID [%d] sent invalid packet type: [%d]", c.userID, packetType)
-			c.writeChan <- respondFailureReason("Packet type is invalid")
+			c.writeChan <- macros.RespondFailureReason("Packet type is invalid")
 		}
 	}
 }

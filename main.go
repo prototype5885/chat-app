@@ -1,12 +1,17 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
+	"proto-chat/modules/database"
 	log "proto-chat/modules/logging"
 	"proto-chat/modules/snowflake"
+	"proto-chat/modules/structs"
+	"proto-chat/modules/webRequests"
+	"proto-chat/modules/websocket"
 	"strconv"
 	"syscall"
 )
@@ -24,33 +29,52 @@ func main() {
 		if err != nil {
 			log.Error("Error closing db connection")
 		}
-
-		// log.CloseChan <- 0
-		// time.Sleep(1 * time.Second)
 		os.Exit(0)
 	}()
 
 	config := readConfigFile()
 	log.SetupLogging("TRACE", config.LogConsole, config.LogFile)
 
-	// start := getTimestamp()
-	// for i := 0; i < 10000; i++ {
-	// 	log.Info("Starting server...")
-	// }
-
-	// measureTime(start, "test")
-
+	// database
 	if config.Sqlite {
 		database.ConnectSqlite()
 	} else {
 		database.ConnectMariadb(config.DatabaseUsername, config.DatabasePassword, config.DatabaseAddress, strconv.Itoa(int(config.DatabasePort)), config.DatabaseName)
 	}
+	database.CreateTables()
 
+	// snowflake
 	snowflake.SetSnowflakeServerID(0)
 
+	// database.Insert(database.Channel{
+	// 	ChannelID: snowflake.Generate(),
+	// 	ServerID:  snowflake.Generate(),
+	// 	Name:      "test channel name",
+	// })
+
+	// start := macros.GetTimestamp()
+	// for i := 0; i < 1000; i++ {
+	// 	// log.Info("Starting server...")
+	// 	database.Insert(database.ChatMessage{
+	// 		MessageID: snowflake.Generate(),
+	// 		ChannelID: 1811203793171251200,
+	// 		UserID:    1810997960123613184,
+	// 		Message:   "test message",
+	// 	})
+
+	// }
+	// macros.MeasureTime(start, "test")
+
+	// database.Insert(database.ChatMessage{
+	// 	MessageID: snowflake.Generate(),
+	// 	ChannelID: 1811203793171251200,
+	// 	UserID:    1810997960123613184,
+	// 	Message:   "test message",
+	// })
+	// return
+
 	// websocket
-	// this will allow sending messages to multiple clients
-	go broadCastChannel()
+	websocket.Init()
 
 	var wsType string
 	if config.TLS {
@@ -59,16 +83,16 @@ func main() {
 		wsType = "/ws"
 	}
 	http.HandleFunc(wsType, func(w http.ResponseWriter, r *http.Request) {
-		wssHandler(w, r)
+		webRequests.WssHandler(w, r)
 	})
 
-	http.HandleFunc("GET /login-register.html", loginRegisterHandler)
-	http.HandleFunc("GET /chat.html", chatHandler)
+	http.HandleFunc("GET /login-register.html", webRequests.LoginRegisterHandler)
+	http.HandleFunc("GET /chat.html", webRequests.ChatHandler)
 
-	http.HandleFunc("POST /login", postRequestHandler)
-	http.HandleFunc("POST /register", postRequestHandler)
+	http.HandleFunc("POST /login", webRequests.PostRequestHandler)
+	http.HandleFunc("POST /register", webRequests.PostRequestHandler)
 
-	http.HandleFunc("/", mainHandler)
+	http.HandleFunc("/", webRequests.MainHandler)
 
 	var address string
 
@@ -92,4 +116,29 @@ func main() {
 			log.Fatal("Error starting server")
 		}
 	}
+}
+
+func readConfigFile() structs.ConfigFile {
+	configFile := "config.json"
+	file, err := os.Open(configFile)
+	if err != nil {
+		log.Error(err.Error())
+		log.Fatal("Error opening config file")
+
+	}
+	defer func(file *os.File) {
+		err := file.Close()
+		if err != nil {
+			log.Error(err.Error())
+			log.Fatal("Error closing config file")
+		}
+	}(file)
+
+	var config structs.ConfigFile
+	err = json.NewDecoder(file).Decode(&config)
+	if err != nil {
+		log.Error(err.Error())
+		log.Fatal("Error decoding config file")
+	}
+	return config
 }

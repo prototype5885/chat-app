@@ -1,30 +1,30 @@
-package main
+package webRequests
 
 import (
 	"encoding/json"
 	"io"
 	"net/http"
 	log "proto-chat/modules/logging"
+	"proto-chat/modules/websocket"
 )
 
 func printReceivedRequest(url string, method string) {
-	log.Debug("Received %s %s request", url, method)
+	log.Trace("Received %s %s request", url, method)
 }
 
-func mainHandler(w http.ResponseWriter, r *http.Request) {
+func MainHandler(w http.ResponseWriter, r *http.Request) {
 	printReceivedRequest(r.URL.Path, r.Method)
-	// serve static files
-	http.FileServer(http.Dir("./public")).ServeHTTP(w, r)
+	http.FileServer(http.Dir("./public")).ServeHTTP(w, r) // serve static files
 }
 
-func wssHandler(w http.ResponseWriter, r *http.Request) {
+func WssHandler(w http.ResponseWriter, r *http.Request) {
 	printReceivedRequest(r.URL.Path, r.Method)
 	log.Info("Someone is connecting to websocket...")
 
 	// check if the user trying to connect to websocket has token
 	userID := checkIfTokenIsValid(r)
 	if userID != 0 {
-		acceptWsClient(userID, w, r)
+		websocket.AcceptWsClient(userID, w, r)
 		return
 	} else {
 		// someone is trying to connect to websocket directly without authorized token
@@ -34,7 +34,7 @@ func wssHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func loginRegisterHandler(w http.ResponseWriter, r *http.Request) {
+func LoginRegisterHandler(w http.ResponseWriter, r *http.Request) {
 	printReceivedRequest(r.URL.Path, r.Method)
 
 	// check if user requesting login/registration already has a token
@@ -49,7 +49,7 @@ func loginRegisterHandler(w http.ResponseWriter, r *http.Request) {
 	http.FileServer(http.Dir("./public")).ServeHTTP(w, r)
 }
 
-func chatHandler(w http.ResponseWriter, r *http.Request) {
+func ChatHandler(w http.ResponseWriter, r *http.Request) {
 	printReceivedRequest(r.URL.Path, r.Method)
 
 	// check if user requesting login/registration already has a token
@@ -64,7 +64,7 @@ func chatHandler(w http.ResponseWriter, r *http.Request) {
 	http.FileServer(http.Dir("./public")).ServeHTTP(w, r)
 }
 
-func postRequestHandler(w http.ResponseWriter, r *http.Request) {
+func PostRequestHandler(w http.ResponseWriter, r *http.Request) {
 	printReceivedRequest(r.URL.Path, r.Method)
 
 	// reading POST request body as bytes

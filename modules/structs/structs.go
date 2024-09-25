@@ -1,4 +1,4 @@
-package main
+package structs
 
 type ConfigFile struct {
 	LocalhostOnly    bool
@@ -25,8 +25,8 @@ type BroadcastData struct {
 	ID           uint64
 }
 
-type Token struct {
-	Token      []byte
-	UserID     uint64
-	Expiration uint64
+type ServerResponse struct {
+	ServerID uint64
+	Name     string
+	Picture  string
 }
