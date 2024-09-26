@@ -9,7 +9,6 @@ import (
 	"proto-chat/modules/database"
 	log "proto-chat/modules/logging"
 	"proto-chat/modules/snowflake"
-	"proto-chat/modules/structs"
 	"proto-chat/modules/webRequests"
 	"proto-chat/modules/websocket"
 	"strconv"
@@ -31,6 +30,47 @@ func main() {
 		}
 		os.Exit(0)
 	}()
+
+	// reading config file
+
+	type ConfigFile struct {
+		LocalhostOnly    bool
+		Port             uint32
+		TLS              bool
+		LogConsole       bool
+		LogFile          bool
+		Sqlite           bool
+		DatabaseAddress  string
+		DatabasePort     uint32
+		DatabaseUsername string
+		DatabasePassword string
+		DatabaseName     string
+	}
+
+	readConfigFile := func() ConfigFile {
+		configFile := "config.json"
+		file, err := os.Open(configFile)
+		if err != nil {
+			log.Error(err.Error())
+			log.Fatal("Error opening config file")
+
+		}
+		defer func(file *os.File) {
+			err := file.Close()
+			if err != nil {
+				log.Error(err.Error())
+				log.Fatal("Error closing config file")
+			}
+		}(file)
+
+		var config ConfigFile
+		err = json.NewDecoder(file).Decode(&config)
+		if err != nil {
+			log.Error(err.Error())
+			log.Fatal("Error decoding config file")
+		}
+		return config
+	}
 
 	config := readConfigFile()
 	log.SetupLogging("TRACE", config.LogConsole, config.LogFile)
@@ -86,6 +126,8 @@ func main() {
 		webRequests.WssHandler(w, r)
 	})
 
+	// http requests
+
 	http.HandleFunc("GET /login-register.html", webRequests.LoginRegisterHandler)
 	http.HandleFunc("GET /chat.html", webRequests.ChatHandler)
 
@@ -116,29 +158,4 @@ func main() {
 			log.Fatal("Error starting server")
 		}
 	}
-}
-
-func readConfigFile() structs.ConfigFile {
-	configFile := "config.json"
-	file, err := os.Open(configFile)
-	if err != nil {
-		log.Error(err.Error())
-		log.Fatal("Error opening config file")
-
-	}
-	defer func(file *os.File) {
-		err := file.Close()
-		if err != nil {
-			log.Error(err.Error())
-			log.Fatal("Error closing config file")
-		}
-	}(file)
-
-	var config structs.ConfigFile
-	err = json.NewDecoder(file).Decode(&config)
-	if err != nil {
-		log.Error(err.Error())
-		log.Fatal("Error decoding config file")
-	}
-	return config
 }

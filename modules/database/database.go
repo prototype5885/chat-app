@@ -12,13 +12,13 @@ import (
 	_ "modernc.org/sqlite"
 )
 
+type Users struct{}
+type Tokens struct{}
+type Servers struct{}
+type ServerMembers struct{}
 type Channels struct{}
 type ChatMessages struct{}
 type ProfilePics struct{}
-type ServerMembers struct{}
-type Servers struct{}
-type Tokens struct{}
-type Users struct{}
 
 var db *sql.DB
 
@@ -28,13 +28,13 @@ type Info struct {
 }
 
 var (
+	UsersTable         Users
+	TokensTable        Tokens
+	ServersTable       Servers
+	ServerMembersTable ServerMembers
 	ChannelsTable      Channels
 	ChatMessagesTable  ChatMessages
 	ProfilePicsTable   ProfilePics
-	ServerMembersTable ServerMembers
-	ServersTable       Servers
-	TokensTable        Tokens
-	UsersTable         Users
 )
 
 func ConnectSqlite() {
@@ -75,13 +75,13 @@ func CloseDatabaseConnection() error {
 }
 
 func CreateTables() {
+	UsersTable.CreateUsersTable()
+	TokensTable.CreateTokensTable()
+	ServersTable.CreateServersTable()
+	ServerMembersTable.CreateServerMembersTable()
 	ChannelsTable.CreateChannelsTable()
 	ChatMessagesTable.CreateChatMessagesTable()
 	ProfilePicsTable.CreateProfilePicsTable()
-	ServersTable.CreateServersTable()
-	ServerMembersTable.CreateServerMembersTable()
-	TokensTable.CreateTokensTable()
-	UsersTable.CreateUsersTable()
 }
 
 func Insert(structo any) bool {

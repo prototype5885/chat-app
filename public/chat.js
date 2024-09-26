@@ -12,7 +12,7 @@ if (typeof (Storage) !== "undefined") {
 document.addEventListener("DOMContentLoaded", function () {
     // add the direct messages button
     {
-        addServer('home', 'Direct Messages', 'hs.svg', 'dm', discordGray, discordBlue)
+        addServer('home', 0, 'Direct Messages', 'hs.svg', 'dm', discordGray, discordBlue)
     }
     // add event listener for the add server button
     {
@@ -87,7 +87,7 @@ wsClient.onmessage = function (event) {
             deleteChatMessage(BigInt(json.MessageID))
             break
         case 21: // server responded to the add server request
-            addServer(BigInt(json.ServerID), json.Name, json.Picture, 'server', discordGray, discordBlue)
+            addServer(BigInt(json.ServerID), BigInt(json.OwnerID), json.Name, json.Picture, 'server', discordGray, discordBlue)
             break
         case 22: // server sent the requested server list
             if (json == null) {
@@ -95,7 +95,7 @@ wsClient.onmessage = function (event) {
                 break
             }
             for (let i = 0; i < json.length; i++) {
-                addServer(BigInt(json[i].ServerID), json[i].Name, json[i].Picture, 'server', discordGray, discordBlue)
+                addServer(BigInt(json[i].ServerID), BigInt(json[i].OwnerID), json[i].Name, json[i].Picture, 'server', discordGray, discordBlue)
             }
             break
         case 23: // server sent which server was deleted

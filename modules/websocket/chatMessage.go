@@ -7,7 +7,6 @@ import (
 	log "proto-chat/modules/logging"
 	"proto-chat/modules/macros"
 	"proto-chat/modules/snowflake"
-	"proto-chat/modules/structs"
 )
 
 type ChatMessageResponse struct {
@@ -17,7 +16,7 @@ type ChatMessageResponse struct {
 }
 
 // when client sent a chat message, type 1
-func (c *Client) onChatMessageRequest(jsonBytes []byte) structs.BroadcastData {
+func (c *Client) onChatMessageRequest(jsonBytes []byte, packetType byte) BroadcastData {
 	const jsonType string = "add chat message"
 
 	type ClientChatMsg struct {
@@ -28,7 +27,7 @@ func (c *Client) onChatMessageRequest(jsonBytes []byte) structs.BroadcastData {
 	var chatMessageRequest ClientChatMsg
 
 	if err := json.Unmarshal(jsonBytes, &chatMessageRequest); err != nil {
-		return structs.BroadcastData{
+		return BroadcastData{
 			MessageBytes: macros.ErrorDeserializing(err.Error(), jsonType, c.userID),
 		}
 
@@ -43,7 +42,7 @@ func (c *Client) onChatMessageRequest(jsonBytes []byte) structs.BroadcastData {
 		Message:   chatMessageRequest.Message,
 	})
 	if !success {
-		return structs.BroadcastData{
+		return BroadcastData{
 			MessageBytes: macros.RespondFailureReason("Failed adding message"),
 		}
 	}
@@ -59,8 +58,9 @@ func (c *Client) onChatMessageRequest(jsonBytes []byte) structs.BroadcastData {
 		macros.ErrorSerializing(err.Error(), jsonType, c.userID)
 	}
 
-	return structs.BroadcastData{
+	return BroadcastData{
 		MessageBytes: macros.PreparePacket(1, jsonBytes),
+		Type:         packetType,
 		ID:           chatMessageRequest.ChannelID,
 	}
 }
@@ -106,13 +106,13 @@ func (c *Client) onChatHistoryRequest(packetJson []byte) []byte {
 		log.Warn("Fatal error serializing json in GetMessagesFromChannel")
 	}
 
-	c.changedChannel(channelID)
+	c.setCurrentChannelID(channelID)
 
 	return macros.PreparePacket(2, jsonBytes)
 }
 
 // when client wants to delete a message they own, type 3
-func (c *Client) onChatMessageDeleteRequest(jsonBytes []byte) structs.BroadcastData {
+func (c *Client) onChatMessageDeleteRequest(jsonBytes []byte, packetType byte) BroadcastData {
 	const jsonType string = "chat message deletion"
 
 	type MessageToDelete struct {
@@ -122,7 +122,7 @@ func (c *Client) onChatMessageDeleteRequest(jsonBytes []byte) structs.BroadcastD
 	var messageDeleteRequest = MessageToDelete{}
 
 	if err := json.Unmarshal(jsonBytes, &messageDeleteRequest); err != nil {
-		return structs.BroadcastData{
+		return BroadcastData{
 			MessageBytes: macros.ErrorDeserializing(err.Error(), jsonType, c.userID),
 		}
 	}
@@ -134,13 +134,14 @@ func (c *Client) onChatMessageDeleteRequest(jsonBytes []byte) structs.BroadcastD
 
 	channelID := database.Delete(messageToDelete)
 	if channelID == 0 {
-		return structs.BroadcastData{
+		return BroadcastData{
 			MessageBytes: macros.RespondFailureReason("Couldn't delete chat message"),
 		}
 	}
 
-	return structs.BroadcastData{
+	return BroadcastData{
 		MessageBytes: macros.PreparePacket(3, jsonBytes),
 		ID:           channelID,
+		Type:         packetType,
 	}
 }

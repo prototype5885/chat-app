@@ -7,7 +7,6 @@ import (
 	log "proto-chat/modules/logging"
 	"proto-chat/modules/macros"
 	"proto-chat/modules/snowflake"
-	"proto-chat/modules/structs"
 )
 
 type Channel struct {
@@ -22,7 +21,7 @@ type ChannelResponse struct { // this is whats sent to the client when client re
 }
 
 // when client is requesting to add a new channel, type 31
-func (c *Client) onAddChannelRequest(packetJson []byte) structs.BroadcastData {
+func (c *Client) onAddChannelRequest(packetJson []byte, packetType byte) BroadcastData {
 	const jsonType string = "add channel"
 
 	type AddChannelRequest struct {
@@ -33,36 +32,42 @@ func (c *Client) onAddChannelRequest(packetJson []byte) structs.BroadcastData {
 	var channelRequest = AddChannelRequest{}
 
 	if err := json.Unmarshal(packetJson, &channelRequest); err != nil {
-		return structs.BroadcastData{
+		return BroadcastData{
 			MessageBytes: macros.ErrorDeserializing(err.Error(), jsonType, c.userID),
 		}
 	}
 
 	// TODO check if user has permission to add the channel to the server
 
+	var channelID uint64 = snowflake.Generate()
+
+	// insert into database
 	var channel = database.Channel{
-		ChannelID: snowflake.Generate(),
+		ChannelID: channelID,
 		ServerID:  channelRequest.ServerID,
 		Name:      channelRequest.Name,
 	}
 
 	if !database.Insert(channel) {
-		return structs.BroadcastData{
-			MessageBytes: macros.RespondFailureReason("Error adding channel"),
+		return BroadcastData{
+			MessageBytes: macros.RespondFailureReason("Error adding channel called [%s]", channelRequest.Name),
 		}
 	}
 
+	// serialize response about success
 	var channelResponse = ChannelResponse{
-		ChannelID: channel.ChannelID,
-		Name:      channel.Name,
+		ChannelID: channelID,
+		Name:      channelRequest.Name,
 	}
 
 	messagesBytes, err := json.Marshal(channelResponse)
 	if err != nil {
 		macros.ErrorSerializing(err.Error(), jsonType, c.userID)
 	}
-	return structs.BroadcastData{
+
+	return BroadcastData{
 		MessageBytes: macros.PreparePacket(31, messagesBytes),
+		Type:         packetType,
 		ID:           channelRequest.ServerID,
 	}
 }
@@ -108,6 +113,8 @@ func (c *Client) onChannelListRequest(packetJson []byte) []byte {
 	if err != nil {
 		macros.ErrorSerializing(err.Error(), jsonType, c.userID)
 	}
+
+	c.setCurrentServerID(serverID)
 
 	return macros.PreparePacket(32, messagesBytes)
 }

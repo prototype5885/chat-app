@@ -311,7 +311,7 @@ function updateServerImage(button, picture, defaultColor, firstCharacter) {
     }
 }
 
-function addServer(serverID, serverName, picture, className, defaultColor, hoverColor) {
+function addServer(serverID, ownerID, serverName, picture, className, defaultColor, hoverColor) {
     // this li will hold the server and notification thing, which is the span
     const li = document.createElement('li')
     li.className = className
@@ -388,10 +388,13 @@ function addServer(serverID, serverName, picture, className, defaultColor, hover
         deletebubble()
     }
 
-    var owner = true
+    var owned
+    if (ownerID == ownUserID) {
+        owned = true
+    }
 
     registerClick(button, () => { onClick() })
-    registerRightClick(button, (pageX, pageY) => { serverCtxMenu(serverID, owner, pageX, pageY) })
+    registerRightClick(button, (pageX, pageY) => { serverCtxMenu(serverID, owned, pageX, pageY) })
     registerHover(button, () => { onHoverIn() }, () => { onHoverOut() })
 }
 

@@ -7,11 +7,11 @@ function registerRightClick(element, callback) {
     })
 }
 
-function serverCtxMenu(serverID, owner, pageX, pageY) {
+function serverCtxMenu(serverID, owned, pageX, pageY) {
     const actions = []
 
-    if (owner) { actions.push({ text: 'Rename server', func: () => requestRenameServer(serverID) }) }
-    if (owner) { actions.push({ text: 'Delete server', color: 'red', func: () => requestDeleteServer(serverID) }) }
+    if (owned) { actions.push({ text: 'Rename server', func: () => requestRenameServer(serverID) }) }
+    if (owned) { actions.push({ text: 'Delete server', color: 'red', func: () => requestDeleteServer(serverID) }) }
 
     createContextMenu(actions, pageX, pageY)
 }

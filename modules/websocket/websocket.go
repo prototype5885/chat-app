@@ -7,7 +7,6 @@ import (
 	"proto-chat/modules/database"
 	log "proto-chat/modules/logging"
 	"proto-chat/modules/macros"
-	"proto-chat/modules/structs"
 	"sync"
 	"time"
 
@@ -27,16 +26,23 @@ var upgrader = websocket.Upgrader{
 	EnableCompression: true,
 }
 
-type Client struct {
-	displayName    string
-	wsConn         *websocket.Conn
-	userID         uint64
-	currentChannel uint64
-	writeChan      chan []byte
-	closeChan      chan bool
+type BroadcastData struct {
+	MessageBytes []byte
+	Type         byte
+	ID           uint64
 }
 
-var broadcastChan = make(chan structs.BroadcastData, 100)
+type Client struct {
+	displayName      string
+	wsConn           *websocket.Conn
+	userID           uint64
+	currentChannelID uint64
+	currentServerID  uint64
+	writeChan        chan []byte
+	closeChan        chan bool
+}
+
+var broadcastChan = make(chan BroadcastData, 100)
 
 // var mutex sync.Mutex // used so only 1 goroutine can access the clients list at one time
 
@@ -64,12 +70,12 @@ func AcceptWsClient(userID uint64, w http.ResponseWriter, r *http.Request) {
 	// they communicate using channels
 
 	client := &Client{
-		displayName:    username,
-		wsConn:         wsConn,
-		userID:         userID,
-		currentChannel: 0,
-		writeChan:      make(chan []byte, 10),
-		closeChan:      make(chan bool),
+		displayName:      username,
+		wsConn:           wsConn,
+		userID:           userID,
+		currentChannelID: 0,
+		writeChan:        make(chan []byte, 10),
+		closeChan:        make(chan bool),
 	}
 
 	clients[userID] = client
@@ -103,9 +109,14 @@ func (c *Client) removeClient() {
 	log.Debug("Removed user ID [%d] from the connected clients", c.userID)
 }
 
-func (c *Client) changedChannel(channelID uint64) {
-	c.currentChannel = channelID
+func (c *Client) setCurrentChannelID(channelID uint64) {
+	c.currentChannelID = channelID
 	log.Trace("User ID [%d] is now on channel ID [%d]", c.userID, channelID)
+}
+
+func (c *Client) setCurrentServerID(serverID uint64) {
+	c.currentServerID = serverID
+	log.Trace("User ID [%d] is now on server ID [%d]", c.userID, c.currentServerID)
 }
 
 func (c *Client) readMessages(wg *sync.WaitGroup) {
@@ -160,9 +171,7 @@ func (c *Client) readMessages(wg *sync.WaitGroup) {
 		switch packetType {
 		case 1: // user sent a chat message on x channel
 			log.Debug("User ID [%d] sent a chat message", c.userID)
-			var broadcastData structs.BroadcastData = c.onChatMessageRequest(packetJson)
-			broadcastData.Type = packetType
-			broadcastChan <- broadcastData
+			broadcastChan <- c.onChatMessageRequest(packetJson, packetType)
 
 		case 2: // user entered a channel, requesting chat history
 			log.Debug("User ID [%d] is asking for chat history", c.userID)
@@ -170,15 +179,11 @@ func (c *Client) readMessages(wg *sync.WaitGroup) {
 
 		case 3: // user deleting a chat message
 			log.Debug("User ID [%d] wants to delete a chat message", c.userID)
-			var broadcastData structs.BroadcastData = c.onChatMessageDeleteRequest(packetJson)
-			broadcastData.Type = packetType
-			broadcastChan <- broadcastData
+			broadcastChan <- c.onChatMessageDeleteRequest(packetJson, packetType)
 
 		case 21: // user adding a server
 			log.Debug("User ID [%d] wants to create a server", c.userID)
-			var broadcastData structs.BroadcastData = c.onAddServerRequest(packetJson)
-			broadcastData.Type = packetType
-			broadcastChan <- broadcastData
+			c.writeChan <- c.onAddServerRequest(packetJson)
 
 		case 22: // user requesting their joined server list
 			log.Debug("User ID [%d] is requesting server list", c.userID)
@@ -186,17 +191,13 @@ func (c *Client) readMessages(wg *sync.WaitGroup) {
 
 		case 23: // user deleting a server
 			log.Debug("User ID [%d] wants to delete a server", c.userID)
-			var broadcastData structs.BroadcastData = c.onServerDeleteRequest(packetJson)
-			broadcastData.Type = packetType
-			broadcastChan <- broadcastData
+			broadcastChan <- c.onServerDeleteRequest(packetJson, packetType)
 
 		case 31: // user added a channel to their server
 			log.Debug("User ID [%d] wants to add a channel", c.userID)
-			var broadcastData structs.BroadcastData = c.onAddChannelRequest(packetJson)
-			broadcastData.Type = packetType
-			broadcastChan <- broadcastData
+			broadcastChan <- c.onAddChannelRequest(packetJson, packetType)
 
-		case 32: // user requesting channel list for x server
+		case 32: // user entered a server, requesting channel list
 			log.Debug("User ID [%d] is requesting channel list", c.userID)
 			c.writeChan <- c.onChannelListRequest(packetJson)
 
@@ -243,14 +244,19 @@ func (c *Client) writeMessages(wg *sync.WaitGroup) {
 }
 
 func broadCastChannel() {
+
+	broadcastLog := func(typ byte, userID uint64) {
+		log.Trace("Broadcasting message type [%d] to user ID [%d]", typ, userID)
+	}
+
 	for {
 		select {
 		case broadcastData := <-broadcastChan:
 			switch broadcastData.Type {
 			case 1, 3: // chat messages
-				for userID, client := range clients {
-					if client.currentChannel == broadcastData.ID {
-						log.Debug("Broadcasting message type [%d] to user ID [%d]", broadcastData.Type, userID)
+				for _, client := range clients {
+					if client.currentChannelID == broadcastData.ID { // if client is in affected channel
+						broadcastLog(broadcastData.Type, client.userID)
 						client.writeChan <- broadcastData.MessageBytes
 					}
 				}
@@ -258,6 +264,13 @@ func broadCastChannel() {
 				for _, client := range clients {
 					client.writeChan <- broadcastData.MessageBytes
 
+				}
+			case 31, 33: //channels
+				for _, client := range clients {
+					if client.currentServerID == broadcastData.ID { // if client is in affected server
+						broadcastLog(broadcastData.Type, client.userID)
+						client.writeChan <- broadcastData.MessageBytes
+					}
 				}
 			}
 		}

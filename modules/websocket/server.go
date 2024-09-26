@@ -5,11 +5,10 @@ import (
 	"proto-chat/modules/database"
 	"proto-chat/modules/macros"
 	"proto-chat/modules/snowflake"
-	"proto-chat/modules/structs"
 )
 
 // when client is requesting to add a new server, type 21
-func (c *Client) onAddServerRequest(packetJson []byte) structs.BroadcastData {
+func (c *Client) onAddServerRequest(packetJson []byte) []byte {
 	const jsonType string = "add new server"
 
 	type AddServerRequest struct {
@@ -19,9 +18,7 @@ func (c *Client) onAddServerRequest(packetJson []byte) structs.BroadcastData {
 	var addServerRequest = AddServerRequest{}
 
 	if err := json.Unmarshal(packetJson, &addServerRequest); err != nil {
-		return structs.BroadcastData{
-			MessageBytes: macros.ErrorDeserializing(err.Error(), jsonType, c.userID),
-		}
+		return macros.ErrorDeserializing(err.Error(), jsonType, c.userID)
 	}
 
 	var serverID uint64 = snowflake.Generate()
@@ -36,7 +33,7 @@ func (c *Client) onAddServerRequest(packetJson []byte) structs.BroadcastData {
 
 	database.Insert(server)
 
-	var serverForClient = structs.ServerResponse{
+	var serverForClient = database.Server{
 		ServerID: serverID,
 		Name:     addServerRequest.Name,
 		Picture:  picture,
@@ -46,16 +43,14 @@ func (c *Client) onAddServerRequest(packetJson []byte) structs.BroadcastData {
 	if err != nil {
 		macros.ErrorSerializing(err.Error(), jsonType, c.userID)
 	}
-	return structs.BroadcastData{
-		MessageBytes: macros.PreparePacket(21, messagesBytes),
-	}
+	return macros.PreparePacket(21, messagesBytes)
 }
 
 // when client requests list of server they are in, type 22
 func (c *Client) onServerListRequest() []byte {
 	const jsonType string = "server list"
 
-	var servers []structs.ServerResponse = database.ServersTable.GetServerList(c.userID)
+	var servers []database.Server = database.ServersTable.GetServerList(c.userID)
 
 	messagesBytes, err := json.Marshal(servers)
 	if err != nil {
@@ -65,7 +60,7 @@ func (c *Client) onServerListRequest() []byte {
 }
 
 // when client wants to delete a server, type 23
-func (c *Client) onServerDeleteRequest(jsonBytes []byte) structs.BroadcastData {
+func (c *Client) onServerDeleteRequest(jsonBytes []byte, packetType byte) BroadcastData {
 	const jsonType string = "server deletion"
 
 	type ServerToDelete struct {
@@ -75,7 +70,7 @@ func (c *Client) onServerDeleteRequest(jsonBytes []byte) structs.BroadcastData {
 	var serverDeleteRequest = ServerToDelete{}
 
 	if err := json.Unmarshal(jsonBytes, &serverDeleteRequest); err != nil {
-		return structs.BroadcastData{
+		return BroadcastData{
 			MessageBytes: macros.ErrorDeserializing(err.Error(), jsonType, c.userID),
 		}
 	}
@@ -87,12 +82,14 @@ func (c *Client) onServerDeleteRequest(jsonBytes []byte) structs.BroadcastData {
 
 	success := database.Delete(serverToDelete)
 	if success == 0 {
-		return structs.BroadcastData{
+		return BroadcastData{
 			MessageBytes: macros.RespondFailureReason("Couldn't delete server"),
 		}
 	}
 
-	return structs.BroadcastData{
+	return BroadcastData{
 		MessageBytes: macros.PreparePacket(23, jsonBytes),
+		Type:         packetType,
+		ID:           serverDeleteRequest.ServerID,
 	}
 }

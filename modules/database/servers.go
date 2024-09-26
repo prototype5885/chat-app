@@ -2,7 +2,6 @@ package database
 
 import (
 	log "proto-chat/modules/logging"
-	"proto-chat/modules/structs"
 )
 
 type Server struct {
@@ -30,22 +29,22 @@ func (s *Servers) CreateServersTable() {
 	}
 }
 
-func (s *Servers) GetServerList(userID uint64) []structs.ServerResponse {
+func (s *Servers) GetServerList(userID uint64) []Server {
 	log.Debug("Getting server list of user ID [%d]...", userID)
-	const query string = "SELECT server_id, name, picture FROM servers"
+	const query string = "SELECT * FROM servers"
 
 	rows, err := db.Query(query)
 	if err != nil {
 		log.FatalError(err.Error(), "Error searching for server list of user ID [%d]", userID)
 	}
 
-	var servers []structs.ServerResponse
+	var servers []Server
 
 	var counter int = 0
 	for rows.Next() {
 		counter++
-		var server = structs.ServerResponse{}
-		err := rows.Scan(&server.ServerID, &server.Name, &server.Picture)
+		var server = Server{}
+		err := rows.Scan(&server.ServerID, &server.OwnerID, &server.Name, &server.Picture)
 		if err != nil {
 			log.FatalError(err.Error(), "Error scanning server row into struct for user ID [%d]:", userID)
 		}
