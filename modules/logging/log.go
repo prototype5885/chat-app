@@ -123,7 +123,7 @@ func logIntoFile(logMsg string) {
 		// logFileReady needs to be disabled here else it will cause a loop
 		// when trying to log inside newLogFile()
 		logFileReady = false
-		compressPreviousLog(currentTime)
+		compressPreviousLog(lastTime)
 		Info("New timestamp: [%d], last timestamp: [%d]", currentTime, lastTime)
 		newLogFile(currentTime)
 		lastTime = currentTime

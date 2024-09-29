@@ -33,13 +33,7 @@ func (c *Client) onAddServerRequest(packetJson []byte) []byte {
 
 	database.Insert(server)
 
-	var serverForClient = database.Server{
-		ServerID: serverID,
-		Name:     addServerRequest.Name,
-		Picture:  picture,
-	}
-
-	messagesBytes, err := json.Marshal(serverForClient)
+	messagesBytes, err := json.Marshal(server)
 	if err != nil {
 		macros.ErrorSerializing(err.Error(), jsonType, c.userID)
 	}

@@ -68,6 +68,53 @@ function registerClick(element, callback) {
     })
 }
 
+function updateLastChannels() {
+    const json = localStorage.getItem('lastChannels')
+
+    // first parse existing list, in case it exists in browser
+    let lastChannels = []
+    if (json != null) {
+        lastChannels = JSON.parse(json)
+    }
+
+    // check if current server ID already has a channel set in storage
+    // if yes, it will overwite the last set channel for it
+    let alreadyExists
+    for (let i = 0; i < lastChannels.length; i++) {
+        if (lastChannels[i].serverID == currentServerID.toString()) {
+            lastChannels[i].channelID = currentChannelID.toString()
+            alreadyExists = true
+            break
+        }
+    }
+
+    // if not, just add the new server with its last channel ID
+    if (!alreadyExists) {
+        lastChannels.push({
+            serverID: currentServerID.toString(),
+            channelID: currentChannelID.toString()
+        })
+    }
+
+    localStorage.setItem('lastChannels', JSON.stringify(lastChannels))
+}
+
+function selectlastUsedChannel(channelID) {
+    const json = localStorage.getItem('lastChannels')
+    if (json != null) {
+        let lastChannels = JSON.parse(json)
+
+        for (let i = 0; i < lastChannels.length; i++) {
+            if (lastChannels[i].serverID == currentServerID.toString()) {
+                selectChannel(lastChannels[i].channelID)
+                return
+            }
+        }
+    }
+
+    selectChannel(channelID)
+}
+
 function getCenterCoordinates(element) {
     const rect = element.getBoundingClientRect();
 
@@ -301,17 +348,15 @@ function addMember(id, where) {
     memberList.appendChild(li)
 }
 
-function updateServerImage(button, picture, defaultColor, firstCharacter) {
+function updateServerImage(button, picture, firstCharacter) {
     if (picture !== '') {
         button.style.backgroundImage = `url(${picture})`
-
     } else {
-        button.style.backgroundColor = defaultColor
         button.textContent = firstCharacter.toUpperCase()
     }
 }
 
-function addServer(serverID, ownerID, serverName, picture, className, defaultColor, hoverColor) {
+function addServer(serverID, ownerID, serverName, picture, className) {
     // this li will hold the server and notification thing, which is the span
     const li = document.createElement('li')
     li.className = className
@@ -320,12 +365,11 @@ function addServer(serverID, ownerID, serverName, picture, className, defaultCol
     // create the server button itself
     const button = document.createElement('button')
     button.id = serverID
-    button.setAttribute('server-name', serverName)
+
     li.append(button)
 
     // set picture of server
-    updateServerImage(button, picture, defaultColor, serverName[0])
-
+    updateServerImage(button, picture, serverName[0])
 
     const span = document.createElement('span')
     span.className = 'server-notification'
@@ -335,56 +379,19 @@ function addServer(serverID, ownerID, serverName, picture, className, defaultCol
     const bubbleText = document.createElement('div')
     bubbleText.textContent = serverID.toString()
 
-
-
-    // this will reset the previously selected server's
-    // notification's white thing's size
-    function resetPreviousNotificationSize(previousButton) {
-        if (previousButton != null) {
-            previousButton.nextElementSibling.style.height = '8px'
-        }
-    }
-
-    function onClick() {
-        console.log('Clicked on server:', serverID)
-
-        const previousButton = document.getElementById(currentServerID)
-
-        if (serverID == currentServerID) {
-            console.log('Selected server is already the current one')
-            return
-        }
-        resetPreviousNotificationSize(previousButton)
-
-        button.style.backgroundColor = hoverColor
-        if (previousButton != null) {
-            previousButton.style.backgroundColor = defaultColor
-            previousButton.style.borderRadius = '50%'
-        }
-
-        currentServerID = serverID
-
-        resetChannels()
-        resetMessages()
-        requestChannelList()
-    }
-
     function onHoverIn() {
-        createbubble(bubbleText, button)
         if (serverID != currentServerID) {
-            button.style.backgroundColor = hoverColor
             button.style.borderRadius = '35%'
+            span.style.height = '24px'
         }
-        span.style.height = '24px'
+        createbubble(bubbleText, button)
     }
 
     function onHoverOut() {
         if (serverID != currentServerID) {
-            span.style.height = '8px'
-            button.style.backgroundColor = defaultColor
             button.style.borderRadius = '50%'
+            span.style.height = '8px'
         }
-
         deletebubble()
     }
 
@@ -393,9 +400,42 @@ function addServer(serverID, ownerID, serverName, picture, className, defaultCol
         owned = true
     }
 
-    registerClick(button, () => { onClick() })
+    registerClick(button, () => { selectServer(serverID) })
     registerRightClick(button, (pageX, pageY) => { serverCtxMenu(serverID, owned, pageX, pageY) })
     registerHover(button, () => { onHoverIn() }, () => { onHoverOut() })
+
+    return li
+}
+
+function selectServer(serverID) {
+    console.log('Selected on server:', serverID)
+
+    if (serverID == currentServerID) {
+        console.log('Selected server is already the current one')
+        return
+    }
+
+    // this will reset the previously selected server's
+    // notification's white thing's size
+    const previousServerButton = document.getElementById(currentServerID)
+    if (previousServerButton != null) {
+        previousServerButton.nextElementSibling.style.height = '8px'
+    }
+
+    if (previousServerButton != null) {
+        previousServerButton.style.borderRadius = '50%'
+    }
+
+    currentServerID = serverID
+
+    const serverButton = document.getElementById(serverID)
+    serverButton.nextElementSibling.style.height = '36px'
+
+    resetChannels()
+    resetMessages()
+    requestChannelList()
+
+    localStorage.setItem('lastServer', serverID.toString())
 }
 
 function deleteServer(serverID) {
@@ -414,28 +454,28 @@ function addChannel(channelID, channelName) {
 
     document.getElementById('channels-list').appendChild(button)
 
-    // when clicked on the channel from channel list
-    function onClick(channelID) {
-        console.log('Clicked on channel:', channelID)
+    registerClick(button, () => { selectChannel(channelID) })
+    registerRightClick(button, (pageX, pageY) => { channelCtxMenu(channelID, pageX, pageY) })
+}
 
-        if (channelID == currentChannelID) {
-            console.log('Channel clicked on is already the current one')
-            return
-        }
+function selectChannel(channelID) {
+    console.log('Selected on channel:', channelID)
 
-        document.getElementById(channelID).style.backgroundColor = discordGray
-        const previousChannel = document.getElementById(currentChannelID)
-        if (previousChannel != null) {
-            document.getElementById(currentChannelID).removeAttribute('style')
-        }
-
-        resetMessages()
-        currentChannelID = channelID
-        requestChatHistory(channelID)
+    if (channelID == currentChannelID) {
+        console.log('Channel selected is already the current one')
+        return
     }
 
-    registerClick(button, () => { onClick(channelID) })
-    registerRightClick(button, (pageX, pageY) => { channelCtxMenu(channelID, pageX, pageY) })
+    document.getElementById(channelID).style.backgroundColor = discordGray
+    const previousChannel = document.getElementById(currentChannelID)
+    if (previousChannel != null) {
+        document.getElementById(currentChannelID).removeAttribute('style')
+    }
+
+    resetMessages()
+    currentChannelID = channelID
+    updateLastChannels()
+    requestChatHistory(channelID)
 }
 
 var channelsHidden = false

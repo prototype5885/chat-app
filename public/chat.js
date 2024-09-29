@@ -12,7 +12,7 @@ if (typeof (Storage) !== "undefined") {
 document.addEventListener("DOMContentLoaded", function () {
     // add the direct messages button
     {
-        addServer('home', 0, 'Direct Messages', 'hs.svg', 'dm', discordGray, discordBlue)
+        addServer('home', 0, 'Direct Messages', 'hs.svg', 'dm')
     }
     // add event listener for the add server button
     {
@@ -27,16 +27,50 @@ document.addEventListener("DOMContentLoaded", function () {
 
         registerHover(button, () => { createbubble(bubble, button) }, () => { deletebubble() })
     }
+    // add place holder servers depending on how many servers the client was in, will delete on websocket connection
+    // purely visual
+    var placeholderButtons = []
+    {
+        for (i = 0; i < parseInt(localStorage.getItem('serverCount')); i++) {
+            const buttonParent = addServer('', 0, 'phs', '', 'placeholder-server')
+            let button = buttonParent.querySelector('button')
+            button.nextElementSibling.style.backgroundColor = 'transparent'
+            button.textContent = ''
+            placeholderButtons.push(buttonParent)
+        }
+    }
+
+    // this will continue when websocket connected
+    wsClient.onopen = function (_event) {
+        console.log('Connected to WebSocket successfully.')
+
+        const loading = document.getElementById('loading')
+
+        const fadeOut = 0.25 //seconds
+
+        setTimeout(() => {
+            loading.remove(); // Remove the element from the DOM
+        }, fadeOut * 1000)
+
+        loading.style.transition = `background-color ${fadeOut}s ease`
+        loading.style.backgroundColor = '#00000000'
+        loading.style.pointerEvents = 'none'
+
+        // remove placeholder servers
+        for (let i = 0; i < placeholderButtons.length; i++) {
+            console.log(placeholderButtons[i])
+            placeholderButtons[i].remove()
+        }
+
+        requestServerList()
+
+        // for (i = 0; i < 1000000; i++) {
+        //     sendChatMessage(Math.random().toString(), BigInt(1810996904781152256n))
+        // }
+    }
 })
 
-wsClient.onopen = function (_event) {
-    console.log('Connected to WebSocket successfully.')
-    requestServerList()
 
-    // for (i = 0; i < 1000000; i++) {
-    //     sendChatMessage(Math.random().toString(), BigInt(1810996904781152256n))
-    // }
-}
 
 // when server sends a message
 wsClient.onmessage = function (event) {
@@ -88,6 +122,7 @@ wsClient.onmessage = function (event) {
             break
         case 21: // server responded to the add server request
             addServer(BigInt(json.ServerID), BigInt(json.OwnerID), json.Name, json.Picture, 'server', discordGray, discordBlue)
+            localStorage.setItem('serverCount', parseInt(localStorage.getItem('serverCount')) + 1)
             break
         case 22: // server sent the requested server list
             if (json == null) {
@@ -95,11 +130,18 @@ wsClient.onmessage = function (event) {
                 break
             }
             for (let i = 0; i < json.length; i++) {
+                console.log('Adding server ID', json[i].ServerID)
                 addServer(BigInt(json[i].ServerID), BigInt(json[i].OwnerID), json[i].Name, json[i].Picture, 'server', discordGray, discordBlue)
+            }
+            localStorage.setItem('serverCount', json.length.toString())
+            const lastServerID = localStorage.getItem('lastServer')
+            if (lastServerID != null) {
+                selectServer(BigInt(lastServerID))
             }
             break
         case 23: // server sent which server was deleted
             deleteServer(BigInt(json.ServerID))
+            localStorage.setItem('serverCount', parseInt(localStorage.getItem('serverCount')) - 1)
             break
         case 31: // server responded to the add channel request
             addChannel(BigInt(json.ChannelID), json.Name)
@@ -113,6 +155,7 @@ wsClient.onmessage = function (event) {
                 // addChannel
                 addChannel(BigInt(json[i].ChannelID), json[i].Name)
             }
+            selectlastUsedChannel(BigInt(json[0].ChannelID))
             break
         case 241: // server sent the client's own user ID
             ownUserID = BigInt(json)

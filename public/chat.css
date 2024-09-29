@@ -5,6 +5,15 @@ body {
     overflow: hidden;
 }
 
+#loading {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: #00000080;
+}
+
 /* server list column on the left side */
 #server-list {
     overflow-y: scroll;
@@ -20,6 +29,7 @@ body {
 }
 
 
+
 /* all the server buttons on the left side */
 #server-list button {
     order: 1;
@@ -32,13 +42,13 @@ body {
     margin-right: 12px;
     background-size: 48px 48px;
     border-radius: 50%;
+    background-color: #36393f;
     transition: border-radius 0.3s ease, background-color 0.15s ease;
 }
 
-/* change their shape on hover */
-/* #server-list button:hover {
-    border-radius: 35%;
-} */
+#server-list button:hover {
+    background-color: #5865F2;
+}
 
 #dm {
     order: 1;
@@ -64,9 +74,11 @@ body {
     order: 4;
 }
 
-.server {
+.server,
+.placeholder-server {
     order: 3;
 }
+
 
 /* this holds the server button and its notification thing */
 #server-list>li {
@@ -92,6 +104,7 @@ body {
     order: 5;
 }
 
+
 /* color and font of add server button */
 #add-server-button {
     font-size: x-large;
@@ -104,6 +117,7 @@ body {
     color: white;
     background-color: green;
 }
+
 
 
 #second-column {
