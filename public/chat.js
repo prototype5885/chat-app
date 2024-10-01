@@ -1,4 +1,4 @@
-const wsClient = new WebSocket('wss://' + window.location.host + "/wss")
+const wsClient = new WebSocket('ws://' + window.location.host + "/ws")
 wsClient.binaryType = 'arraybuffer'
 
 var ownUserID
@@ -10,35 +10,12 @@ if (typeof (Storage) !== "undefined") {
 }
 
 document.addEventListener("DOMContentLoaded", function () {
-    // add the direct messages button
-    {
-        addServer('home', 0, 'Direct Messages', 'hs.svg', 'dm')
-    }
-    // add event listener for the add server button
-    {
-        const bubble = document.createElement('div')
-        bubble.textContent = 'Add a Server'
+    addServer(2000, 0, 'Direct Messages', 'hs.svg', 'dm') // add the direct messages button
+    createAddServerButton() // add event listener for the add server button
 
-        const button = document.getElementById('add-server-button')
-
-        // hide notification marker as this doesn't use it,
-        // but its needed for formatting reasons
-        button.nextElementSibling.style.backgroundColor = 'transparent'
-
-        registerHover(button, () => { createbubble(bubble, button) }, () => { deletebubble() })
-    }
     // add place holder servers depending on how many servers the client was in, will delete on websocket connection
     // purely visual
-    var placeholderButtons = []
-    {
-        for (i = 0; i < parseInt(localStorage.getItem('serverCount')); i++) {
-            const buttonParent = addServer('', 0, 'phs', '', 'placeholder-server')
-            let button = buttonParent.querySelector('button')
-            button.nextElementSibling.style.backgroundColor = 'transparent'
-            button.textContent = ''
-            placeholderButtons.push(buttonParent)
-        }
-    }
+    const placeholderButtons = createPlaceHolderServers()
 
     // this will continue when websocket connected
     wsClient.onopen = function (_event) {
@@ -74,7 +51,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
 // when server sends a message
 wsClient.onmessage = function (event) {
-    // return
     const receivedBytes = new Uint8Array(event.data)
 
     // convert the first 4 bytes into uint32 to get the endIndex,
@@ -118,30 +94,37 @@ wsClient.onmessage = function (event) {
             })
             break
         case 3: // server sent which message was deleted
-            deleteChatMessage(BigInt(json.MessageID))
+            const messageID = BigInt(json.MessageID)
+            console.log('Deleting message id ' + messageID)
+            document.getElementById(messageID).remove()
             break
         case 21: // server responded to the add server request
             addServer(BigInt(json.ServerID), BigInt(json.OwnerID), json.Name, json.Picture, 'server', discordGray, discordBlue)
             localStorage.setItem('serverCount', parseInt(localStorage.getItem('serverCount')) + 1)
             break
         case 22: // server sent the requested server list
-            if (json == null) {
-                console.log('Not being in any servers')
-                break
-            }
+            if (json == null) { console.log('Not being in any servers'); break }
             for (let i = 0; i < json.length; i++) {
                 console.log('Adding server ID', json[i].ServerID)
                 addServer(BigInt(json[i].ServerID), BigInt(json[i].OwnerID), json[i].Name, json[i].Picture, 'server', discordGray, discordBlue)
             }
             localStorage.setItem('serverCount', json.length.toString())
-            const lastServerID = localStorage.getItem('lastServer')
-            if (lastServerID != null) {
-                selectServer(BigInt(lastServerID))
-            }
+            lookForDeletedServersInLastChannels()
+            // go to the last server that was selected last time
+            // const lastServerID = localStorage.getItem('lastServer')
+            // if (lastServerID != null) {
+            //     selectServer(BigInt(lastServerID))
+            // }
             break
         case 23: // server sent which server was deleted
-            deleteServer(BigInt(json.ServerID))
+            const serverID = BigInt(json.ServerID)
+            deleteServer(serverID)
+            deleteServerFromLastChannels(serverID)
+            // removeDeletedLastChannels()
             localStorage.setItem('serverCount', parseInt(localStorage.getItem('serverCount')) - 1)
+            if (serverID == currentServerID) {
+                selectServer(2000)
+            }
             break
         case 31: // server responded to the add channel request
             addChannel(BigInt(json.ChannelID), json.Name)
@@ -152,10 +135,9 @@ wsClient.onmessage = function (event) {
                 break
             }
             for (let i = 0; i < json.length; i++) {
-                // addChannel
                 addChannel(BigInt(json[i].ChannelID), json[i].Name)
             }
-            selectlastUsedChannel(BigInt(json[0].ChannelID))
+            selectLastChannels(BigInt(json[0].ChannelID))
             break
         case 241: // server sent the client's own user ID
             ownUserID = BigInt(json)

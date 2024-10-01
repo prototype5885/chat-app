@@ -244,7 +244,6 @@ func (c *Client) writeMessages(wg *sync.WaitGroup) {
 }
 
 func broadCastChannel() {
-
 	broadcastLog := func(typ byte, userID uint64) {
 		log.Trace("Broadcasting message type [%d] to user ID [%d]", typ, userID)
 	}

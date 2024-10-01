@@ -1,10 +1,17 @@
 function registerRightClick(element, callback) {
     element.addEventListener('contextmenu', (event) => {
         event.preventDefault()
-        deleteRightClickMenu()
+        deleteCtxMenu()
         event.stopPropagation()
         callback(event.pageX, event.pageY)
     })
+}
+
+function deleteCtxMenu() {
+    const rightClickmenu = document.getElementById('right-click-menu')
+    if (rightClickmenu != null) {
+        rightClickmenu.remove()
+    }
 }
 
 function serverCtxMenu(serverID, owned, pageX, pageY) {

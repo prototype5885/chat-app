@@ -41,14 +41,14 @@ function resizeChatInput() {
 // delete context menu if left clicked somewhere thats not
 // a context menu list element
 document.addEventListener('click', function (event) {
-    deleteRightClickMenu()
+    deleteCtxMenu()
 })
 
 // delete context menu if right clicked somewhere thats not registered
 // with context menu listener
 document.addEventListener('contextmenu', function (event) {
     event.preventDefault()
-    deleteRightClickMenu()
+    deleteCtxMenu()
 })
 
 // read the text message for sending
@@ -62,7 +62,7 @@ function readChatInput() {
 
 function registerClick(element, callback) {
     element.addEventListener('click', (event) => {
-        deleteRightClickMenu()
+        deleteCtxMenu()
         event.stopPropagation()
         callback()
     })
@@ -72,135 +72,80 @@ function updateLastChannels() {
     const json = localStorage.getItem('lastChannels')
 
     // first parse existing list, in case it exists in browser
-    let lastChannels = []
+    let lastChannels = {}
     if (json != null) {
         lastChannels = JSON.parse(json)
-    }
 
-    // check if current server ID already has a channel set in storage
-    // if yes, it will overwite the last set channel for it
-    let alreadyExists
-    for (let i = 0; i < lastChannels.length; i++) {
-        if (lastChannels[i].serverID == currentServerID.toString()) {
-            lastChannels[i].channelID = currentChannelID.toString()
-            alreadyExists = true
-            break
+        if (currentServerID.toString() in lastChannels && lastChannels[currentServerID.toString() === currentChannelID.toString()]) {
+            // if the current channel for current server matches in lastChannels localStorage, don't do anything
+        } else {
+            // if channel was changed, overwrite with new one
+            lastChannels[currentServerID.toString()] = currentChannelID.toString()
         }
-    }
 
-    // if not, just add the new server with its last channel ID
-    if (!alreadyExists) {
-        lastChannels.push({
-            serverID: currentServerID.toString(),
-            channelID: currentChannelID.toString()
-        })
+
+        // if not, just add the new server with its last channel ID
+        // if (!alreadyExists) {
+        //     lastChannels[currentServerID.toString()] = currentChannelID.toString()
+        // }
     }
 
     localStorage.setItem('lastChannels', JSON.stringify(lastChannels))
 }
 
-function selectlastUsedChannel(channelID) {
+// selects the last selected channel after clicking on a server
+function selectLastChannels(firstChannelID) {
+    const json = localStorage.getItem('lastChannels')
+    if (json != null) {
+        let lastChannels = JSON.parse(json)
+        selectChannel(lastChannels[currentServerID.toString()])
+    } else {
+        console.log("No lastChannels in localStorage exists, selecting first channel...")
+        selectChannel(firstChannelID)
+
+    }
+}
+
+// delete servers from lastChannels that no longer exist
+function lookForDeletedServersInLastChannels() {
     const json = localStorage.getItem('lastChannels')
     if (json != null) {
         let lastChannels = JSON.parse(json)
 
-        for (let i = 0; i < lastChannels.length; i++) {
-            if (lastChannels[i].serverID == currentServerID.toString()) {
-                selectChannel(lastChannels[i].channelID)
-                return
-            }
+        const li = document.getElementById('server-list').querySelectorAll('.server')
+
+        const newLastChannels = {}
+        li.forEach((li) => {
+            const button = li.querySelector('button')
+            const id = button.getAttribute('id')
+            newLastChannels[id.toString()] = lastChannels[id.toString()]
+        })
+
+        if (JSON.stringify(lastChannels) === JSON.stringify(newLastChannels)) {
+            console.log('All lastChannels servers in localStorage match')
+        } else {
+            // most likely one or more servers were deleted while user was offline
+            console.warn("lastChannels servers in localStorage don't match with active servers")
+            localStorage.setItem('lastChannels', JSON.stringify(newLastChannels))
         }
-    }
-
-    selectChannel(channelID)
-}
-
-function getCenterCoordinates(element) {
-    const rect = element.getBoundingClientRect();
-
-    const center = {
-        x: rect.left + rect.width / 2 + window.scrollX,
-        y: rect.top + rect.height / 2 + window.scrollY
-    }
-    return center
-}
-// function getElementDimension(element) {
-//     const rect = element.getBoundingClientRect();
-
-//     const dimension = {
-//         x: rect.width,
-//         y: rect.height
-//     }
-//     return dimension
-// }
-
-function createContextMenu(actions, pageX, pageY) {
-    // create the right click menu
-    const rightClickMenu = document.createElement('div')
-    rightClickMenu.id = 'right-click-menu'
-    document.body.appendChild(rightClickMenu)
-
-    // create ul that holds the menu items
-    let ul = document.createElement('ul')
-    rightClickMenu.appendChild(ul)
-
-    // add a menu item for each action
-    actions.forEach(function (action) {
-        const li = document.createElement('li')
-        li.textContent = action.text
-        if (action.color === 'red') {
-            li.className = 'cm-red' // to make the text red from css
-        }
-        // this will assing the function for each element
-        li.onclick = function () {
-            action.func()
-        }
-
-        ul.appendChild(li)
-    })
-
-    // creates the right click menu on cursor position
-    rightClickMenu.style.display = 'block'
-    rightClickMenu.style.left = `${pageX}px`
-    rightClickMenu.style.top = `${pageY}px`
-}
-
-function deleteRightClickMenu() {
-    const rightClickmenu = document.getElementById('right-click-menu')
-    if (rightClickmenu != null) {
-        rightClickmenu.remove()
-    }
-}
-
-function createbubble(content, element) {
-    // create bubble div that will hold the content
-    const bubble = document.createElement('div')
-    bubble.id = 'bubble'
-    document.body.appendChild(bubble)
-
-    // add the content into it
-    bubble.appendChild(content)
-
-    // center of the element that created the bubble
-    // bubble will be created relative to this
-    const center = getCenterCoordinates(element)
-
-    // get how tall the bubble will be, so can
-    // offset the Y position to make it appear
-    // centered next to the element
-    const height = bubble.getBoundingClientRect().height
-
-    // set the bubble position
-    bubble.style.left = `${center.x + 40}px`
-    bubble.style.top = `${center.y - height / 2}px`
-}
-
-function deletebubble() {
-    const bubble = document.getElementById('bubble')
-    if (bubble != null) {
-        bubble.remove()
     } else {
-        console.warn("A bubble was to be deleted but was nowhere to be found")
+        console.log("No lastChannels in localStorage exists")
+    }
+}
+
+// delete a single server from lastChannels
+function deleteServerFromLastChannels(serverID) {
+    const json = localStorage.getItem('lastChannels')
+    if (json != null) {
+        let lastChannels = JSON.parse(json)
+        if (serverID.toString() in lastChannels) {
+            delete lastChannels[serverID.toString()]
+            localStorage.setItem('lastChannels', JSON.stringify(lastChannels))
+            console.log(`Removed server ID ${serverID} from lastChannels`)
+        }
+        else {
+            console.log(`Server ID ${serverID} doesn't exist in lastChannels`)
+        }
     }
 }
 
@@ -277,34 +222,100 @@ function addChatMessage(messageID, userID, message) {
 
     // and finally append the message to the message list
     document.getElementById('chat-message-list').appendChild(li)
+}
 
-    // const chatNameColor = '#e7e7e7'
-    // const pic = 'profilepic.jpg'
+function createAddServerButton() {
+    const bubble = document.createElement('div')
+    bubble.textContent = 'Add a Server'
 
-    // const chatElement = 
-    // `<li class="msg" id="${messageID}" user-id="${userID}">
-    //     <img class="msg-profile-pic" src="${pic}" width="40" height="40">
-    //     <div class="msg-data">
-    //         <div class="msg-name-and-date">
-    //             <div class="msg-user-name" style="color: ${chatNameColor}">${username}</div>
-    //             <div class="msg-date">${msgDate}</div>
-    //         </div>
-    //         <div class="msg-text">${message}</div>
-    //     </div>
-    // </li>`
+    const button = document.getElementById('add-server-button')
 
-    // const message
-    // const msgProfilePic = document.getElementById(messageID)
-    // const msgUserName = document.getElementById(messageID).querySelector('.msg-user-name')
+    // hide notification marker as this doesn't use it,
+    // but its needed for formatting reasons
+    button.nextElementSibling.style.backgroundColor = 'transparent'
 
+    registerHover(button, () => { createbubble(bubble, button) }, () => { deletebubble() })
+}
 
-    // document.getElementById('chat-message-list').insertAdjacentHTML('beforeend', chatElement)
+function createPlaceHolderServers() {
+    var placeholderButtons = []
+    for (i = 0; i < parseInt(localStorage.getItem('serverCount')); i++) {
+        const buttonParent = addServer('', 0, 'phs', '', 'placeholder-server')
+        let button = buttonParent.querySelector('button')
+        button.nextElementSibling.style.backgroundColor = 'transparent'
+        button.textContent = ''
+        placeholderButtons.push(buttonParent)
+    }
+    return placeholderButtons
+}
+
+function createContextMenu(actions, pageX, pageY) {
+    // create the right click menu
+    const rightClickMenu = document.createElement('div')
+    rightClickMenu.id = 'right-click-menu'
+    document.body.appendChild(rightClickMenu)
+
+    // create ul that holds the menu items
+    let ul = document.createElement('ul')
+    rightClickMenu.appendChild(ul)
+
+    // add a menu item for each action
+    actions.forEach(function (action) {
+        const li = document.createElement('li')
+        li.textContent = action.text
+        if (action.color === 'red') {
+            li.className = 'cm-red' // to make the text red from css
+        }
+        // this will assing the function for each element
+        li.onclick = function () {
+            action.func()
+        }
+
+        ul.appendChild(li)
+    })
+
+    // creates the right click menu on cursor position
+    rightClickMenu.style.display = 'block'
+    rightClickMenu.style.left = `${pageX}px`
+    rightClickMenu.style.top = `${pageY}px`
 }
 
 
-function deleteChatMessage(messageID) {
-    console.log('Deleting message id ' + messageID)
-    document.getElementById(messageID).remove()
+function createbubble(content, element) {
+    // create bubble div that will hold the content
+    const bubble = document.createElement('div')
+    bubble.id = 'bubble'
+    document.body.appendChild(bubble)
+
+    // add the content into it
+    bubble.appendChild(content)
+
+    // center of the element that created the bubble
+    // bubble will be created relative to this
+    const rect = element.getBoundingClientRect();
+
+    const center = {
+        x: rect.left + rect.width / 2 + window.scrollX,
+        y: rect.top + rect.height / 2 + window.scrollY
+    }
+
+    // get how tall the bubble will be, so can
+    // offset the Y position to make it appear
+    // centered next to the element
+    const height = bubble.getBoundingClientRect().height
+
+    // set the bubble position
+    bubble.style.left = `${center.x + 40}px`
+    bubble.style.top = `${center.y - height / 2}px`
+}
+
+function deletebubble() {
+    const bubble = document.getElementById('bubble')
+    if (bubble != null) {
+        bubble.remove()
+    } else {
+        console.warn("A bubble was to be deleted but was nowhere to be found")
+    }
 }
 
 function addMember(id, where) {
@@ -394,7 +405,80 @@ function addServer(serverID, ownerID, serverName, picture, className) {
         }
         deletebubble()
     }
+    // adds the new chat message into html
+    function addChatMessage(messageID, userID, message) {
+        // extract the message date from messageID
+        const msgDate = new Date(Number((BigInt(messageID) >> BigInt(20)))).toLocaleString()
 
+        const chatNameColor = '#e7e7e7'
+        const pic = 'profilepic.webp'
+        const username = userID.toString()
+
+        // create a <li> that holds the message
+        const li = document.createElement('li')
+        li.className = 'msg'
+        li.id = messageID
+        li.setAttribute('user-id', userID)
+
+        var owner = false
+        if (userID == ownUserID) {
+            owner = true
+        }
+
+        registerRightClick(li, (pageX, pageY) => { messageCtxMenu(messageID, owner, pageX, pageY) })
+
+        // create a <img> that shows profile pic on the left
+        const img = document.createElement('img')
+        // img.className = 'msg-profile-pic'
+        img.className = 'msg-profile-pic'
+        img.src = pic
+        img.alt = 'pfpic'
+        img.width = 40
+        img.height = 40
+
+        registerRightClick(img, (pageX, pageY) => { userCtxMenu(userID, pageX, pageY) })
+
+        // create a nested <div> that will contain sender name, message and date
+        const msgDataDiv = document.createElement('div')
+        msgDataDiv.className = 'msg-data'
+
+        // inside that create a sub nested <div> that contains sender name and date
+        const msgNameAndDateDiv = document.createElement('div')
+        msgNameAndDateDiv.className = 'msg-name-and-date'
+
+        // and inside that create a <div> that displays the sender's name on the left
+        const msgNameDiv = document.createElement('div')
+        msgNameDiv.className = 'msg-user-name'
+        msgNameDiv.textContent = username
+        msgDataDiv.style.color = chatNameColor
+
+        registerRightClick(msgNameDiv, (pageX, pageY) => { userCtxMenu(userID, pageX, pageY) })
+
+        // and next to it create a <div> that displays the date of msg on the right
+        const msgDateDiv = document.createElement('div')
+        msgDateDiv.className = 'msg-date'
+        msgDateDiv.textContent = msgDate
+
+        // append name and date to msgNameAndDateDiv
+        msgNameAndDateDiv.appendChild(msgNameDiv)
+        msgNameAndDateDiv.appendChild(msgDateDiv)
+
+        // now create a <div> under name and date that displays the message
+        const msgTextDiv = document.createElement('div')
+        msgTextDiv.className = 'msg-text'
+        msgTextDiv.textContent = message
+
+        // append both name/date <div> and msg <div> to msgDatDiv
+        msgDataDiv.appendChild(msgNameAndDateDiv)
+        msgDataDiv.appendChild(msgTextDiv)
+
+        // append both the profile pic and message data to the <li>
+        li.appendChild(img)
+        li.appendChild(msgDataDiv)
+
+        // and finally append the message to the message list
+        document.getElementById('chat-message-list').appendChild(li)
+    }
     var owned
     if (ownerID == ownUserID) {
         owned = true
@@ -409,6 +493,11 @@ function addServer(serverID, ownerID, serverName, picture, className) {
 
 function selectServer(serverID) {
     console.log('Selected on server:', serverID)
+
+    const serverButton = document.getElementById(serverID)
+    if (serverButton == null) {
+        console.log('Previous server set in')
+    }
 
     if (serverID == currentServerID) {
         console.log('Selected server is already the current one')
@@ -428,7 +517,7 @@ function selectServer(serverID) {
 
     currentServerID = serverID
 
-    const serverButton = document.getElementById(serverID)
+
     serverButton.nextElementSibling.style.height = '36px'
 
     resetChannels()
