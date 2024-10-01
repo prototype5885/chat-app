@@ -9,9 +9,10 @@ if (typeof (Storage) !== "undefined") {
     console.log('Doesnt support storage')
 }
 
+// this runs after webpage was loaded
 document.addEventListener("DOMContentLoaded", function () {
     addServer(2000, 0, 'Direct Messages', 'hs.svg', 'dm') // add the direct messages button
-    createAddServerButton() // add event listener for the add server button
+    registerHoverListeners() // add event listener for many things
 
     // add place holder servers depending on how many servers the client was in, will delete on websocket connection
     // purely visual
@@ -35,7 +36,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
         // remove placeholder servers
         for (let i = 0; i < placeholderButtons.length; i++) {
-            console.log(placeholderButtons[i])
             placeholderButtons[i].remove()
         }
 
@@ -81,17 +81,17 @@ wsClient.onmessage = function (event) {
             })
             break
         case 2: // server sent the requested chat history
-            if (json === null) {
-                console.log('Chat history is empty')
-                return
+            if (json !== null) {
+                for (let i = 0; i < json.length; i++) {
+                    addChatMessage(BigInt(json[i].IDm), BigInt(json[i].IDu), json[i].Msg) // messageID, userID, Message
+                }
+                messages.scrollTo({
+                    top: messages.scrollHeight,
+                    behavior: 'instant'
+                })
+            } else {
+                console.log('Current channel has no chat history')
             }
-            for (let i = 0; i < json.length; i++) {
-                addChatMessage(BigInt(json[i].IDm), BigInt(json[i].IDu), json[i].Msg) // messageID, userID, Message
-            }
-            messages.scrollTo({
-                top: messages.scrollHeight,
-                behavior: 'instant'
-            })
             break
         case 3: // server sent which message was deleted
             const messageID = BigInt(json.MessageID)
@@ -142,6 +142,7 @@ wsClient.onmessage = function (event) {
         case 241: // server sent the client's own user ID
             ownUserID = BigInt(json)
             console.log('Received own user ID:', ownUserID)
+            document.getElementById("user-panel-name").textContent = ownUserID
             break
         default:
             console.log('Server sent unknown message type')

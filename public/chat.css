@@ -104,7 +104,6 @@ body {
     order: 5;
 }
 
-
 /* color and font of add server button */
 #add-server-button {
     font-size: x-large;
@@ -118,11 +117,9 @@ body {
     background-color: green;
 }
 
-
-
 #second-column {
-    min-width: 15rem;
-    max-width: 15rem;
+    min-width: 240px;
+    max-width: 240px;
     background-color: #2B2D31;
     display: flex;
     flex-direction: column;
@@ -137,6 +134,7 @@ body {
 }
 
 #channels {
+    overflow-y: scroll;
     padding: 8px;
     flex: 1;
 }
@@ -163,7 +161,6 @@ body {
 }
 
 #channels-list {
-    overflow-y: scroll;
     display: flex;
     flex-direction: column;
 }
@@ -190,6 +187,98 @@ body {
     padding-left: 12px;
 }
 
+#user-panel {
+    height: 52px;
+    max-height: 52px;
+    min-height: 52px;
+    background-color: #232428;
+    box-sizing: border-box;
+    padding: 6px;
+    display: flex;
+}
+
+/* this is below channel/friend list */
+#user-panel>div {
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+
+#user-panel-user-container,
+#user-panel-buttons {
+    border-radius: 6px;
+    height: 100%;
+}
+
+/* this holds pfp and status in user panel */
+#user-panel-user-container {
+    display: flex;
+    margin-right: 3px;
+    align-items: center;
+    flex-grow: 1;
+    overflow: hidden;
+}
+
+#user-panel-user-container:hover,
+#user-panel-buttons button:hover {
+    background-color: #3d3e45;
+}
+
+#user-panel-pfp {
+    background-color: yellow;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    margin-right: 8px;
+}
+
+#user-panel-name-status {
+    text-align: left;
+    width: 110px;
+}
+
+#user-panel-name {
+    font-size: 15px;
+
+}
+
+#user-panel-status {
+    width: 108px;
+}
+
+#user-panel-status,
+#user-panel-name {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+
+}
+
+/* buttons in user panel */
+#user-panel-buttons {
+    /* background-color: green; */
+    display: flex;
+    box-sizing: border-box;
+    margin-left: 3px;
+    justify-content: flex-end;
+    align-items: center;
+    flex-shrink: 0;
+    flex-grow: 0;
+}
+
+#user-panel-buttons button {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+}
+
+#user-settings-button {
+    background-color: blueviolet;
+}
+
+#toggle-microphone-button {
+    background-color: darkorange;
+}
 
 #main-container {
     display: flex;
@@ -239,7 +328,7 @@ body {
     display: flex;
     flex-direction: column;
     flex: 1;
-    overflow-y: auto;
+    overflow-y: scroll;
     margin: 0;
     padding: 0;
 }
@@ -319,8 +408,6 @@ body {
 #chat-input-form {
     resize: none;
     display: flex;
-    /* min-height: 4rem;
-    max-height: 32rem; */
     min-height: 2rem;
     flex: 1;
     border-radius: 12px;
@@ -339,10 +426,6 @@ body {
     color: #C5C7CB;
     overflow: auto;
     margin-top: 1rem;
-    /* margin: 1rem; */
-    /* display: flex; */
-    /* justify-content: center; */
-    /* align-items: center; */
 }
 
 /* every button inside chat input */
@@ -441,6 +524,7 @@ body {
 }
 
 #bubble {
+    font-size: smaller;
     z-index: 999;
     display: block;
     max-width: 14rem;

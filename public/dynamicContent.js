@@ -6,6 +6,7 @@ const discrodGreen = '#00b700'
 var currentServerID
 var currentChannelID
 
+var defaultRightClick = true
 
 // hide member list when pressing the button
 document.getElementById('hide-member-list-button').addEventListener('click', function () {
@@ -47,7 +48,9 @@ document.addEventListener('click', function (event) {
 // delete context menu if right clicked somewhere thats not registered
 // with context menu listener
 document.addEventListener('contextmenu', function (event) {
-    event.preventDefault()
+    if (!defaultRightClick) {
+        event.preventDefault()
+    }
     deleteCtxMenu()
 })
 
@@ -72,25 +75,21 @@ function updateLastChannels() {
     const json = localStorage.getItem('lastChannels')
 
     // first parse existing list, in case it exists in browser
-    let lastChannels = {}
     if (json != null) {
+        let lastChannels = {}
         lastChannels = JSON.parse(json)
 
-        if (currentServerID.toString() in lastChannels && lastChannels[currentServerID.toString() === currentChannelID.toString()]) {
-            // if the current channel for current server matches in lastChannels localStorage, don't do anything
+        var serverIDstr = currentServerID.toString()
+        var channelIDstr = currentChannelID.toString()
+
+        if (serverIDstr in lastChannels && lastChannels[serverIDstr] === channelIDstr) {
+            // if currentServerID and currentChannelID matches witht hose in lastChannels localStorage, don't do anything
         } else {
             // if channel was changed, overwrite with new one
-            lastChannels[currentServerID.toString()] = currentChannelID.toString()
+            lastChannels[serverIDstr] = channelIDstr
+            localStorage.setItem('lastChannels', JSON.stringify(lastChannels))
         }
-
-
-        // if not, just add the new server with its last channel ID
-        // if (!alreadyExists) {
-        //     lastChannels[currentServerID.toString()] = currentChannelID.toString()
-        // }
     }
-
-    localStorage.setItem('lastChannels', JSON.stringify(lastChannels))
 }
 
 // selects the last selected channel after clicking on a server
@@ -224,17 +223,31 @@ function addChatMessage(messageID, userID, message) {
     document.getElementById('chat-message-list').appendChild(li)
 }
 
-function createAddServerButton() {
-    const bubble = document.createElement('div')
-    bubble.textContent = 'Add a Server'
+function registerHoverListeners() {
+    // add server button
+    {
+        const button = document.getElementById('add-server-button')
+        registerHover(button, () => { createbubble(button, 'Add Server', 'right', 15) }, () => { deletebubble() })
+        // hide notification marker as this doesn't use it,
+        // but its needed for formatting reasons
+        button.nextElementSibling.style.backgroundColor = 'transparent'
+    }
+    // user settings button
+    {
+        const button = document.getElementById('user-settings-button')
+        registerHover(button, () => { createbubble(button, 'User Settings', 'up', 15) }, () => { deletebubble() })
+    }
+    // toggle microphone button
+    {
+        const button = document.getElementById('toggle-microphone-button')
+        registerHover(button, () => { createbubble(button, 'Toggle Microphone', 'up', 15) }, () => { deletebubble() })
+    }
+    // add channel button
+    {
+        const button = document.getElementById('add-channel-button')
+        registerHover(button, () => { createbubble(button, 'Create Channel', 'up', 0) }, () => { deletebubble() })
+    }
 
-    const button = document.getElementById('add-server-button')
-
-    // hide notification marker as this doesn't use it,
-    // but its needed for formatting reasons
-    button.nextElementSibling.style.backgroundColor = 'transparent'
-
-    registerHover(button, () => { createbubble(bubble, button) }, () => { deletebubble() })
 }
 
 function createPlaceHolderServers() {
@@ -281,7 +294,10 @@ function createContextMenu(actions, pageX, pageY) {
 }
 
 
-function createbubble(content, element) {
+function createbubble(element, text, direction, distance) {
+    const content = document.createElement('div')
+    content.textContent = text
+
     // create bubble div that will hold the content
     const bubble = document.createElement('div')
     bubble.id = 'bubble'
@@ -299,14 +315,28 @@ function createbubble(content, element) {
         y: rect.top + rect.height / 2 + window.scrollY
     }
 
-    // get how tall the bubble will be, so can
-    // offset the Y position to make it appear
-    // centered next to the element
     const height = bubble.getBoundingClientRect().height
+    const width = bubble.getBoundingClientRect().width
 
-    // set the bubble position
-    bubble.style.left = `${center.x + 40}px`
-    bubble.style.top = `${center.y - height / 2}px`
+    switch (direction) {
+        case 'right':
+            // get how tall the bubble will be, so can
+            // offset the Y position to make it appear
+            // centered next to the element
+
+
+            // set the bubble position
+            bubble.style.left = `${(center.x + element.clientWidth / 2) + distance}px`
+            bubble.style.top = `${center.y - height / 2}px`
+            break
+        case 'up':
+
+            bubble.style.left = `${center.x - width / 2}px`
+            bubble.style.top = `${(center.y - element.clientHeight - (element.clientHeight / 2) - distance)}px`
+            break
+    }
+
+
 }
 
 function deletebubble() {
@@ -387,15 +417,12 @@ function addServer(serverID, ownerID, serverName, picture, className) {
     li.append(span)
 
     // bubble on hover
-    const bubbleText = document.createElement('div')
-    bubbleText.textContent = serverID.toString()
-
     function onHoverIn() {
         if (serverID != currentServerID) {
             button.style.borderRadius = '35%'
             span.style.height = '24px'
         }
-        createbubble(bubbleText, button)
+        createbubble(button, serverID.toString(), 'right', 15)
     }
 
     function onHoverOut() {

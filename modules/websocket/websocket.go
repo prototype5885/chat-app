@@ -227,6 +227,7 @@ func (c *Client) writeMessages(wg *sync.WaitGroup) {
 				return
 			}
 			// log.Printf("Wrote to user ID [%d]", c.userID)
+			log.Trace("Wrote to user ID [%d]", c.userID)
 		case <-ticker.C:
 			// log.Println("Pinging:", c.userID)
 			c.wsConn.SetWriteDeadline(time.Now().Add(timeoutWrite))
