@@ -1,0 +1,7 @@
+user-panel in chat.css is not optimal
+the way database module sends data to websocket module, need to find out whats the best way to use structs
+in browser without cached disabled sometimes chat doesn't load
+token isnt renewed when user joins with token
+display and customize server and user picture and name
+make it so people can join and leave servers
+display users in servers

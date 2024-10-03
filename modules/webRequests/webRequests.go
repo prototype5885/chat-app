@@ -83,7 +83,7 @@ func PostRequestHandler(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	// print received json
-	log.Debug("Received json: %s", string(bodyBytes))
+	log.Trace("Received json: %s", string(bodyBytes))
 
 	// handle different POST requests
 	if r.URL.Path == "/login" || r.URL.Path == "/register" {
@@ -95,15 +95,13 @@ func PostRequestHandler(w http.ResponseWriter, r *http.Request) {
 		// serialize the response into json
 		responseJsonBytes, jsonErr := json.Marshal(result)
 		if jsonErr != nil {
-			log.Error(jsonErr.Error())
-			log.Fatal("Error serializing log/reg POST request response")
+			log.FatalError(jsonErr.Error(), "Error serializing log/reg POST request response")
 		}
 
 		log.Debug("Response for log/reg request: %s", string(responseJsonBytes))
 		i, err := w.Write(responseJsonBytes)
 		if err != nil {
-			log.Error(err.Error())
-			log.Warn("Error sending %s POST request response", r.URL.Path)
+			log.WarnError(err.Error(), "Error sending %s POST request response", r.URL.Path)
 		}
 		log.Debug("%s POST request response was sent: %d", r.URL.Path, i)
 	}

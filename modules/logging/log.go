@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"strings"
 	"sync"
 	"time"
 )
@@ -29,6 +30,11 @@ var timeEnabled bool = true // this enables execution time measurements
 
 var logConsole bool = false
 var logFile bool = false
+
+var file *os.File
+var logFileReady bool = false
+
+var lastTime [3]int = getYearMonthDay()
 
 func SetupLogging(level string, console bool, file bool) {
 	logConsole = console
@@ -58,12 +64,11 @@ func SetupLogging(level string, console bool, file bool) {
 	case offStr:
 		logLevel = 0
 	}
+
+	logFileReady = false
+	compressPreviousLogs()
+	logFileReady = true
 }
-
-var file *os.File
-var logFileReady bool = true
-
-var lastTime [3]int = getYearMonthDay()
 
 func getYearMonthDay() [3]int {
 	year, month, day := time.Now().Date()
@@ -85,34 +90,56 @@ func newLogFile(timeStamp [3]int) {
 	Info("Log file opened successfully")
 }
 
-func compressPreviousLog(timeStamp [3]int) {
-	Info("Opening previous log file for compression...")
-	var logFilename string = fmt.Sprintf("./logs/%s.log", formatFilename(timeStamp))
+func compressPreviousLogs() {
+	// Specify the directory you want to read
+	dir := "./logs" // Change to your directory
 
-	logFile, err := os.OpenFile(logFilename, os.O_RDONLY, 0666)
+	// Read all files in the directory
+	files, err := os.ReadDir(dir)
 	if err != nil {
-		FatalError(err.Error(), "Error opening log file for compression")
+		FatalError(err.Error(), "Error reading log files in log directory")
 	}
-	read := bufio.NewReader(logFile)
-	data, err := io.ReadAll(read)
-	if err != nil {
-		FatalError(err.Error(), "Error reading log file that needs to be compressed")
-	}
-	compressedFile, err := os.Create(fmt.Sprintf("./logs/%s.gz", formatFilename(timeStamp)))
-	if err != nil {
-		FatalError(err.Error(), "Error creating compressed log file")
-	}
-	writer := gzip.NewWriter(compressedFile)
-	writer.Write(data)
-	if err != nil {
-		FatalError(err.Error(), "Error writing compressed file")
-	}
-	writer.Close()
 
-	// remove previous log file that was compressed
-	if os.Remove(logFilename) != nil {
-		FatalError(err.Error(), "Error removing log file")
+	var currentLogFileName string = formatFilename(getYearMonthDay()) + ".log"
+
+	var counter int = 0
+
+	// Loop through the files
+	for _, file := range files {
+		if !file.IsDir() && strings.HasSuffix(file.Name(), ".log") && file.Name() != currentLogFileName {
+
+			var filePath string = fmt.Sprintf("%s/%s", dir, file.Name())
+
+			logFile, err := os.OpenFile(filePath, os.O_RDONLY, 0666)
+			if err != nil {
+				FatalError(err.Error(), "Error opening log file [%s] for compression", file.Name())
+			}
+
+			data, err := io.ReadAll(bufio.NewReader(logFile))
+			if err != nil {
+				FatalError(err.Error(), "Error reading log file that needs to be compressed")
+			}
+
+			compressedFile, err := os.Create(filePath + ".gz")
+			if err != nil {
+				FatalError(err.Error(), "Error creating compressed log file")
+			}
+
+			writer := gzip.NewWriter(compressedFile)
+			writer.Write(data)
+			if err != nil {
+				FatalError(err.Error(), "Error writing compressed file")
+			}
+			writer.Close()
+
+			// remove previous log file that was compressed
+			if os.Remove(filePath) != nil {
+				FatalError(err.Error(), "Error removing log file")
+			}
+			counter++
+		}
 	}
+	Info("Amount of previous log files compressed: [%d]", counter)
 }
 
 func logIntoFile(logMsg string) {
@@ -123,7 +150,7 @@ func logIntoFile(logMsg string) {
 		// logFileReady needs to be disabled here else it will cause a loop
 		// when trying to log inside newLogFile()
 		logFileReady = false
-		compressPreviousLog(lastTime)
+		compressPreviousLogs()
 		Info("New timestamp: [%d], last timestamp: [%d]", currentTime, lastTime)
 		newLogFile(currentTime)
 		lastTime = currentTime

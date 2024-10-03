@@ -51,15 +51,12 @@ func main() {
 		configFile := "config.json"
 		file, err := os.Open(configFile)
 		if err != nil {
-			log.Error(err.Error())
-			log.Fatal("Error opening config file")
-
+			log.FatalError(err.Error(), "Error opening config file")
 		}
 		defer func(file *os.File) {
 			err := file.Close()
 			if err != nil {
-				log.Error(err.Error())
-				log.Fatal("Error closing config file")
+				log.FatalError(err.Error(), "Error closing config file")
 			}
 		}(file)
 
