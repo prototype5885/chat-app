@@ -5,6 +5,12 @@ body {
     overflow: hidden;
 }
 
+.url {
+    color: deepskyblue;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
 #loading {
     position: absolute;
     top: 0;
@@ -160,12 +166,12 @@ body {
     align-items: center;
 }
 
-#channels-list {
+#channel-list {
     display: flex;
     flex-direction: column;
 }
 
-#channels-list button {
+#channel-list button {
     height: 32px;
     /* background-color:#36393f */
     display: flex;
@@ -176,14 +182,14 @@ body {
     transition: font-size 0.2s ease, transform 0.2s ease;
 }
 
-#channels-list button:hover {
+#channel-list button:hover {
     height: 2rem;
     /* cursor: pointer; */
     background-color: #313338;
     font-size: large;
 }
 
-#channels-list button>div {
+#channel-list button>div {
     padding-left: 12px;
 }
 

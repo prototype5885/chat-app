@@ -21,7 +21,7 @@ type ChannelResponse struct { // this is whats sent to the client when client re
 }
 
 // when client is requesting to add a new channel, type 31
-func (c *Client) onAddChannelRequest(packetJson []byte, packetType byte) BroadcastData {
+func (c *Client) onAddChannelRequest(packetJson []byte, packetType byte) (BroadcastData, []byte) {
 	const jsonType string = "add channel"
 
 	type AddChannelRequest struct {
@@ -32,12 +32,15 @@ func (c *Client) onAddChannelRequest(packetJson []byte, packetType byte) Broadca
 	var channelRequest = AddChannelRequest{}
 
 	if err := json.Unmarshal(packetJson, &channelRequest); err != nil {
-		return BroadcastData{
-			MessageBytes: macros.ErrorDeserializing(err.Error(), jsonType, c.userID),
-		}
+		return BroadcastData{}, macros.ErrorDeserializing(err.Error(), jsonType, c.userID)
 	}
 
-	// TODO check if user has permission to add the channel to the server
+	// check if client is authorized to add channel to given server
+	var ownerID uint64 = database.ServersTable.GetServerOwner(channelRequest.ServerID)
+	if ownerID != c.userID {
+		log.Hack("User [%d] is trying to add a channel to server ID [%d] that they dont own", c.userID, channelRequest.ServerID)
+		return BroadcastData{}, macros.RespondFailureReason("Error adding channel called [%s]", channelRequest.Name)
+	}
 
 	var channelID uint64 = snowflake.Generate()
 
@@ -49,9 +52,7 @@ func (c *Client) onAddChannelRequest(packetJson []byte, packetType byte) Broadca
 	}
 
 	if !database.Insert(channel) {
-		return BroadcastData{
-			MessageBytes: macros.RespondFailureReason("Error adding channel called [%s]", channelRequest.Name),
-		}
+		return BroadcastData{}, macros.RespondFailureReason("Error adding channel called [%s]", channelRequest.Name)
 	}
 
 	// serialize response about success
@@ -69,7 +70,7 @@ func (c *Client) onAddChannelRequest(packetJson []byte, packetType byte) Broadca
 		MessageBytes: macros.PreparePacket(31, messagesBytes),
 		Type:         packetType,
 		ID:           channelRequest.ServerID,
-	}
+	}, nil
 }
 
 // when client requests list of server they are in, type 32

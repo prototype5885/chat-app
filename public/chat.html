@@ -12,8 +12,8 @@
 <body>
     <div id="loading"></div>
     <ol id="server-list">
-        <div id="first-servers-separator"></div>
-        <div id="second-servers-separator"></div>
+        <div class="servers-separator" id="first-servers-separator" style="display: none;"></div>
+        <div class="servers-separator" id="second-servers-separator" style="display: none;"></div>
         <li id="add-server">
             <button id="add-server-button" onclick="requestAddServer('server')">+</button>
             <span class="server-notification"></span>
@@ -29,9 +29,9 @@
                     <div>></div>
                     <div>text channels</div>
                 </button>
-                <button id="add-channel-button" onclick="requestAddChannel()">+</button>
+                <button id="add-channel-button">+</button>
             </div>
-            <div id="channels-list"></div>
+            <div id="channel-list"></div>
         </div>
         <div id="user-panel">
             <div>
@@ -62,7 +62,7 @@
                         <button id="attachment-button" class="chat-button">
                             <div id="attachment-button-icon" class="chat-button-icon">Atch</div>
                         </button>
-                        <textarea id="chat-input" autocomplete="off" placeholder="Message someone"></textarea>
+                        <textarea id="chat-input" autocomplete="off" placeholder="Message ..."></textarea>
                         <button id="send-button" class="chat-button" onclick="readChatInput()">
                             <div id="send-button-icon" class="chat-button-icon">Send</div>
                         </button>
@@ -74,6 +74,7 @@
             </ol>
         </div>
     </div>
+    <script src="htmlElements.js"></script>
     <script src="contextMenus.js"></script>
     <script src="hoverActions.js"></script>
     <script src="dynamicContent.js"></script>

@@ -1,6 +1,7 @@
 package database
 
 import (
+	"database/sql"
 	log "proto-chat/modules/logging"
 )
 
@@ -58,4 +59,24 @@ func (s *Servers) GetServerList(userID uint64) []Server {
 
 	log.Debug("Servers for user ID [%d] were retrieved successfully", userID)
 	return servers
+}
+
+func (s *Servers) GetServerOwner(serverID uint64) uint64 {
+	log.Debug("Getting owner of server ID [%d]...", serverID)
+	const query string = "SELECT owner_ID FROM servers WHERE server_id = ?"
+
+	var ownerID uint64
+
+	err := db.QueryRow(query, serverID).Scan(&ownerID)
+	if err != nil {
+		log.Error(err.Error())
+		if err == sql.ErrNoRows { // token was not found
+			log.Debug("Given server ID does not exist: [%d]", serverID)
+			return 0
+		}
+		log.Fatal("Error getting owner of server ID [%d]", serverID)
+	}
+	log.Debug("Owner of server ID [%d] is: [%d]", serverID, ownerID)
+
+	return ownerID
 }

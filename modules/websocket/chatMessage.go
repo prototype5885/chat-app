@@ -112,7 +112,7 @@ func (c *Client) onChatHistoryRequest(packetJson []byte) []byte {
 }
 
 // when client wants to delete a message they own, type 3
-func (c *Client) onChatMessageDeleteRequest(jsonBytes []byte, packetType byte) BroadcastData {
+func (c *Client) onChatMessageDeleteRequest(jsonBytes []byte, packetType byte) (BroadcastData, []byte) {
 	const jsonType string = "chat message deletion"
 
 	type MessageToDelete struct {
@@ -124,7 +124,7 @@ func (c *Client) onChatMessageDeleteRequest(jsonBytes []byte, packetType byte) B
 	if err := json.Unmarshal(jsonBytes, &messageDeleteRequest); err != nil {
 		return BroadcastData{
 			MessageBytes: macros.ErrorDeserializing(err.Error(), jsonType, c.userID),
-		}
+		}, nil
 	}
 
 	var messageToDelete = database.ChatMessageDeletion{
@@ -134,14 +134,12 @@ func (c *Client) onChatMessageDeleteRequest(jsonBytes []byte, packetType byte) B
 
 	channelID := database.Delete(messageToDelete)
 	if channelID == 0 {
-		return BroadcastData{
-			MessageBytes: macros.RespondFailureReason("Couldn't delete chat message"),
-		}
+		return BroadcastData{}, macros.RespondFailureReason("Couldn't delete chat message")
 	}
 
 	return BroadcastData{
 		MessageBytes: macros.PreparePacket(3, jsonBytes),
 		ID:           channelID,
 		Type:         packetType,
-	}
+	}, nil
 }

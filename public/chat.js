@@ -1,7 +1,13 @@
-const wsClient = new WebSocket('ws://' + window.location.host + "/ws")
+var wsClient
+if (location.protocol === 'https:') {
+    wsClient = new WebSocket('wss://' + window.location.host + "/wss")
+} else {
+    wsClient = new WebSocket('ws://' + window.location.host + "/ws")
+}
 wsClient.binaryType = 'arraybuffer'
 
 var ownUserID
+var receivedOwnUserID = false
 
 if (typeof (Storage) !== "undefined") {
     console.log('Supports storage')
@@ -9,21 +15,36 @@ if (typeof (Storage) !== "undefined") {
     console.log('Doesnt support storage')
 }
 
+function waitUntilBoolIsTrue(checkFunction, interval = 10) {
+    return new Promise((resolve) => {
+        const intervalId = setInterval(() => {
+            if (checkFunction()) {
+                clearInterval(intervalId);
+                resolve();
+            }
+        }, interval);
+    });
+}
+
 // this runs after webpage was loaded
 document.addEventListener("DOMContentLoaded", function () {
     addServer(2000, 0, 'Direct Messages', 'hs.svg', 'dm') // add the direct messages button
-    registerHoverListeners() // add event listener for many things
 
     // add place holder servers depending on how many servers the client was in, will delete on websocket connection
     // purely visual
     const placeholderButtons = createPlaceHolderServers()
+    serversSeparatorVisibility()
+    console.log("Placeholder buttons:", placeholderButtons.length)
 
     // this will continue when websocket connected
-    wsClient.onopen = function (_event) {
+    wsClient.onopen = async function (_event) {
         console.log('Connected to WebSocket successfully.')
 
-        const loading = document.getElementById('loading')
+        // waits until server sends user's own ID
+        console.log("Waiting for server to send own user ID...")
+        await waitUntilBoolIsTrue(() => receivedOwnUserID);
 
+        const loading = document.getElementById('loading')
         const fadeOut = 0.25 //seconds
 
         setTimeout(() => {
@@ -45,9 +66,10 @@ document.addEventListener("DOMContentLoaded", function () {
         //     sendChatMessage(Math.random().toString(), BigInt(1810996904781152256n))
         // }
     }
+
+    registerClickListeners() // add event listener for clicking
+    registerHoverListeners() // add event listeners for hovering
 })
-
-
 
 // when server sends a message
 wsClient.onmessage = function (event) {
@@ -66,70 +88,76 @@ wsClient.onmessage = function (event) {
 
     console.log('Received packet:', endIndex, packetType, packetJson)
 
-    const messages = document.getElementById('chat-message-list')
-
     const json = JSON.parse(packetJson)
     switch (packetType) {
-        case 0:
-            console.warn(json.Reason)
+        case 0: // Server sent rejection message
+            console.log("Server sent rejection message:", json.Reason)
             break
-        case 1: // server sent a chat message
+        case 1: // Server sent a chat message
+            console.log("Server sent a chat message")
             addChatMessage(BigInt(json.IDm), BigInt(json.IDu), json.Msg)
-            messages.scrollTo({
-                top: messages.scrollHeight,
+            ChatMessagesList.scrollTo({
+                top: ChatMessagesList.scrollHeight,
                 behavior: 'smooth'
             })
             break
-        case 2: // server sent the requested chat history
+        case 2: // Server sent the requested chat history
+            console.log("Server sent the requested chat history")
             if (json !== null) {
                 for (let i = 0; i < json.length; i++) {
                     addChatMessage(BigInt(json[i].IDm), BigInt(json[i].IDu), json[i].Msg) // messageID, userID, Message
                 }
-                messages.scrollTo({
-                    top: messages.scrollHeight,
+                ChatMessagesList.scrollTo({
+                    top: ChatMessagesList.scrollHeight,
                     behavior: 'instant'
                 })
             } else {
                 console.log('Current channel has no chat history')
             }
             break
-        case 3: // server sent which message was deleted
+        case 3: // Server sent which message was deleted
+            console.log("Server sent which message was deleted")
             const messageID = BigInt(json.MessageID)
             console.log('Deleting message id ' + messageID)
             document.getElementById(messageID).remove()
             break
-        case 21: // server responded to the add server request
+        case 21: // Server responded to the add server request
+            console.log("Server responded to the add server request")
             addServer(BigInt(json.ServerID), BigInt(json.OwnerID), json.Name, json.Picture, 'server', discordGray, discordBlue)
-            localStorage.setItem('serverCount', parseInt(localStorage.getItem('serverCount')) + 1)
+            selectServer(BigInt(json.ServerID))
+            serversSeparatorVisibility()
             break
-        case 22: // server sent the requested server list
-            if (json == null) { console.log('Not being in any servers'); break }
-            for (let i = 0; i < json.length; i++) {
-                console.log('Adding server ID', json[i].ServerID)
-                addServer(BigInt(json[i].ServerID), BigInt(json[i].OwnerID), json[i].Name, json[i].Picture, 'server', discordGray, discordBlue)
+        case 22: // Server sent the requested server list
+            console.log("Server sent the requested server list")
+            if (json != null) {
+                for (let i = 0; i < json.length; i++) {
+                    console.log('Adding server ID', json[i].ServerID)
+                    addServer(BigInt(json[i].ServerID), BigInt(json[i].OwnerID), json[i].Name, json[i].Picture, 'server', discordGray, discordBlue)
+                }
+            } else {
+                console.log('Not being in any servers')
             }
-            localStorage.setItem('serverCount', json.length.toString())
+
+            serversSeparatorVisibility()
             lookForDeletedServersInLastChannels()
-            // go to the last server that was selected last time
-            // const lastServerID = localStorage.getItem('lastServer')
-            // if (lastServerID != null) {
-            //     selectServer(BigInt(lastServerID))
-            // }
             break
-        case 23: // server sent which server was deleted
+        case 23: // Server sent which server was deleted
+            console.log("Server sent which server was deleted")
             const serverID = BigInt(json.ServerID)
             deleteServer(serverID)
             deleteServerFromLastChannels(serverID)
             // removeDeletedLastChannels()
-            localStorage.setItem('serverCount', parseInt(localStorage.getItem('serverCount')) - 1)
             if (serverID == currentServerID) {
                 selectServer(2000)
             }
+            serversSeparatorVisibility()
             break
-        case 31: // server responded to the add channel request
+        case 31: // Server responded to the add channel request
+            console.log("Server responded to the add channel request")
             addChannel(BigInt(json.ChannelID), json.Name)
             break
-        case 32: // server sent the requested channel list
+        case 32: // Server sent the requested channel list
+            console.log("Server sent the requested channel list")
             if (json == null) {
                 console.warn(`No channels on server ID`)
                 break
@@ -139,10 +167,11 @@ wsClient.onmessage = function (event) {
             }
             selectLastChannels(BigInt(json[0].ChannelID))
             break
-        case 241: // server sent the client's own user ID
+        case 241: // Server sent the client's own user ID
             ownUserID = BigInt(json)
             console.log('Received own user ID:', ownUserID)
-            document.getElementById("user-panel-name").textContent = ownUserID
+            UserPanelName.textContent = ownUserID
+            receivedOwnUserID = true
             break
         default:
             console.log('Server sent unknown message type')
@@ -193,22 +222,26 @@ function preparePacket(type, bigintID, struct) {
 }
 
 function sendChatMessage(message, channelID) { // type is 1
+    console.log("Sending a chat message")
     preparePacket(1, channelID, {
         ChannelID: channelID.toString(),
         Message: message
     })
 }
 function requestChatHistory(channelID) {
+    console.log("Requesting chat history for channel ID", channelID)
     preparePacket(2, channelID, {
         ChannelID: channelID.toString()
     })
 }
-function requestChatMessageDeletion(messageID) {
+function requestDeleteChatMessage(messageID) {
+    console.log("Requesting to delete chat message ID", messageID)
     preparePacket(3, messageID, {
         MessageID: messageID.toString()
     })
 }
 function requestAddServer(serverName) {
+    console.log("Requesting to add a new server")
     preparePacket(21, 0, {
         Name: serverName
     })
@@ -219,6 +252,7 @@ function requestRenameServer(serverID) {
 }
 
 function requestDeleteServer(serverID) {
+    if (document.getElementById(serverID).getAttribute('owned') == 'false') return
     console.log('Requesting to delete server ID:', serverID)
     preparePacket(23, serverID, {
         ServerID: serverID.toString()
@@ -226,10 +260,13 @@ function requestDeleteServer(serverID) {
 }
 
 function requestServerList() {
+    console.log("Requesting server list")
     preparePacket(22, 0, null)
 }
 
 function requestAddChannel() {
+    if (document.getElementById(currentServerID).getAttribute('owned') == 'false') return
+    console.log('Requesting to add new channel to server ID:', currentServerID)
     preparePacket(31, currentServerID, {
         Name: 'Channel',
         ServerID: currentServerID.toString()
@@ -237,6 +274,7 @@ function requestAddChannel() {
 }
 
 function requestChannelList() {
+    console.log("Requesting channel list for current server ID", currentServerID)
     preparePacket(32, currentServerID, {
         ServerID: currentServerID.toString()
     })

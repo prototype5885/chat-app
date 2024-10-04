@@ -35,8 +35,7 @@ func RespondFailureReason(format string, v ...any) []byte {
 
 	json, err := json.Marshal(failure)
 	if err != nil {
-		log.Error(err.Error())
-		log.Fatal("Could not serialize issue in respondFailureReason")
+		log.FatalError(err.Error(), "Could not serialize issue in respondFailureReason")
 	}
 
 	return PreparePacket(0, json)

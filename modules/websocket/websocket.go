@@ -179,7 +179,12 @@ func (c *Client) readMessages(wg *sync.WaitGroup) {
 
 		case 3: // user deleting a chat message
 			log.Debug("User ID [%d] wants to delete a chat message", c.userID)
-			broadcastChan <- c.onChatMessageDeleteRequest(packetJson, packetType)
+			broadcastData, failData := c.onChatMessageDeleteRequest(packetJson, packetType)
+			if failData != nil {
+				c.writeChan <- failData
+			} else {
+				broadcastChan <- broadcastData
+			}
 
 		case 21: // user adding a server
 			log.Debug("User ID [%d] wants to create a server", c.userID)
@@ -195,7 +200,12 @@ func (c *Client) readMessages(wg *sync.WaitGroup) {
 
 		case 31: // user added a channel to their server
 			log.Debug("User ID [%d] wants to add a channel", c.userID)
-			broadcastChan <- c.onAddChannelRequest(packetJson, packetType)
+			broadcastData, failData := c.onAddChannelRequest(packetJson, packetType)
+			if failData != nil {
+				c.writeChan <- failData
+			} else {
+				broadcastChan <- broadcastData
+			}
 
 		case 32: // user entered a server, requesting channel list
 			log.Debug("User ID [%d] is requesting channel list", c.userID)

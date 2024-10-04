@@ -3,6 +3,7 @@ package websocket
 import (
 	"encoding/json"
 	"proto-chat/modules/database"
+	log "proto-chat/modules/logging"
 	"proto-chat/modules/macros"
 	"proto-chat/modules/snowflake"
 )
@@ -31,7 +32,21 @@ func (c *Client) onAddServerRequest(packetJson []byte) []byte {
 		Picture:  picture,
 	}
 
-	database.Insert(server)
+	if !database.Insert(server) {
+		log.Fatal("Error adding server ID [%d] on the request of user ID [%d]", serverID, c.userID)
+	}
+
+	var channelID uint64 = snowflake.Generate()
+
+	var channel = database.Channel{
+		ChannelID: channelID,
+		ServerID:  serverID,
+		Name:      "Default Channel",
+	}
+
+	if !database.Insert(channel) {
+		log.Fatal("Error adding channel ID [%d] to the newly created server ID [%d]", channelID, serverID)
+	}
 
 	messagesBytes, err := json.Marshal(server)
 	if err != nil {

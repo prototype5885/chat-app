@@ -19,6 +19,7 @@ function serverCtxMenu(serverID, owned, pageX, pageY) {
 
     if (owned) { actions.push({ text: 'Rename server', func: () => requestRenameServer(serverID) }) }
     if (owned) { actions.push({ text: 'Delete server', color: 'red', func: () => requestDeleteServer(serverID) }) }
+    if (!owned) { actions.push({ text: 'Report Server', color: 'red' }) }
 
     createContextMenu(actions, pageX, pageY)
 }
@@ -75,7 +76,7 @@ function messageCtxMenu(messageID, owner, pageX, pageY) {
 
     const actions = []
     actions.push({ text: 'Copy text', func: () => copyText() })
-    if (owner) { actions.push({ text: 'Delete message', color: 'red', func: () => requestChatMessageDeletion(messageID) }) }
+    if (owner) { actions.push({ text: 'Delete message', color: 'red', func: () => requestDeleteChatMessage(messageID) }) }
     if (!owner) { actions.push({ text: 'Report message', color: 'red' }) }
     createContextMenu(actions, pageX, pageY)
 }
