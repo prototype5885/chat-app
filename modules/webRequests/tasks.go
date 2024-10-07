@@ -94,7 +94,6 @@ func loginOrRegister(bodyBytes []byte, pathURL string) (http.Cookie, structs.Res
 			Secure:   true,
 			Expires:  time.Unix(int64(token.Expiration), 0),
 		}
-
 	}
 	log.Info("User ID [%d]: %s", userID, logRegResult.Message)
 	return cookie, logRegResult
@@ -150,6 +149,7 @@ func registerUser(username string, passwordBytes []byte) (uint64, structs.Result
 		UserID:      userID,
 		Username:    username,
 		DisplayName: "placeholder name",
+		Picture:     "default_profilepic.webp",
 		Password:    passwordHash,
 		Totp:        "",
 	}
@@ -172,12 +172,12 @@ func registerUser(username string, passwordBytes []byte) (uint64, structs.Result
 // Login user, first checking if username exists in the database, then getting the password
 // hash and checking if user entered the correct password, returns the user's ID.
 func loginUser(username string, passwordBytes []byte) uint64 {
-	log.Info("Starting login of user [%s]...", username)
+	log.Debug("Starting login of user [%s]...", username)
 
 	// get the password hash from the database
 	passwordHash, userID := database.UsersTable.GetPasswordAndID(username)
 	if passwordHash == nil {
-		log.Info("No user was found with username [%s]", username)
+		log.Warn("No user was found with username [%s]", username)
 		return 0
 	}
 
@@ -185,7 +185,7 @@ func loginUser(username string, passwordBytes []byte) uint64 {
 	log.Debug("Comparing password hash and string for user [%s]...", username)
 	var start = time.Now().UnixMilli()
 	if err := bcrypt.CompareHashAndPassword(passwordHash, passwordBytes); err != nil {
-		log.Info("User entered wrong password for username [%s]", username)
+		log.Warn("User entered wrong password for username [%s]", username)
 		return 0
 	}
 
@@ -208,6 +208,10 @@ func loginUser(username string, passwordBytes []byte) uint64 {
 // 	return totpKey.Secret()
 // }
 
+func newTokenExpiration() uint64 {
+	return uint64(time.Now().Add(30 * 24 * time.Hour).Unix()) // 90 days from current time
+}
+
 func newToken(userID uint64) database.Token {
 	log.Debug("Generating new token for user ID [%d]...", userID)
 
@@ -215,14 +219,13 @@ func newToken(userID uint64) database.Token {
 	var tokenBytes []byte = make([]byte, 128)
 	_, err := io.ReadFull(rand.Reader, tokenBytes)
 	if err != nil {
-		log.Error(err.Error())
-		log.Fatal("Error generating token for user ID [%d]", userID)
+		log.FatalError(err.Error(), "Error generating token for user ID [%d]", userID)
 	}
 
 	var token = database.Token{
 		Token:      tokenBytes,
 		UserID:     userID,
-		Expiration: uint64(time.Now().Add(30 * 24 * time.Hour).Unix()), // 3 months
+		Expiration: newTokenExpiration(),
 	}
 
 	// add the newly generated token into the database
@@ -232,19 +235,36 @@ func newToken(userID uint64) database.Token {
 	return token
 }
 
-func checkIfTokenIsValid(r *http.Request) uint64 {
+func checkIfTokenIsValid(w http.ResponseWriter, r *http.Request) uint64 {
 	cookieToken, found := findCookie(r.Cookies(), "token")
 	if found { // if user has a token
 		// decode to bytes
 		tokenBytes, err := hex.DecodeString(cookieToken.Value)
 		if err != nil {
-			log.Error(err.Error())
-			log.Warn("Error decoding token from cookie to byte array")
+			log.WarnError(err.Error(), "Error decoding token from cookie to byte array")
 			return 0
 		}
 
+		var userID uint64 = database.TokensTable.ConfirmToken(tokenBytes)
+
+		// renew the token
+		if userID != 0 {
+			var newExpiration uint64 = newTokenExpiration()
+			database.TokensTable.RenewTokenExpiration(newExpiration, tokenBytes)
+			var cookie = http.Cookie{
+				Name:     "token",
+				Value:    cookieToken.Value,
+				Path:     "/",
+				HttpOnly: true,
+				SameSite: http.SameSiteStrictMode,
+				Secure:   true,
+				Expires:  time.Unix(int64(newExpiration), 0),
+			}
+			http.SetCookie(w, &cookie)
+		}
+
 		// check if token exists in the database
-		return database.TokensTable.ConfirmToken(tokenBytes)
+		return userID
 	}
 	return 0
 }

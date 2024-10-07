@@ -7,6 +7,7 @@ import (
 	"proto-chat/modules/database"
 	log "proto-chat/modules/logging"
 	"proto-chat/modules/macros"
+	"proto-chat/modules/snowflake"
 	"sync"
 	"time"
 
@@ -35,6 +36,7 @@ type BroadcastData struct {
 type Client struct {
 	displayName      string
 	wsConn           *websocket.Conn
+	sessionID        uint64
 	userID           uint64
 	currentChannelID uint64
 	currentServerID  uint64
@@ -56,29 +58,34 @@ func Init() {
 func AcceptWsClient(userID uint64, w http.ResponseWriter, r *http.Request) {
 	wsConn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Error(err.Error())
-		log.Warn("Error upgrading connection of user ID [%d] to websocket protocol", userID)
+		log.WarnError(err.Error(), "Error upgrading connection of user ID [%d] to websocket protocol", userID)
 		return
 	}
 	username := database.UsersTable.GetUsername(userID)
 	if username == "" {
-		log.Fatal("After accepting websocket client, user ID [%d] has no username set in the database", userID)
+		// no idea why this would happen
+		log.Impossible("After accepting websocket client, user ID [%d] has no username set in the database", userID)
 	}
 
 	// sending and reading messages are two separate goroutines
 	// it's so they cant block each other
 	// they communicate using channels
 
+	// session ID is used as key value for clients hashmap to make it possible
+	// for a single user to connect to chat from multiple devices/browsers
+	var sessionID uint64 = snowflake.Generate()
+
 	client := &Client{
 		displayName:      username,
 		wsConn:           wsConn,
+		sessionID:        sessionID,
 		userID:           userID,
 		currentChannelID: 0,
 		writeChan:        make(chan []byte, 10),
 		closeChan:        make(chan bool),
 	}
 
-	clients[userID] = client
+	clients[sessionID] = client
 	log.Info("Added user ID %d to the connected websocket clients list", userID)
 
 	var wg sync.WaitGroup
@@ -92,8 +99,7 @@ func AcceptWsClient(userID uint64, w http.ResponseWriter, r *http.Request) {
 
 	jsonUserID, jsonErr := json.Marshal(userID)
 	if jsonErr != nil {
-		log.Error(jsonErr.Error())
-		log.Fatal("Error serializing user ID [%d] for sending", userID)
+		macros.ErrorSerializing(jsonErr.Error(), "userID", client.userID)
 	}
 
 	client.writeChan <- macros.PreparePacket(241, jsonUserID)
@@ -105,7 +111,7 @@ func AcceptWsClient(userID uint64, w http.ResponseWriter, r *http.Request) {
 
 func (c *Client) removeClient() {
 	c.wsConn.Close()
-	delete(clients, c.userID)
+	delete(clients, c.sessionID)
 	log.Debug("Removed user ID [%d] from the connected clients", c.userID)
 }
 
@@ -198,6 +204,10 @@ func (c *Client) readMessages(wg *sync.WaitGroup) {
 			log.Debug("User ID [%d] wants to delete a server", c.userID)
 			broadcastChan <- c.onServerDeleteRequest(packetJson, packetType)
 
+		case 24: // user requested an invite link for a server
+			log.Debug("User ID [%d] is requesting an invite link for a server", c.userID)
+			c.writeChan <- c.onServerInviteRequest(packetJson)
+
 		case 31: // user added a channel to their server
 			log.Debug("User ID [%d] wants to add a channel", c.userID)
 			broadcastData, failData := c.onAddChannelRequest(packetJson, packetType)
@@ -208,8 +218,16 @@ func (c *Client) readMessages(wg *sync.WaitGroup) {
 			}
 
 		case 32: // user entered a server, requesting channel list
-			log.Debug("User ID [%d] is requesting channel list", c.userID)
+			log.Debug("User ID [%d] is requesting channel list of a server", c.userID)
 			c.writeChan <- c.onChannelListRequest(packetJson)
+
+		case 41: // a new user connected to the server
+
+		case 42: // user entered a server, requesting member list
+			log.Debug("User ID [%d] is requesting list of members of server ID [%d]", c.userID, c.currentServerID)
+			c.writeChan <- c.onMemberListRequest(packetJson)
+
+		case 43: // a user was removed from the server
 
 		// case 42: // client is requesting to send names
 		// 	log.Printf("User ID [%d] is requesting name/names of servers/channels/users", userID)

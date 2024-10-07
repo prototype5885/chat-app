@@ -13,14 +13,15 @@ import (
 )
 
 const (
-	traceStr = "TRACE"
-	debugStr = "DEBUG"
-	infoStr  = "INFO"
-	warnStr  = "WARN"
-	offStr   = "OFF"
-	panicStr = "PANIC"
-	errorStr = "ERROR"
-	hackStr  = "HACK"
+	traceStr      = "TRACE"
+	debugStr      = "DEBUG"
+	infoStr       = "INFO"
+	warnStr       = "WARN"
+	offStr        = "OFF"
+	panicStr      = "PANIC"
+	errorStr      = "ERROR"
+	hackStr       = "HACK"
+	impossibleStr = "IMPOSSIBLE"
 )
 
 var mtx sync.Mutex
@@ -230,5 +231,13 @@ func WarnError(err string, format string, v ...any) {
 func FatalError(err string, format string, v ...any) {
 	Error(err)
 	logMsg(panicStr, format, v...)
+	os.Exit(1)
+}
+
+// this is an error logging func that normally should never happen,
+// like errors that are never supposed to happen in any way,
+// not even accidentally
+func Impossible(format string, v ...any) {
+	logMsg(impossibleStr, format, v...)
 	os.Exit(1)
 }

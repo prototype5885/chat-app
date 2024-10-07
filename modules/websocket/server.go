@@ -23,7 +23,7 @@ func (c *Client) onAddServerRequest(packetJson []byte) []byte {
 	}
 
 	var serverID uint64 = snowflake.Generate()
-	var picture string = "profilepic2.webp"
+	var picture string = "default_serverpic.webp"
 
 	var server = database.Server{
 		ServerID: serverID,
@@ -101,4 +101,39 @@ func (c *Client) onServerDeleteRequest(jsonBytes []byte, packetType byte) Broadc
 		Type:         packetType,
 		ID:           serverDeleteRequest.ServerID,
 	}
+}
+
+func (c *Client) onServerInviteRequest(packetJson []byte) []byte {
+	const jsonType string = "server invite"
+
+	type ServerInviteRequest struct {
+		ServerID   uint64
+		SingleUse  bool
+		Expiration uint32
+	}
+
+	var serverInviteRequest = ServerInviteRequest{}
+
+	if err := json.Unmarshal(packetJson, &serverInviteRequest); err != nil {
+		return macros.ErrorDeserializing(err.Error(), jsonType, c.userID)
+	}
+
+	var inviteID uint64 = snowflake.Generate()
+
+	var serverInvite = database.ServerInvite{
+		InviteID:   inviteID,
+		ServerID:   serverInviteRequest.ServerID,
+		SingleUse:  serverInviteRequest.SingleUse,
+		Expiration: uint64(serverInviteRequest.Expiration),
+	}
+
+	if !database.Insert(serverInvite) {
+		log.Fatal("Error creating invite for server ID [%d] for user ID [%d]", serverInviteRequest.ServerID, c.userID)
+	}
+
+	messagesBytes, err := json.Marshal(inviteID)
+	if err != nil {
+		macros.ErrorSerializing(err.Error(), jsonType, c.userID)
+	}
+	return macros.PreparePacket(24, messagesBytes)
 }

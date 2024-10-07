@@ -152,6 +152,13 @@ wsClient.onmessage = function (event) {
             }
             serversSeparatorVisibility()
             break
+        case 24: // Server sent the requested invite link to the chat server
+            console.log("Server sent the requested invite link to the chat server")
+            const inviteID = BigInt(json).toString()
+            const inviteLink = `${window.location.protocol}//${window.location.host}/invite/${inviteID}`
+            console.log(inviteLink)
+            navigator.clipboard.writeText(inviteLink)
+            break
         case 31: // Server responded to the add channel request
             console.log("Server responded to the add channel request")
             addChannel(BigInt(json.ChannelID), json.Name)
@@ -159,13 +166,23 @@ wsClient.onmessage = function (event) {
         case 32: // Server sent the requested channel list
             console.log("Server sent the requested channel list")
             if (json == null) {
-                console.warn(`No channels on server ID`)
+                console.warn("No channels on server ID", currentServerID)
                 break
             }
             for (let i = 0; i < json.length; i++) {
                 addChannel(BigInt(json[i].ChannelID), json[i].Name)
             }
             selectLastChannels(BigInt(json[0].ChannelID))
+            break
+        case 42: // Server sent the requested member list
+            console.log("Server sent the requsted member list")
+            if (json == null) {
+                console.warn("No members on server ID", currentServerID)
+                break
+            }
+            for (let i = 0; i < json.length; i++) {
+                console.log(BigInt(json[i].UserID))
+            }
             break
         case 241: // Server sent the client's own user ID
             ownUserID = BigInt(json)
@@ -259,6 +276,16 @@ function requestDeleteServer(serverID) {
     })
 }
 
+function requestInviteLink(serverID) {
+    if (document.getElementById(serverID).getAttribute('owned') == 'false') return
+    console.log("Requesting invite link creation for server ID:", serverID)
+    preparePacket(24, serverID, {
+        ServerID: serverID.toString(),
+        SingleUse: false,
+        Expiration: 7
+    })
+}
+
 function requestServerList() {
     console.log("Requesting server list")
     preparePacket(22, 0, null)
@@ -276,6 +303,13 @@ function requestAddChannel() {
 function requestChannelList() {
     console.log("Requesting channel list for current server ID", currentServerID)
     preparePacket(32, currentServerID, {
+        ServerID: currentServerID.toString()
+    })
+}
+
+function requestMemberList() {
+    console.log("Requesting member list for current server ID", currentServerID)
+    preparePacket(42, currentServerID, {
         ServerID: currentServerID.toString()
     })
 }

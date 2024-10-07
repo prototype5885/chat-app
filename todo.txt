@@ -5,3 +5,8 @@ token isnt renewed when user joins with token
 display and customize server and user picture and name
 make it so people can join and leave servers
 display users in servers
+check if username is too short or long
+check if password is too short or long
+look for security hole in server invation process
+make it possible to set duration on server invation
+make it possible to set set server invation one time use only

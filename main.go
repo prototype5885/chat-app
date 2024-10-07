@@ -28,6 +28,7 @@ func main() {
 		if err != nil {
 			log.Error("Error closing db connection")
 		}
+		fmt.Println("Closed main db connection successfully")
 		os.Exit(0)
 	}()
 
@@ -81,34 +82,7 @@ func main() {
 	database.CreateTables()
 
 	// snowflake
-	snowflake.SetSnowflakeServerID(0)
-
-	// database.Insert(database.Channel{
-	// 	ChannelID: snowflake.Generate(),
-	// 	ServerID:  snowflake.Generate(),
-	// 	Name:      "test channel name",
-	// })
-
-	// start := macros.GetTimestamp()
-	// for i := 0; i < 1000; i++ {
-	// 	// log.Info("Starting server...")
-	// 	database.Insert(database.ChatMessage{
-	// 		MessageID: snowflake.Generate(),
-	// 		ChannelID: 1811203793171251200,
-	// 		UserID:    1810997960123613184,
-	// 		Message:   "test message",
-	// 	})
-
-	// }
-	// macros.MeasureTime(start, "test")
-
-	// database.Insert(database.ChatMessage{
-	// 	MessageID: snowflake.Generate(),
-	// 	ChannelID: 1811203793171251200,
-	// 	UserID:    1810997960123613184,
-	// 	Message:   "test message",
-	// })
-	// return
+	snowflake.SetSnowflakeWorkerID(0)
 
 	// websocket
 	websocket.Init()
@@ -126,6 +100,7 @@ func main() {
 	// http requests
 
 	http.HandleFunc("GET /login-register.html", webRequests.LoginRegisterHandler)
+	http.HandleFunc("GET /invite/", webRequests.InviteHandler)
 	http.HandleFunc("GET /chat.html", webRequests.ChatHandler)
 
 	http.HandleFunc("POST /login", webRequests.PostRequestHandler)
@@ -141,18 +116,18 @@ func main() {
 		address = fmt.Sprintf("%s:%d", "0.0.0.0", config.Port)
 	}
 
-	log.Info("Listening on port %d", config.Port)
 	if config.TLS {
 		const certFile = "./sslcert/cert.crt"
 		const keyFile = "./sslcert/key.key"
+
+		log.Info("Listening on https://%s", address)
 		if err := http.ListenAndServeTLS(address, certFile, keyFile, nil); err != nil {
-			log.Error(err.Error())
-			log.Fatal("Error starting TLS server")
+			log.FatalError(err.Error(), "Error starting TLS server")
 		}
 	} else {
+		log.Info("Listening on http://%s", address)
 		if err := http.ListenAndServe(address, nil); err != nil {
-			log.Error(err.Error())
-			log.Fatal("Error starting server")
+			log.FatalError(err.Error(), "Error starting non-TLS server")
 		}
 	}
 }

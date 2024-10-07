@@ -9,27 +9,35 @@ import (
 )
 
 const (
-	timestampLength uint64 = 44                                    // 44
+	timestampLength uint64 = 42                                    // 42
 	timestampPos    uint64 = 64 - timestampLength                  // 20
-	serverLength    uint64 = 8                                     // 8
-	serverPos       uint64 = timestampPos - serverLength           // 17
-	incrementLength        = 64 - (timestampLength + serverLength) // 12
+	workerLength    uint64 = 10                                    // 10
+	workerPos       uint64 = timestampPos - workerLength           // 17
+	incrementLength        = 64 - (timestampLength + workerLength) // 12
 )
 
-var maxTimestamp uint64 = uint64(math.Pow(2, float64(timestampLength))) // max possible timestamp value possible
+var (
+	maxWorkerValue    = uint64(math.Pow(2, float64(workerLength)) - 1)
+	maxIncrementValue = uint64(math.Pow(2, float64(incrementLength)) - 1)
 
-var lastIncrement, lastTimestamp uint64
-var snowflakeMutex sync.Mutex
+	maxTimestamp uint64 = uint64(math.Pow(2, float64(timestampLength))) // max possible timestamp value possible
 
-var serverID uint64 = 0
-var alreadyHasServerID bool = false
+	lastIncrement, lastTimestamp uint64
+	snowflakeMutex               sync.Mutex
 
-func SetSnowflakeServerID(id uint64) {
-	if !alreadyHasServerID {
-		serverID = id
-		alreadyHasServerID = true
+	workerID           uint64 = 0
+	alreadyHasWorkerID bool   = false
+)
+
+func SetSnowflakeWorkerID(id uint64) {
+	if id > maxWorkerValue {
+		log.Fatal("")
+	}
+	if !alreadyHasWorkerID {
+		workerID = id
+		alreadyHasWorkerID = true
 	} else {
-		log.Fatal("Server ID for snowflake generator has been already set, exiting...")
+		log.Fatal("Worker ID for snowflake generator has been already set, exiting...")
 	}
 }
 
@@ -40,32 +48,35 @@ func Generate() uint64 {
 	var timestamp uint64 = uint64(time.Now().UnixMilli())
 	if timestamp == lastTimestamp {
 		lastIncrement += 1
+		if lastIncrement > maxIncrementValue {
+			log.Fatal("Increment overflow")
+		}
 	} else {
 		lastIncrement = 0
 		lastTimestamp = timestamp
 	}
 
-	return timestamp<<timestampPos | serverID<<serverPos | lastIncrement
+	return timestamp<<timestampPos | workerID<<workerPos | lastIncrement
 }
 
 func Extract(snowflakeId uint64) (uint64, uint64, uint64) {
 	var timestamp uint64 = snowflakeId >> timestampPos
-	var serverId uint64 = (snowflakeId >> serverPos) & ((1 << serverLength) - 1)
+	var workerID uint64 = (snowflakeId >> workerPos) & ((1 << workerLength) - 1)
 	var increment uint64 = snowflakeId & ((1 << incrementLength) - 1)
-	return timestamp, serverId, increment
+	return timestamp, workerID, increment
 }
 
 func Print(snowflakeId uint64) {
-	timestamp, serverId, increment := Extract(snowflakeId)
+	timestamp, workerID, increment := Extract(snowflakeId)
 	// var realTimestamp = timestamp + timestampOffset
-	var realTimestamp = timestamp
+
 	fmt.Println("-----------------")
-	fmt.Println("Date:", time.UnixMilli(int64(realTimestamp)))
-	fmt.Println("Server timestamp:", timestamp, "/", maxTimestamp)
-	fmt.Println("Years left:", (math.Pow(2.0, float64(timestampLength))-float64(timestamp))/1000/60/60/24/365)
 	fmt.Println("Snowflake:", snowflakeId)
-	fmt.Println("Real timestamp:", realTimestamp)
-	fmt.Println("Server:", serverId, "/", uint64(math.Pow(2, float64(serverLength))))
-	fmt.Println("Increment:", increment, "/", uint64(math.Pow(2, float64(incrementLength))))
+	fmt.Println("Unix timestamp:", timestamp, "/", maxTimestamp)
+	fmt.Println("Date:", time.UnixMilli(int64(timestamp)))
+	fmt.Println("Years left:", (math.Pow(2.0, float64(timestampLength))-float64(timestamp))/1000/60/60/24/365)
+	// fmt.Println("Real timestamp:", timestamp)
+	fmt.Println("Worker:", workerID, "/", maxWorkerValue)
+	fmt.Println("Increment:", increment, "/", maxIncrementValue)
 	fmt.Println("-----------------")
 }

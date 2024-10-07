@@ -2,6 +2,7 @@ package macros
 
 import (
 	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	log "proto-chat/modules/logging"
@@ -56,4 +57,16 @@ func PreparePacket(typeByte byte, jsonBytes []byte) []byte {
 	log.Trace("Prepared packet: endIndex [%d], type [%d], json [%s]", endIndex, packet[4], string(jsonBytes))
 
 	return packet
+}
+
+func ShortenToken(tokenBytes []byte) string {
+	var token string = hex.EncodeToString(tokenBytes)
+	if len(token) > 8 {
+		firstFour := token[:4]
+		lastFour := token[len(token)-4:]
+		return fmt.Sprintf("%s ... %s", firstFour, lastFour)
+	} else {
+		log.Hack("Can't shorten token [%s], it's shorter than 4 characters", token)
+		return ""
+	}
 }

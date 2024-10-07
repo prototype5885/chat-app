@@ -2,10 +2,14 @@ package webRequests
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
+	"proto-chat/modules/database"
 	log "proto-chat/modules/logging"
 	"proto-chat/modules/websocket"
+	"strconv"
+	"strings"
 )
 
 func printReceivedRequest(url string, method string) {
@@ -22,7 +26,7 @@ func WssHandler(w http.ResponseWriter, r *http.Request) {
 	log.Info("Someone is connecting to websocket...")
 
 	// check if the user trying to connect to websocket has token
-	userID := checkIfTokenIsValid(r)
+	userID := checkIfTokenIsValid(w, r)
 	if userID != 0 {
 		websocket.AcceptWsClient(userID, w, r)
 		return
@@ -38,7 +42,7 @@ func LoginRegisterHandler(w http.ResponseWriter, r *http.Request) {
 	printReceivedRequest(r.URL.Path, r.Method)
 
 	// check if user requesting login/registration already has a token
-	userID := checkIfTokenIsValid(r)
+	userID := checkIfTokenIsValid(w, r)
 	if userID != 0 { // if user is trying to login but has a token
 		log.Debug("User is trying to access /login-register.html but already has authorized token, redirecting to /chat.html...")
 		http.Redirect(w, r, "/chat.html", http.StatusMovedPermanently)
@@ -53,7 +57,7 @@ func ChatHandler(w http.ResponseWriter, r *http.Request) {
 	printReceivedRequest(r.URL.Path, r.Method)
 
 	// check if user requesting login/registration already has a token
-	userID := checkIfTokenIsValid(r)
+	userID := checkIfTokenIsValid(w, r)
 	if userID == 0 { // if user tries to use the chat but has no token
 		log.Debug("Someone is trying to access /chat.html without authorized token, redirecting to / ...")
 		http.Redirect(w, r, "/", http.StatusMovedPermanently)
@@ -104,5 +108,37 @@ func PostRequestHandler(w http.ResponseWriter, r *http.Request) {
 			log.WarnError(err.Error(), "Error sending %s POST request response", r.URL.Path)
 		}
 		log.Debug("%s POST request response was sent: %d", r.URL.Path, i)
+	}
+}
+
+func InviteHandler(w http.ResponseWriter, r *http.Request) {
+	printReceivedRequest(r.URL.Path, r.Method)
+
+	var userID uint64 = checkIfTokenIsValid(w, r)
+	if userID == 0 { // if user has no valid token
+		fmt.Fprintln(w, "Not logged in")
+		log.Debug("Someone without authorized token clicked on an invite link")
+		return
+	} else {
+		fmt.Fprintln(w, "Logged in")
+
+		parts := strings.Split(r.URL.Path, "/invite/")
+		if len(parts) > 1 {
+			var inviteIDstring string = parts[len(parts)-1]
+			inviteID, err := strconv.ParseUint(inviteIDstring, 10, 64)
+			if err != nil {
+				log.Warn("User ID [%d] sent a server invite http request where the ID can't be parsed [%s]", userID, inviteIDstring)
+				return
+			}
+			log.Debug("Server invite ID is: [%d]", inviteID)
+			var serverID uint64 = database.ServerInvitesTable.ConfirmServerInviteID(inviteID)
+			if serverID != 0 {
+				log.Debug("Invite ID [%d] belongs to server ID [%d]", inviteID, serverID)
+
+				if !database.Insert(database.ServerMember{ServerID: serverID, UserID: userID}) {
+
+				}
+			}
+		}
 	}
 }

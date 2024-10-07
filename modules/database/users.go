@@ -16,10 +16,10 @@ type User struct {
 
 func (u *Users) CreateUsersTable() {
 	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS users (
-		user_id BIGINT UNSIGNED PRIMARY KEY,
+		user_id BIGINT UNSIGNED PRIMARY KEY NOT NULL,
 		username VARCHAR(32) NOT NULL,
 		display_name VARCHAR(64) NOT NULL,
-		picture VARCHAR(255),
+		picture VARCHAR(255) NOT NULL,
 		password BINARY(60) NOT NULL,
 		totp CHAR(32),
 		UNIQUE(username)

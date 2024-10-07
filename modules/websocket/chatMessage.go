@@ -16,7 +16,7 @@ type ChatMessageResponse struct {
 }
 
 // when client sent a chat message, type 1
-func (c *Client) onChatMessageRequest(jsonBytes []byte, packetType byte) BroadcastData {
+func (c *Client) onChatMessageRequest(packetJson []byte, packetType byte) BroadcastData {
 	const jsonType string = "add chat message"
 
 	type ClientChatMsg struct {
@@ -26,7 +26,7 @@ func (c *Client) onChatMessageRequest(jsonBytes []byte, packetType byte) Broadca
 
 	var chatMessageRequest ClientChatMsg
 
-	if err := json.Unmarshal(jsonBytes, &chatMessageRequest); err != nil {
+	if err := json.Unmarshal(packetJson, &chatMessageRequest); err != nil {
 		return BroadcastData{
 			MessageBytes: macros.ErrorDeserializing(err.Error(), jsonType, c.userID),
 		}
@@ -102,8 +102,7 @@ func (c *Client) onChatHistoryRequest(packetJson []byte) []byte {
 
 	jsonBytes, err := json.Marshal(messages)
 	if err != nil {
-		log.Error(err.Error())
-		log.Warn("Fatal error serializing json in GetMessagesFromChannel")
+		macros.ErrorSerializing(err.Error(), jsonType, c.userID)
 	}
 
 	c.setCurrentChannelID(channelID)
@@ -112,7 +111,7 @@ func (c *Client) onChatHistoryRequest(packetJson []byte) []byte {
 }
 
 // when client wants to delete a message they own, type 3
-func (c *Client) onChatMessageDeleteRequest(jsonBytes []byte, packetType byte) (BroadcastData, []byte) {
+func (c *Client) onChatMessageDeleteRequest(packetJson []byte, packetType byte) (BroadcastData, []byte) {
 	const jsonType string = "chat message deletion"
 
 	type MessageToDelete struct {
@@ -121,7 +120,7 @@ func (c *Client) onChatMessageDeleteRequest(jsonBytes []byte, packetType byte) (
 
 	var messageDeleteRequest = MessageToDelete{}
 
-	if err := json.Unmarshal(jsonBytes, &messageDeleteRequest); err != nil {
+	if err := json.Unmarshal(packetJson, &messageDeleteRequest); err != nil {
 		return BroadcastData{
 			MessageBytes: macros.ErrorDeserializing(err.Error(), jsonType, c.userID),
 		}, nil
@@ -138,7 +137,7 @@ func (c *Client) onChatMessageDeleteRequest(jsonBytes []byte, packetType byte) (
 	}
 
 	return BroadcastData{
-		MessageBytes: macros.PreparePacket(3, jsonBytes),
+		MessageBytes: macros.PreparePacket(3, packetJson),
 		ID:           channelID,
 		Type:         packetType,
 	}, nil

@@ -19,10 +19,10 @@ type ServerDeletion struct {
 
 func (s *Servers) CreateServersTable() {
 	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS servers (
-		server_id BIGINT UNSIGNED PRIMARY KEY,
-		owner_id BIGINT UNSIGNED,
-		name TEXT,
-		picture TEXT,
+		server_id BIGINT UNSIGNED PRIMARY KEY NOT NULL,
+		owner_id BIGINT UNSIGNED NOT NULL,
+		name TEXT NOT NULL,
+		picture TEXT NOT NULL,
 		FOREIGN KEY (owner_id) REFERENCES users(user_id) ON DELETE CASCADE
 	)`)
 	if err != nil {

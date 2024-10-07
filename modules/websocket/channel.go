@@ -9,11 +9,11 @@ import (
 	"proto-chat/modules/snowflake"
 )
 
-type Channel struct {
-	ChannelID uint64
-	ServerID  uint64
-	Name      string
-}
+// type Channel struct {
+// 	ChannelID uint64
+// 	ServerID  uint64
+// 	Name      string
+// }
 
 type ChannelResponse struct { // this is whats sent to the client when client requests channel
 	ChannelID uint64

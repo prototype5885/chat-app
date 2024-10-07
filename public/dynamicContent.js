@@ -176,7 +176,7 @@ function addChatMessage(messageID, userID, message) {
     const msgDate = new Date(Number((BigInt(messageID) >> BigInt(20)))).toLocaleString()
 
     const chatNameColor = "#e7e7e7"
-    const pic = "profilepic.webp"
+    const pic = "default_profilepic.webp"
     const username = userID.toString()
 
     // create a <li> that holds the message
@@ -389,7 +389,7 @@ function addMember(userID) {
     // create a <img> that shows profile pic on the left
     const img = document.createElement("img")
     img.className = "profile-pic"
-    img.src = "profilepic.webp"
+    img.src = "default_profilepic.webp"
     img.alt = "pfpic"
     img.width = 32
     img.height = 32
@@ -518,6 +518,7 @@ function selectServer(serverID) {
     resetChannels()
     resetMessages()
     requestChannelList()
+    requestMemberList()
 
     localStorage.setItem("lastServer", serverID.toString())
 }

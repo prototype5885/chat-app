@@ -13,9 +13,9 @@ type Channel struct {
 
 func (c *Channels) CreateChannelsTable() {
 	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS channels (
-		channel_id BIGINT UNSIGNED PRIMARY KEY,
-		server_id BIGINT UNSIGNED,
-		name TEXT,
+		channel_id BIGINT UNSIGNED PRIMARY KEY NOT NULL,
+		server_id BIGINT UNSIGNED NOT NULL,
+		name TEXT NOT NULL,
 		FOREIGN KEY (server_id) REFERENCES servers(server_id) ON DELETE CASCADE
 	)`)
 	if err != nil {
