@@ -1,19 +1,13 @@
 package websocket
 
 import (
-	"database/sql"
 	"encoding/json"
 	"proto-chat/modules/database"
-	log "proto-chat/modules/logging"
 	"proto-chat/modules/macros"
 	"proto-chat/modules/snowflake"
+	"proto-chat/modules/structs"
+	"strconv"
 )
-
-type ChatMessageResponse struct {
-	IDm uint64 // message ID
-	IDu uint64 // user ID
-	Msg string // message
-}
 
 // when client sent a chat message, type 1
 func (c *Client) onChatMessageRequest(packetJson []byte, packetType byte) BroadcastData {
@@ -47,9 +41,9 @@ func (c *Client) onChatMessageRequest(packetJson []byte, packetType byte) Broadc
 		}
 	}
 
-	var serverChatMsg = ChatMessageResponse{
-		IDm: messageID,
-		IDu: c.userID,
+	var serverChatMsg = structs.ChatMessageResponse{
+		IDm: strconv.FormatUint(messageID, 10),
+		IDu: strconv.FormatUint(c.userID, 10),
 		Msg: chatMessageRequest.Message,
 	}
 
@@ -80,30 +74,38 @@ func (c *Client) onChatHistoryRequest(packetJson []byte) []byte {
 	}
 	var channelID uint64 = chatHistoryRequest.ChannelID
 
-	var rows *sql.Rows = database.ChannelsTable.GetChatMessages(chatHistoryRequest.ChannelID)
-	var messages []ChatMessageResponse
+	var chatHistory []structs.ChatMessageResponse = database.ChatMessagesTable.GetChatMessages(chatHistoryRequest.ChannelID, c.userID)
 
-	var counter int = 0
-	for rows.Next() {
-		counter++
-		var message ChatMessageResponse
-		err := rows.Scan(&message.IDm, &message.IDu, &message.Msg)
-		if err != nil {
-			log.FatalError(err.Error(), "Error scanning message row into struct in channel ID [%d]:", channelID)
-		}
-		messages = append(messages, message)
-	}
+	// var chatHistoryBytes []byte
 
-	if counter == 0 {
-		log.Debug("No messages found on channel ID: [%d]", channelID)
-	} else {
-		log.Debug("[%d] messages from channel ID [%d] were retrieved successfully", counter, channelID)
-	}
+	// for i := 0; i < len(chatHistory); i++ {
+	// 	var messageIDbytes []byte = make([]byte, 8)
+	// 	binary.BigEndian.PutUint64(messageIDbytes, chatHistory[i].IDm)
 
-	jsonBytes, err := json.Marshal(messages)
+	// 	var userIDbytes []byte = make([]byte, 8)
+	// 	binary.BigEndian.PutUint64(userIDbytes, chatHistory[i].IDu)
+
+	// 	var messageBytes []byte = []byte(chatHistory[i].Msg)
+	// 	var messageLength []byte = make([]byte, 4)
+	// 	binary.BigEndian.PutUint32(messageLength, uint32(len(messageBytes)))
+
+	// 	var chatMessageBytes []byte = make([]byte, len(messageBytes)+20)
+
+	// 	copy(chatMessageBytes[:8], messageBytes)
+	// 	copy(chatMessageBytes[8:], userIDbytes)
+	// 	copy(chatMessageBytes[16:], messageLength)
+	// 	copy(chatMessageBytes[20:], messageBytes)
+
+	// 	chatHistoryBytes = append(chatHistoryBytes, chatMessageBytes...)
+	// }
+
+	jsonBytes, err := json.Marshal(chatHistory)
 	if err != nil {
 		macros.ErrorSerializing(err.Error(), jsonType, c.userID)
 	}
+
+	// log.Debug("json length: [%d]", len(jsonBytes))
+	// log.Debug("optimized length: [%d]", len(chatHistoryBytes))
 
 	c.setCurrentChannelID(channelID)
 

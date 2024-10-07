@@ -6,6 +6,8 @@ import (
 	log "proto-chat/modules/logging"
 	"proto-chat/modules/macros"
 	"proto-chat/modules/snowflake"
+	"proto-chat/modules/structs"
+	"strconv"
 )
 
 // when client is requesting to add a new server, type 21
@@ -22,33 +24,17 @@ func (c *Client) onAddServerRequest(packetJson []byte) []byte {
 		return macros.ErrorDeserializing(err.Error(), jsonType, c.userID)
 	}
 
-	var serverID uint64 = snowflake.Generate()
-	var picture string = "default_serverpic.webp"
+	var server database.Server = database.ServersTable.AddNewServer(c.userID, addServerRequest.Name, "default_serverpic.webp")
 
-	var server = database.Server{
-		ServerID: serverID,
-		OwnerID:  c.userID,
-		Name:     addServerRequest.Name,
-		Picture:  picture,
+	// this was made because javascript client doesn't like serialized
+	var serverResponse = structs.ServerResponse{
+		ServerID: strconv.FormatUint(server.ServerID, 10),
+		OwnerID:  strconv.FormatUint(server.OwnerID, 10),
+		Name:     server.Name,
+		Picture:  server.Picture,
 	}
 
-	if !database.Insert(server) {
-		log.Fatal("Error adding server ID [%d] on the request of user ID [%d]", serverID, c.userID)
-	}
-
-	var channelID uint64 = snowflake.Generate()
-
-	var channel = database.Channel{
-		ChannelID: channelID,
-		ServerID:  serverID,
-		Name:      "Default Channel",
-	}
-
-	if !database.Insert(channel) {
-		log.Fatal("Error adding channel ID [%d] to the newly created server ID [%d]", channelID, serverID)
-	}
-
-	messagesBytes, err := json.Marshal(server)
+	messagesBytes, err := json.Marshal(serverResponse)
 	if err != nil {
 		macros.ErrorSerializing(err.Error(), jsonType, c.userID)
 	}
@@ -59,7 +45,7 @@ func (c *Client) onAddServerRequest(packetJson []byte) []byte {
 func (c *Client) onServerListRequest() []byte {
 	const jsonType string = "server list"
 
-	var servers []database.Server = database.ServersTable.GetServerList(c.userID)
+	var servers []structs.ServerResponse = database.ServersTable.GetServerList(c.userID)
 
 	messagesBytes, err := json.Marshal(servers)
 	if err != nil {
@@ -96,8 +82,18 @@ func (c *Client) onServerDeleteRequest(jsonBytes []byte, packetType byte) Broadc
 		}
 	}
 
+	var serverDeletionResponse = structs.ServerDeletionResponse{
+		ServerID: strconv.FormatUint(serverDeleteRequest.ServerID, 10),
+		UserID:   strconv.FormatUint(c.userID, 10),
+	}
+
+	messagesBytes, err := json.Marshal(serverDeletionResponse)
+	if err != nil {
+		macros.ErrorSerializing(err.Error(), jsonType, c.userID)
+	}
+
 	return BroadcastData{
-		MessageBytes: macros.PreparePacket(23, jsonBytes),
+		MessageBytes: macros.PreparePacket(23, messagesBytes),
 		Type:         packetType,
 		ID:           serverDeleteRequest.ServerID,
 	}
@@ -131,7 +127,7 @@ func (c *Client) onServerInviteRequest(packetJson []byte) []byte {
 		log.Fatal("Error creating invite for server ID [%d] for user ID [%d]", serverInviteRequest.ServerID, c.userID)
 	}
 
-	messagesBytes, err := json.Marshal(inviteID)
+	messagesBytes, err := json.Marshal(strconv.FormatUint(inviteID, 10))
 	if err != nil {
 		macros.ErrorSerializing(err.Error(), jsonType, c.userID)
 	}

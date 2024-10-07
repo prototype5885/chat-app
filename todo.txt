@@ -1,7 +1,8 @@
 user-panel in chat.css is not optimal
 the way database module sends data to websocket module, need to find out whats the best way to use structs
 in browser without cached disabled sometimes chat doesn't load
-token isnt renewed when user joins with token
+// token isnt renewed when user joins with token
+token isnt deleted when it expires
 display and customize server and user picture and name
 make it so people can join and leave servers
 display users in servers
@@ -10,3 +11,4 @@ check if password is too short or long
 look for security hole in server invation process
 make it possible to set duration on server invation
 make it possible to set set server invation one time use only
+writing goroutine does not tell to reading goroutine if it fails

@@ -1,8 +1,11 @@
 package websocket
 
 import (
+	"bytes"
+	"compress/gzip"
 	"encoding/binary"
 	"encoding/json"
+	"io"
 	"net/http"
 	"proto-chat/modules/database"
 	log "proto-chat/modules/logging"
@@ -22,9 +25,9 @@ const (
 )
 
 var upgrader = websocket.Upgrader{
-	ReadBufferSize:    1024,
-	WriteBufferSize:   1024,
-	EnableCompression: true,
+	ReadBufferSize:    4096,
+	WriteBufferSize:   4096,
+	EnableCompression: false,
 }
 
 type BroadcastData struct {
@@ -85,34 +88,39 @@ func AcceptWsClient(userID uint64, w http.ResponseWriter, r *http.Request) {
 		closeChan:        make(chan bool),
 	}
 
+	// add to clients hashmap
 	clients[sessionID] = client
-	log.Info("Added user ID %d to the connected websocket clients list", userID)
+	// log.Info("Added user ID [%d] with session ID [%d] to the connected websocket clients list", userID, sessionID)
 
+	// create 2 goroutines for reading and writing messages
 	var wg sync.WaitGroup
-
 	wg.Add(2)
 
 	go client.readMessages(&wg)
 	go client.writeMessages(&wg)
 
-	log.Debug("User ID [%d] has connected to the websocket", userID)
+	log.Info("Session ID [%d] as user ID [%d] has connected to websocket", sessionID, userID)
 
-	jsonUserID, jsonErr := json.Marshal(userID)
-	if jsonErr != nil {
-		macros.ErrorSerializing(jsonErr.Error(), "userID", client.userID)
+	// sends the client it's own user ID
+	jsonUserID, err := json.Marshal(userID)
+	if err != nil {
+		macros.ErrorSerializing(err.Error(), "userID", client.userID)
 	}
 
 	client.writeChan <- macros.PreparePacket(241, jsonUserID)
 
+	// this will block here while both the reading and writing goroutine are running
+	// if one stops, the other should stop too
 	wg.Wait()
 
-	log.Info("User ID [%d] has been disconnected successfully from websocket", userID)
-}
+	// close websocket connection
+	// if err := wsConn.Close(); err != nil {
+	// 	log.WarnError(err.Error(), "Error closing websocket connection for user ID [%d]", userID)
+	// }
 
-func (c *Client) removeClient() {
-	c.wsConn.Close()
-	delete(clients, c.sessionID)
-	log.Debug("Removed user ID [%d] from the connected clients", c.userID)
+	// lastly remove the client from hashmap
+	delete(clients, sessionID)
+	log.Info("Removed session ID [%d] as user ID [%d] from the connected clients", sessionID, userID)
 }
 
 func (c *Client) setCurrentChannelID(channelID uint64) {
@@ -126,20 +134,18 @@ func (c *Client) setCurrentServerID(serverID uint64) {
 }
 
 func (c *Client) readMessages(wg *sync.WaitGroup) {
-	defer func() {
-		c.removeClient()
-		c.closeChan <- true
+	defer func() { // this will run when readMessages goroutine returns
+		c.closeChan <- true // tells the writing goroutine to stop too
 		wg.Done()
 	}()
 
-	c.wsConn.SetReadLimit(maxMessageSize)
+	c.wsConn.SetReadLimit(maxMessageSize) // received bytes after this limit will be discareded
 	c.wsConn.SetReadDeadline(time.Now().Add(timeout))
 	c.wsConn.SetPongHandler(func(string) error { c.wsConn.SetReadDeadline(time.Now().Add(timeout)); return nil })
 	for {
 		_, receivedBytes, err := c.wsConn.ReadMessage()
 		if err != nil {
-			log.Error(err.Error())
-			log.Warn("Failed reading message from User ID [%d]", c.userID)
+			log.WarnError(err.Error(), "Failed reading message from session ID [%d] as user ID [%d]", c.sessionID, c.userID)
 			break
 		}
 
@@ -148,7 +154,7 @@ func (c *Client) readMessages(wg *sync.WaitGroup) {
 		// this func would throw an index out of range exception
 		// not supposed to happen in normal cases
 		if len(receivedBytes) < 5 {
-			log.Hack("User ID [%d] sent a byte array shorter than 5 length", c.userID)
+			log.Hack("Session ID [%d] as user ID [%d] sent a byte array shorter than 5 length", c.sessionID, c.userID)
 			c.writeChan <- macros.RespondFailureReason("Sent byte array length is less than 5")
 			continue
 		}
@@ -240,31 +246,36 @@ func (c *Client) readMessages(wg *sync.WaitGroup) {
 }
 
 func (c *Client) writeMessages(wg *sync.WaitGroup) {
-	ticker := time.NewTicker(pingPeriod)
-	defer func() {
+	ticker := time.NewTicker(pingPeriod) // client will be pinged in intervals using this
+
+	defer func() { // this will run when writeMessages goroutine returns
 		ticker.Stop()
-		c.wsConn.Close()
 		wg.Done()
 	}()
+
+	errorWriting := func(errMsg string) {
+		log.WarnError(errMsg, "Error writing message to session ID [%d] as user ID [%d]", c.sessionID, c.userID)
+	}
 
 	for {
 		select {
 		case messageBytes := <-c.writeChan:
 			c.wsConn.SetWriteDeadline(time.Now().Add(timeoutWrite))
 			if err := c.wsConn.WriteMessage(websocket.BinaryMessage, messageBytes); err != nil {
+				errorWriting(err.Error())
 				return
 			}
-			// log.Printf("Wrote to user ID [%d]", c.userID)
 			log.Trace("Wrote to user ID [%d]", c.userID)
 		case <-ticker.C:
-			// log.Println("Pinging:", c.userID)
+			// log.Trace("Pinging:", c.userID)
 			c.wsConn.SetWriteDeadline(time.Now().Add(timeoutWrite))
 			if err := c.wsConn.WriteMessage(websocket.PingMessage, nil); err != nil {
+				errorWriting(err.Error())
 				return
 			}
 		case close := <-c.closeChan:
 			if close {
-				log.Debug("User ID [%d] received a signal to close writeMessages goroutine", c.userID)
+				log.Debug("Session ID [%d] as user ID [%d] received a signal to close writeMessages goroutine", c.sessionID, c.userID)
 				return
 			}
 		}
@@ -303,4 +314,28 @@ func broadCastChannel() {
 			}
 		}
 	}
+}
+
+func Compress(dataToCompress []byte) []byte {
+	log.Debug("Size before compression: [%d]", len(dataToCompress))
+
+	var buffer bytes.Buffer
+	writer := gzip.NewWriter(&buffer)
+
+	writer.Write(dataToCompress)
+	writer.Close()
+
+	log.Debug("Size after compression: [%d]", len(buffer.Bytes()))
+
+	return buffer.Bytes()
+}
+
+func Decompress(compressedData []byte) []byte {
+	reader, _ := gzip.NewReader(bytes.NewReader(compressedData))
+
+	decompressed, _ := io.ReadAll(reader)
+
+	log.Debug("Size after decompression: [%d]", len(decompressed))
+
+	return decompressed
 }

@@ -14,6 +14,8 @@ type User struct {
 	Totp        string
 }
 
+const insertUserQuery string = "INSERT INTO users (user_id, username, display_name, picture, password, totp) VALUES (?, ?, ?, ?, ?, ?)"
+
 func (u *Users) CreateUsersTable() {
 	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS users (
 		user_id BIGINT UNSIGNED PRIMARY KEY NOT NULL,

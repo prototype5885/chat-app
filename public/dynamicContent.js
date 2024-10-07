@@ -116,7 +116,7 @@ function selectLastChannels(firstChannelID) {
         let lastChannels = JSON.parse(json)
         const lastChannel = lastChannels[currentServerID.toString()]
         if (lastChannel != null) {
-            selectChannel(BigInt(lastChannel))
+            selectChannel(lastChannel)
         } else {
             console.log("Current server does not have any last channel set in localStorage, selecting first channel...")
             selectChannel(firstChannelID)
@@ -173,7 +173,7 @@ function deleteServerFromLastChannels(serverID) {
 // adds the new chat message into html
 function addChatMessage(messageID, userID, message) {
     // extract the message date from messageID
-    const msgDate = new Date(Number((BigInt(messageID) >> BigInt(20)))).toLocaleString()
+    const msgDate = new Date(Number((BigInt(messageID) >> BigInt(22)))).toLocaleString()
 
     const chatNameColor = "#e7e7e7"
     const pic = "default_profilepic.webp"
@@ -480,7 +480,6 @@ function addServer(serverID, ownerID, serverName, picture, className) {
 }
 
 function selectServer(serverID) {
-    addMember(ownUserID)
     console.log("Selected server ID", serverID, "Requesting list of channels...")
 
     const serverButton = document.getElementById(serverID)
@@ -517,10 +516,11 @@ function selectServer(serverID) {
 
     resetChannels()
     resetMessages()
+    resetMemberList()
+
     requestChannelList()
     requestMemberList()
-
-    localStorage.setItem("lastServer", serverID.toString())
+    localStorage.setItem("lastServer", serverID)
 }
 
 function deleteServer(serverID) {
@@ -600,5 +600,9 @@ function resetMessages() {
     // and the chat messages when user is viewing the latest message
     const chatScrollGap = document.createElement("div")
     ChatMessagesList.appendChild(chatScrollGap)
+}
+
+function resetMemberList() {
+    MemberList.innerHTML = ""
 }
 

@@ -12,6 +12,8 @@ type ServerInvite struct {
 	Expiration uint64
 }
 
+const insertServerInviteQuery = "INSERT INTO server_invites (invite_id, server_id, single_use, expiration) VALUES (?, ?, ?, ?)"
+
 func (si *ServerInvites) CreateServerInvitesTable() {
 	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS server_invites (
 		invite_id BIGINT UNSIGNED PRIMARY KEY NOT NULL,

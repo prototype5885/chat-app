@@ -209,7 +209,7 @@ func loginUser(username string, passwordBytes []byte) uint64 {
 // }
 
 func newTokenExpiration() uint64 {
-	return uint64(time.Now().Add(30 * 24 * time.Hour).Unix()) // 90 days from current time
+	return uint64(time.Now().Add(30 * 24 * time.Hour).Unix()) // 30 days from current time
 }
 
 func newToken(userID uint64) database.Token {
@@ -245,7 +245,10 @@ func checkIfTokenIsValid(w http.ResponseWriter, r *http.Request) uint64 {
 			return 0
 		}
 
-		var userID uint64 = database.TokensTable.ConfirmToken(tokenBytes)
+		userID, expiration := database.TokensTable.ConfirmToken(tokenBytes)
+
+		// check if expired already
+		log.Debug("%d", expiration)
 
 		// renew the token
 		if userID != 0 {

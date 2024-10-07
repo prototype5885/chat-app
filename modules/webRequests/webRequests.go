@@ -12,8 +12,15 @@ import (
 	"strings"
 )
 
+const publicFolder string = "./public"
+
 func printReceivedRequest(url string, method string) {
 	log.Trace("Received %s %s request", url, method)
+}
+
+func getHtmlFilePath(name string) string {
+	log.Debug(fmt.Sprintf("%s%s.html", publicFolder, name))
+	return fmt.Sprintf("%s%s.html", publicFolder, name)
 }
 
 func MainHandler(w http.ResponseWriter, r *http.Request) {
@@ -44,13 +51,14 @@ func LoginRegisterHandler(w http.ResponseWriter, r *http.Request) {
 	// check if user requesting login/registration already has a token
 	userID := checkIfTokenIsValid(w, r)
 	if userID != 0 { // if user is trying to login but has a token
-		log.Debug("User is trying to access /login-register.html but already has authorized token, redirecting to /chat.html...")
-		http.Redirect(w, r, "/chat.html", http.StatusMovedPermanently)
+		log.Debug("User is trying to access /login-register but already has authorized token, redirecting to /chat...")
+		http.Redirect(w, r, "/chat", http.StatusMovedPermanently)
 		return
 	}
 
 	// serve static files
-	http.FileServer(http.Dir("./public")).ServeHTTP(w, r)
+	http.ServeFile(w, r, getHtmlFilePath(r.URL.Path))
+	http.FileServer(http.Dir(publicFolder)).ServeHTTP(w, r)
 }
 
 func ChatHandler(w http.ResponseWriter, r *http.Request) {
@@ -59,12 +67,13 @@ func ChatHandler(w http.ResponseWriter, r *http.Request) {
 	// check if user requesting login/registration already has a token
 	userID := checkIfTokenIsValid(w, r)
 	if userID == 0 { // if user tries to use the chat but has no token
-		log.Debug("Someone is trying to access /chat.html without authorized token, redirecting to / ...")
+		log.Debug("Someone is trying to access /chat without authorized token, redirecting to / ...")
 		http.Redirect(w, r, "/", http.StatusMovedPermanently)
 		return
 	}
 
 	// serve static files
+	http.ServeFile(w, r, getHtmlFilePath(r.URL.Path))
 	http.FileServer(http.Dir("./public")).ServeHTTP(w, r)
 }
 
@@ -120,13 +129,12 @@ func InviteHandler(w http.ResponseWriter, r *http.Request) {
 		log.Debug("Someone without authorized token clicked on an invite link")
 		return
 	} else {
-		fmt.Fprintln(w, "Logged in")
-
 		parts := strings.Split(r.URL.Path, "/invite/")
 		if len(parts) > 1 {
 			var inviteIDstring string = parts[len(parts)-1]
 			inviteID, err := strconv.ParseUint(inviteIDstring, 10, 64)
 			if err != nil {
+				fmt.Fprintln(w, "What kind of invite ID is that?")
 				log.Warn("User ID [%d] sent a server invite http request where the ID can't be parsed [%s]", userID, inviteIDstring)
 				return
 			}
@@ -135,10 +143,16 @@ func InviteHandler(w http.ResponseWriter, r *http.Request) {
 			if serverID != 0 {
 				log.Debug("Invite ID [%d] belongs to server ID [%d]", inviteID, serverID)
 
-				if !database.Insert(database.ServerMember{ServerID: serverID, UserID: userID}) {
-
+				if database.Insert(database.ServerMember{ServerID: serverID, UserID: userID}) {
+					fmt.Fprintf(w, "Successfully joined server ID [%d]\n", serverID)
+					return
 				}
+
+				// http.Redirect(w, r, "/chat", http.StatusMovedPermanently)
+			} else {
+				fmt.Fprintf(w, "No invite exists with this invite ID\n")
 			}
 		}
 	}
+	// fmt.Fprintf(w, "Could not join server\n")
 }

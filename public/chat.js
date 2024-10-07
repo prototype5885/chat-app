@@ -61,10 +61,6 @@ document.addEventListener("DOMContentLoaded", function () {
         }
 
         requestServerList()
-
-        // for (i = 0; i < 1000000; i++) {
-        //     sendChatMessage(Math.random().toString(), BigInt(1810996904781152256n))
-        // }
     }
 
     registerClickListeners() // add event listener for clicking
@@ -72,8 +68,8 @@ document.addEventListener("DOMContentLoaded", function () {
 })
 
 // when server sends a message
-wsClient.onmessage = function (event) {
-    const receivedBytes = new Uint8Array(event.data)
+wsClient.onmessage = async function (event) {
+    let receivedBytes = new Uint8Array(event.data)
 
     // convert the first 4 bytes into uint32 to get the endIndex,
     // which marks the end of the packet
@@ -95,7 +91,7 @@ wsClient.onmessage = function (event) {
             break
         case 1: // Server sent a chat message
             console.log("Server sent a chat message")
-            addChatMessage(BigInt(json.IDm), BigInt(json.IDu), json.Msg)
+            addChatMessage(json.IDm, json.IDu, json.Msg)
             ChatMessagesList.scrollTo({
                 top: ChatMessagesList.scrollHeight,
                 behavior: 'smooth'
@@ -105,7 +101,7 @@ wsClient.onmessage = function (event) {
             console.log("Server sent the requested chat history")
             if (json !== null) {
                 for (let i = 0; i < json.length; i++) {
-                    addChatMessage(BigInt(json[i].IDm), BigInt(json[i].IDu), json[i].Msg) // messageID, userID, Message
+                    addChatMessage(json[i].IDm, json[i].IDu, json[i].Msg) // messageID, userID, Message
                 }
                 ChatMessagesList.scrollTo({
                     top: ChatMessagesList.scrollHeight,
@@ -117,14 +113,14 @@ wsClient.onmessage = function (event) {
             break
         case 3: // Server sent which message was deleted
             console.log("Server sent which message was deleted")
-            const messageID = BigInt(json.MessageID)
+            const messageID = json.MessageID
             console.log('Deleting message id ' + messageID)
             document.getElementById(messageID).remove()
             break
         case 21: // Server responded to the add server request
             console.log("Server responded to the add server request")
-            addServer(BigInt(json.ServerID), BigInt(json.OwnerID), json.Name, json.Picture, 'server', discordGray, discordBlue)
-            selectServer(BigInt(json.ServerID))
+            addServer(json.ServerID, json.OwnerID, json.Name, json.Picture, 'server', discordGray, discordBlue)
+            selectServer(json.ServerID)
             serversSeparatorVisibility()
             break
         case 22: // Server sent the requested server list
@@ -132,7 +128,7 @@ wsClient.onmessage = function (event) {
             if (json != null) {
                 for (let i = 0; i < json.length; i++) {
                     console.log('Adding server ID', json[i].ServerID)
-                    addServer(BigInt(json[i].ServerID), BigInt(json[i].OwnerID), json[i].Name, json[i].Picture, 'server', discordGray, discordBlue)
+                    addServer(json[i].ServerID, json[i].OwnerID, json[i].Name, json[i].Picture, 'server', discordGray, discordBlue)
                 }
             } else {
                 console.log('Not being in any servers')
@@ -143,7 +139,7 @@ wsClient.onmessage = function (event) {
             break
         case 23: // Server sent which server was deleted
             console.log("Server sent which server was deleted")
-            const serverID = BigInt(json.ServerID)
+            const serverID = json.ServerID
             deleteServer(serverID)
             deleteServerFromLastChannels(serverID)
             // removeDeletedLastChannels()
@@ -154,14 +150,14 @@ wsClient.onmessage = function (event) {
             break
         case 24: // Server sent the requested invite link to the chat server
             console.log("Server sent the requested invite link to the chat server")
-            const inviteID = BigInt(json).toString()
+            const inviteID = json
             const inviteLink = `${window.location.protocol}//${window.location.host}/invite/${inviteID}`
             console.log(inviteLink)
             navigator.clipboard.writeText(inviteLink)
             break
         case 31: // Server responded to the add channel request
             console.log("Server responded to the add channel request")
-            addChannel(BigInt(json.ChannelID), json.Name)
+            addChannel(json.ChannelID, json.Name)
             break
         case 32: // Server sent the requested channel list
             console.log("Server sent the requested channel list")
@@ -169,10 +165,11 @@ wsClient.onmessage = function (event) {
                 console.warn("No channels on server ID", currentServerID)
                 break
             }
+            console.log(json)
             for (let i = 0; i < json.length; i++) {
-                addChannel(BigInt(json[i].ChannelID), json[i].Name)
+                addChannel(json[i].ChannelID, json[i].Name)
             }
-            selectLastChannels(BigInt(json[0].ChannelID))
+            selectLastChannels(json[0].ChannelID)
             break
         case 42: // Server sent the requested member list
             console.log("Server sent the requsted member list")
@@ -181,11 +178,12 @@ wsClient.onmessage = function (event) {
                 break
             }
             for (let i = 0; i < json.length; i++) {
-                console.log(BigInt(json[i].UserID))
+                addMember(json[i])
+                console.log(json[i])
             }
             break
         case 241: // Server sent the client's own user ID
-            ownUserID = BigInt(json)
+            ownUserID = json
             console.log('Received own user ID:', ownUserID)
             UserPanelName.textContent = ownUserID
             receivedOwnUserID = true
@@ -234,7 +232,7 @@ function preparePacket(type, bigintID, struct) {
         wsClient.send(packet)
     }
     else {
-        console.log('Websocket is not ope')
+        console.log('Websocket is not open')
     }
 }
 
@@ -303,7 +301,7 @@ function requestAddChannel() {
 function requestChannelList() {
     console.log("Requesting channel list for current server ID", currentServerID)
     preparePacket(32, currentServerID, {
-        ServerID: currentServerID.toString()
+        ServerID: currentServerID
     })
 }
 

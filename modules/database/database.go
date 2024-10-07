@@ -111,43 +111,36 @@ func Insert(structo any) bool {
 		typeName = "channel"
 		id = s.ChannelID
 		printInsertingMsg()
-		const query string = "INSERT INTO channels (channel_id, server_id, name) VALUES (?, ?, ?)"
-		_, err = db.Exec(query, s.ChannelID, s.ServerID, s.Name)
+		_, err = db.Exec(insertChannelQuery, s.ChannelID, s.ServerID, s.Name)
 	case ChatMessage:
 		typeName = "message"
 		id = s.MessageID
 		printInsertingMsg()
-		const query string = "INSERT INTO messages (message_id, channel_id, user_id, message) VALUES (?, ?, ?, ?)"
-		_, err = db.Exec(query, s.MessageID, s.ChannelID, s.UserID, s.Message)
+		_, err = db.Exec(insertChatMessageQuery, s.MessageID, s.ChannelID, s.UserID, s.Message)
 	case Server:
 		typeName = "server"
 		id = s.ServerID
 		printInsertingMsg()
-		const query string = "INSERT INTO servers (server_id, owner_id, name, picture) VALUES (?, ?, ?, ?)"
-		_, err = db.Exec(query, s.ServerID, s.OwnerID, s.Name, s.Picture)
+		_, err = db.Exec(insertServerQuery, s.ServerID, s.OwnerID, s.Name, s.Picture)
 	case Token:
 		typeName = "token"
 		id = s.UserID
-		const query string = "INSERT INTO tokens (token, user_id, expiration) VALUES (?, ?, ?)"
-		_, err = db.Exec(query, s.Token, s.UserID, s.Expiration)
+		_, err = db.Exec(insertTokenQuery, s.Token, s.UserID, s.Expiration)
 	case User:
 		typeName = "user"
 		id = s.UserID
 		printInsertingMsg()
-		const query string = "INSERT INTO users (user_id, username, display_name, picture, password, totp) VALUES (?, ?, ?, ?, ?, ?)"
-		_, err = db.Exec(query, s.UserID, s.Username, s.DisplayName, s.Picture, s.Password, s.Totp)
+		_, err = db.Exec(insertUserQuery, s.UserID, s.Username, s.DisplayName, s.Picture, s.Password, s.Totp)
 	case ServerMember:
 		typeName = "server_member"
 		id = s.UserID
 		printInsertingMsg()
-		const query string = "INSERT INTO server_members (server_id, user_id) VALUES (?, ?)"
-		_, err = db.Exec(query, s.ServerID, s.UserID)
+		_, err = db.Exec(insertServerMemberQuery, s.ServerID, s.UserID)
 	case ServerInvite:
 		typeName = "server_invite"
 		id = s.ServerID
 		printInsertingMsg()
-		const query = "INSERT INTO server_invites (invite_id, server_id, single_use, expiration) VALUES (?, ?, ?, ?)"
-		_, err = db.Exec(query, s.InviteID, s.ServerID, s.SingleUse, s.Expiration)
+		_, err = db.Exec(insertServerInviteQuery, s.InviteID, s.ServerID, s.SingleUse, s.Expiration)
 	default:
 		log.Fatal("Unknown type in db Insert: %T", s)
 	}
@@ -159,7 +152,7 @@ func Insert(structo any) bool {
 			return false
 		} else if strings.Contains(err.Error(), "Error 1062") {
 			// Error 1062: Duplicate entry for key
-			log.FatalError(err.Error(), "Trying to insert duplicate key into database")
+			log.WarnError(err.Error(), "Trying to insert duplicate key into database")
 			return false
 		} else {
 			// unknown error

@@ -1,12 +1,13 @@
 package websocket
 
 import (
-	"database/sql"
 	"encoding/json"
 	"proto-chat/modules/database"
 	log "proto-chat/modules/logging"
 	"proto-chat/modules/macros"
 	"proto-chat/modules/snowflake"
+	"proto-chat/modules/structs"
+	"strconv"
 )
 
 // type Channel struct {
@@ -14,11 +15,6 @@ import (
 // 	ServerID  uint64
 // 	Name      string
 // }
-
-type ChannelResponse struct { // this is whats sent to the client when client requests channel
-	ChannelID uint64
-	Name      string
-}
 
 // when client is requesting to add a new channel, type 31
 func (c *Client) onAddChannelRequest(packetJson []byte, packetType byte) (BroadcastData, []byte) {
@@ -56,8 +52,8 @@ func (c *Client) onAddChannelRequest(packetJson []byte, packetType byte) (Broadc
 	}
 
 	// serialize response about success
-	var channelResponse = ChannelResponse{
-		ChannelID: channelID,
+	var channelResponse = structs.ChannelResponse{
+		ChannelID: strconv.FormatUint(channelID, 10),
 		Name:      channelRequest.Name,
 	}
 
@@ -89,28 +85,9 @@ func (c *Client) onChannelListRequest(packetJson []byte) []byte {
 
 	// TODO check if user has permission to access the server
 
-	var rows *sql.Rows = database.ChannelsTable.GetChannelList(channelListRequest.ServerID)
+	var channelList []structs.ChannelResponse = database.ChannelsTable.GetChannelList(channelListRequest.ServerID)
 
-	var channels []ChannelResponse
-
-	var counter int = 0
-	for rows.Next() {
-		counter++
-		var channel = ChannelResponse{}
-		err := rows.Scan(&channel.ChannelID, &channel.Name)
-		if err != nil {
-			log.FatalError(err.Error(), "Error scanning channel row into struct from server ID [%d]:", serverID)
-		}
-		channels = append(channels, channel)
-	}
-
-	if counter == 0 {
-		log.Debug("Server ID [%d] doesn't have any channels", serverID)
-	} else {
-		log.Debug("Channels from server ID [%d] were retrieved successfully", serverID)
-	}
-
-	messagesBytes, err := json.Marshal(channels)
+	messagesBytes, err := json.Marshal(channelList)
 	if err != nil {
 		macros.ErrorSerializing(err.Error(), jsonType, c.userID)
 	}

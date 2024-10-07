@@ -99,9 +99,9 @@ func main() {
 
 	// http requests
 
-	http.HandleFunc("GET /login-register.html", webRequests.LoginRegisterHandler)
+	http.HandleFunc("GET /login-register", webRequests.LoginRegisterHandler)
 	http.HandleFunc("GET /invite/", webRequests.InviteHandler)
-	http.HandleFunc("GET /chat.html", webRequests.ChatHandler)
+	http.HandleFunc("GET /chat", webRequests.ChatHandler)
 
 	http.HandleFunc("POST /login", webRequests.PostRequestHandler)
 	http.HandleFunc("POST /register", webRequests.PostRequestHandler)

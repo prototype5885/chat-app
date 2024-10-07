@@ -12,6 +12,8 @@ type Token struct {
 	Expiration uint64
 }
 
+const insertTokenQuery string = "INSERT INTO tokens (token, user_id, expiration) VALUES (?, ?, ?)"
+
 func (t *Tokens) CreateTokensTable() {
 	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS tokens (
 		token BINARY(128) PRIMARY KEY NOT NULL,
@@ -24,7 +26,7 @@ func (t *Tokens) CreateTokensTable() {
 	}
 }
 
-func (t *Tokens) ConfirmToken(tokenBytes []byte) uint64 {
+func (t *Tokens) ConfirmToken(tokenBytes []byte) (uint64, uint64) {
 	log.Debug("Searching for token in database...")
 
 	const query string = "SELECT user_id, expiration FROM tokens WHERE token = ?"
@@ -37,12 +39,12 @@ func (t *Tokens) ConfirmToken(tokenBytes []byte) uint64 {
 		log.Error(err.Error())
 		if err == sql.ErrNoRows { // token was not found
 			log.Debug("Token was not found in database: [%s]", macros.ShortenToken(tokenBytes))
-			return 0
+			return 0, 0
 		}
 		log.Fatal("Error retrieving token [%s] from database", macros.ShortenToken(tokenBytes))
 	}
 	log.Debug("Given token was successfully found in database, it belongs to user ID [%d], expires at [%d]", userID, expiration)
-	return userID
+	return userID, expiration
 }
 
 func (t *Tokens) RenewTokenExpiration(newExpiration uint64, tokenBytes []byte) {
@@ -52,18 +54,18 @@ func (t *Tokens) RenewTokenExpiration(newExpiration uint64, tokenBytes []byte) {
 
 	result, err := db.Exec(query, newExpiration, tokenBytes)
 	if err != nil {
-		log.FatalError(err.Error(), "Couldn't update token expiration timestamp for token [%s]", macros.ShortenToken(tokenBytes))
+		log.FatalError(err.Error(), "Couldn't update token expiration timestamp for token [%s] in database", macros.ShortenToken(tokenBytes))
 	}
 
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		log.FatalError(err.Error(), "Error getting rowsAffected while updating token expiration timestamp for token [%s]", macros.ShortenToken(tokenBytes))
+		log.FatalError(err.Error(), "Error getting rowsAffected after updating token expiration timestamp for token [%s] in database", macros.ShortenToken(tokenBytes))
 	}
 
 	if rowsAffected == 1 {
-		log.Debug("Updated expiration timestamp for token [%s]", macros.ShortenToken(tokenBytes))
+		log.Debug("Updated expiration timestamp for token [%s] in database", macros.ShortenToken(tokenBytes))
 	} else if rowsAffected == 0 {
-		log.Debug("No changes were made for expiration timestamp for token [%s]", macros.ShortenToken(tokenBytes))
+		log.Debug("No changes were made for expiration timestamp for token [%s] in database", macros.ShortenToken(tokenBytes))
 	} else {
 		log.Impossible("Multiple expiration timestamps of token [%s] were updated, this is not supposed to be possible at all", macros.ShortenToken(tokenBytes))
 	}
