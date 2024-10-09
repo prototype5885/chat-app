@@ -2,6 +2,7 @@ package database
 
 import (
 	log "proto-chat/modules/logging"
+	"proto-chat/modules/structs"
 )
 
 type ServerMember struct {
@@ -27,34 +28,41 @@ func CreateServerMembersTable() {
 	}
 }
 
-func GetServerMembersList(serverID uint64) []string {
+func GetServerMembersList(serverID uint64) []structs.ServerMemberListResponse {
 	log.Debug("Getting list of members of server ID [%d]...", serverID)
-	const query string = "SELECT user_id FROM server_members WHERE server_id = ?"
+	// const query string = "SELECT user_id FROM server_members WHERE server_id = ?"
+
+	const query string = `
+		SELECT u.user_id, u.display_name, u.picture
+		FROM users u
+		JOIN server_members sm ON u.user_id = sm.user_id 
+		WHERE sm.server_id = ?
+	`
 
 	rows, err := db.Query(query, serverID)
 	if err != nil {
 		log.FatalError(err.Error(), "Error searching for members in server ID [%d]", serverID)
 	}
-	var userIDs []string
+	var userInfos []structs.ServerMemberListResponse
 
 	var counter int = 0
 	for rows.Next() {
 		counter++
-		var userID string
-		err := rows.Scan(&userID)
+		var userInfo = structs.ServerMemberListResponse{Status: "custom status"}
+		err := rows.Scan(&userInfo.UserID, &userInfo.Name, &userInfo.Picture)
 		if err != nil {
-			log.FatalError(err.Error(), "Error scanning server member row into userID of server ID [%s]:", userID)
+			log.FatalError(err.Error(), "Error scanning server member row into userID of server ID [%d]:", serverID)
 		}
-		userIDs = append(userIDs, userID)
+		userInfos = append(userInfos, userInfo)
 	}
 
 	if counter == 0 {
 		log.Debug("Server ID [%d] doesn't have any members", serverID)
-		return userIDs
+		return userInfos
 	}
 
 	log.Debug("Members of server ID [%d] were retrieved successfully", serverID)
-	return userIDs
+	return userInfos
 }
 
 func ConfirmUserMembership(userID uint64, serverID uint64) bool {

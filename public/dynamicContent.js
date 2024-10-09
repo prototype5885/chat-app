@@ -28,6 +28,13 @@ function resizeChatInput() {
     ChatInput.style.height = ChatInput.scrollHeight + "px"
 }
 
+function getUserInfo(userID) {
+    const member = document.getElementById(userID)
+    pic = member.querySelector('img.profile-pic').src
+    username = member.querySelector('div.user-name').textContent
+    return { username: username, pic: pic }
+}
+
 // delete context menu if left clicked somewhere thats not
 // a context menu list element
 document.addEventListener("click", function (event) {
@@ -180,9 +187,11 @@ function addChatMessage(messageID, userID, message) {
     // extract the message date from messageID
     const msgDate = new Date(Number((BigInt(messageID) >> BigInt(22)))).toLocaleString()
 
+    const userInfo = getUserInfo(userID)
+
     const chatNameColor = "#e7e7e7"
-    const pic = "default_profilepic.webp"
-    const username = userID.toString()
+    // const pic = "default_profilepic.webp"
+    // const username = userID.toString()
 
     // create a <li> that holds the message
     const li = document.createElement("li")
@@ -201,7 +210,7 @@ function addChatMessage(messageID, userID, message) {
     const img = document.createElement("img")
     // img.className = "msg-profile-pic"
     img.className = "msg-profile-pic"
-    img.src = pic
+    img.src = userInfo.pic
     img.alt = "pfpic"
     img.width = 40
     img.height = 40
@@ -219,7 +228,7 @@ function addChatMessage(messageID, userID, message) {
     // and inside that create a <div> that displays the sender"s name on the left
     const msgNameDiv = document.createElement("div")
     msgNameDiv.className = "msg-user-name"
-    msgNameDiv.textContent = username
+    msgNameDiv.textContent = userInfo.username
     msgDataDiv.style.color = chatNameColor
 
     registerRightClick(msgNameDiv, (pageX, pageY) => { userCtxMenu(userID, pageX, pageY) })
@@ -387,7 +396,7 @@ function deletebubble() {
     }
 }
 
-function addMember(userID) {
+function addMember(userID, displayName, picture, status) {
     // create a <li> that holds the user
     const li = document.createElement("li")
     li.className = "member"
@@ -396,7 +405,7 @@ function addMember(userID) {
     // create a <img> that shows profile pic on the left
     const img = document.createElement("img")
     img.className = "profile-pic"
-    img.src = "default_profilepic.webp"
+    img.src = picture
     img.alt = "pfpic"
     img.width = 32
     img.height = 32
@@ -408,13 +417,13 @@ function addMember(userID) {
     // create <div> that will hold the user"s message
     const userNameDiv = document.createElement("div")
     userNameDiv.className = "user-name"
-    userNameDiv.textContent = userID.toString()
+    userNameDiv.textContent = displayName
     userNameDiv.style.color = grey1
 
     // now create a <div> under name that display statis
     const userStatusDiv = document.createElement("div")
     userStatusDiv.className = "user-status-text"
-    userStatusDiv.textContent = "status"
+    userStatusDiv.textContent = status
 
     // append both name/date <div> and msg <div> to msgDatDiv
     userDataDiv.appendChild(userNameDiv)
@@ -504,6 +513,8 @@ function addServer(serverID, ownerID, serverName, picture, className) {
 
 function selectServer(serverID) {
     console.log("Selected server ID", serverID, "Requesting list of channels...")
+
+    memberListLoaded = false
 
     const serverButton = document.getElementById(serverID)
     if (serverButton == null) {

@@ -41,6 +41,7 @@ type Client struct {
 	userID           uint64
 	currentChannelID uint64
 	currentServerID  uint64
+	status           string
 	writeChan        chan []byte
 	closeChan        chan bool
 }
@@ -82,6 +83,7 @@ func AcceptWsClient(userID uint64, w http.ResponseWriter, r *http.Request) {
 		sessionID:        sessionID,
 		userID:           userID,
 		currentChannelID: 0,
+		status:           "custom status",
 		writeChan:        make(chan []byte, 10),
 		closeChan:        make(chan bool),
 	}
@@ -240,6 +242,9 @@ func (c *Client) readMessages(wg *sync.WaitGroup) {
 				broadcastChan <- broadcastData
 				c.writeChan <- broadcastData.MessageBytes
 			}
+		// case 44: // a user requested info of an other user
+		// 	log.Debug("User ID [%d] is requesting info of a user", c.userID)
+		// 	c.writeChan <- c.onUserInfoRequest(packetJson, packetType)
 
 		// case 42: // client is requesting to send names
 		// 	log.Printf("User ID [%d] is requesting name/names of servers/channels/users", userID)

@@ -65,3 +65,23 @@ func GetPasswordAndID(username string) ([]byte, uint64) {
 	log.Debug("Password of user  [%s] was retreived from database successfully", username)
 	return passwordHash, userID
 }
+
+func GetUserInfo(userID uint64) (string, string) {
+	log.Debug("Searching for fields display_name and picture in database of user ID [%d]...", userID)
+	const query string = "SELECT display_name, picture FROM users WHERE user_id = ?"
+
+	var displayName string
+	var profilePic string
+
+	err := db.QueryRow(query, userID).Scan(&displayName, &profilePic)
+	if err != nil {
+		log.Error(err.Error())
+		if err == sql.ErrNoRows { // there is no user with this id
+			log.Debug("No user was found with user ID [%d]", userID)
+			return "", ""
+		}
+		log.Fatal("Error getting fields display_name and picture of user ID [%d] from database", userID)
+	}
+	log.Debug("Display name and picture of user ID [%d] were retrieved from database successfully", userID)
+	return displayName, profilePic
+}

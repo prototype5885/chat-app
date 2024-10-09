@@ -1,18 +1,35 @@
+// check if protocol is http or https
 var wsClient
-if (location.protocol === 'https:') {
-    wsClient = new WebSocket('wss://' + window.location.host + "/wss")
+if (location.protocol === "https:") {
+    wsClient = new WebSocket("wss://" + window.location.host + "/wss")
 } else {
-    wsClient = new WebSocket('ws://' + window.location.host + "/ws")
+    wsClient = new WebSocket("ws://" + window.location.host + "/ws")
 }
-wsClient.binaryType = 'arraybuffer'
+// make the websocket work with byte arrays
+wsClient.binaryType = "arraybuffer"
 
-var ownUserID
-var receivedOwnUserID = false
+var ownUserID // this will be the first thing server will send
+var receivedOwnUserID = false // don't continue loading until own user ID is received
+var memberListLoaded = false // don't add chat history until server member list is received
 
 if (typeof (Storage) !== "undefined") {
-    console.log('Supports storage')
+    console.log("Supports storage")
 } else {
-    console.log('Doesnt support storage')
+    console.log("Doesnt support storage")
+}
+
+if (Notification.permission !== "granted") {
+    Notification.requestPermission();
+}
+
+function sendNotification(userID, message) {
+    const userInfo = getUserInfo(userID)
+    if (Notification.permission === "granted") {
+        new Notification(userInfo.username, {
+            body: message,
+            icon: userInfo.pic // Optional icon
+        });
+    }
 }
 
 function waitUntilBoolIsTrue(checkFunction, interval = 10) {
@@ -28,7 +45,7 @@ function waitUntilBoolIsTrue(checkFunction, interval = 10) {
 
 // this runs after webpage was loaded
 document.addEventListener("DOMContentLoaded", function () {
-    addServer("2000", 0, 'Direct Messages', 'hs.svg', 'dm') // add the direct messages button
+    addServer("2000", 0, "Direct Messages", "hs.svg", "dm") // add the direct messages button
 
     // add place holder servers depending on how many servers the client was in, will delete on websocket connection
     // purely visual
@@ -38,13 +55,13 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // this will continue when websocket connected
     wsClient.onopen = async function (_event) {
-        console.log('Connected to WebSocket successfully.')
+        console.log("Connected to WebSocket successfully.")
 
-        // waits until server sends user's own ID
+        // waits until server sends user"s own ID
         console.log("Waiting for server to send own user ID...")
         await waitUntilBoolIsTrue(() => receivedOwnUserID);
 
-        const loading = document.getElementById('loading')
+        const loading = document.getElementById("loading")
         const fadeOut = 0.25 //seconds
 
         setTimeout(() => {
@@ -52,8 +69,8 @@ document.addEventListener("DOMContentLoaded", function () {
         }, fadeOut * 1000)
 
         loading.style.transition = `background-color ${fadeOut}s ease`
-        loading.style.backgroundColor = '#00000000'
-        loading.style.pointerEvents = 'none'
+        loading.style.backgroundColor = "#00000000"
+        loading.style.pointerEvents = "none"
 
         // remove placeholder servers
         for (let i = 0; i < placeholderButtons.length; i++) {
@@ -85,7 +102,7 @@ wsClient.onmessage = async function (event) {
     // get the json string from the 6th byte to the end
     const packetJson = String.fromCharCode.apply(null, receivedBytes.slice(5, endIndex))
 
-    console.log('Received packet:', endIndex, packetType, packetJson)
+    console.log("Received packet:", endIndex, packetType, packetJson)
 
     const json = JSON.parse(packetJson)
     switch (packetType) {
@@ -97,43 +114,47 @@ wsClient.onmessage = async function (event) {
             addChatMessage(json.IDm, json.IDu, json.Msg)
             ChatMessagesList.scrollTo({
                 top: ChatMessagesList.scrollHeight,
-                behavior: 'smooth'
+                behavior: "smooth"
             })
+            NotificationSound.play()
+            sendNotification(json.IDu, json.Msg)
             break
         case 2: // Server sent the requested chat history
             console.log("Server sent the requested chat history")
+
+            await waitUntilBoolIsTrue(() => memberListLoaded);
             if (json !== null) {
                 for (let i = 0; i < json.length; i++) {
                     addChatMessage(json[i].IDm, json[i].IDu, json[i].Msg) // messageID, userID, Message
                 }
                 ChatMessagesList.scrollTo({
                     top: ChatMessagesList.scrollHeight,
-                    behavior: 'instant'
+                    behavior: "instant"
                 })
             } else {
-                console.log('Current channel has no chat history')
+                console.log("Current channel has no chat history")
             }
             break
         case 3: // Server sent which message was deleted
             console.log("Server sent which message was deleted")
             const messageID = json
-            console.log('Deleting message id ' + messageID)
+            console.log("Deleting message id " + messageID)
             document.getElementById(messageID).remove()
             break
         case 21: // Server responded to the add server request
             console.log("Server responded to the add server request")
-            addServer(json.ServerID, json.OwnerID, json.Name, json.Picture, 'server')
+            addServer(json.ServerID, json.OwnerID, json.Name, json.Picture, "server")
             selectServer(json.ServerID)
             break
         case 22: // Server sent the requested server list
             console.log("Server sent the requested server list")
             if (json != null) {
                 for (let i = 0; i < json.length; i++) {
-                    console.log('Adding server ID', json[i].ServerID)
-                    addServer(json[i].ServerID, json[i].OwnerID, json[i].Name, json[i].Picture, 'server')
+                    console.log("Adding server ID", json[i].ServerID)
+                    addServer(json[i].ServerID, json[i].OwnerID, json[i].Name, json[i].Picture, "server")
                 }
             } else {
-                console.log('Not being in any servers')
+                console.log("Not being in any servers")
             }
             lookForDeletedServersInLastChannels()
             break
@@ -176,29 +197,32 @@ wsClient.onmessage = async function (event) {
                 break
             }
             for (let i = 0; i < json.length; i++) {
-                addMember(json[i])
-                console.log(json[i])
+                addMember(json[i].UserID, json[i].Name, json[i].Picture, json[i].Status)
             }
+            memberListLoaded = true
             break
         case 43: // Server sent user which user left a server
             console.log(`Server sent that user ID [${json.UserID}] left server ID [${json.ServerID}]`)
             if (json.UserID == ownUserID) {
-                console.log(`That's me, deleting server ID [${json.ServerID}]...`)
+                console.log(`That"s me, deleting server ID [${json.ServerID}]...`)
                 deleteServer(json.ServerID)
                 selectServer("2000")
             } else {
                 removeMember(json.UserID)
             }
             break
+        case 44: // Server sent the requested info of a user
+            console.log("Server sent requested info of a user")
+            addUserInfo(json.UserID, json.Name, json.Picture)
 
-        case 241: // Server sent the client's own user ID
+        case 241: // Server sent the client"s own user ID
             ownUserID = json
-            console.log('Received own user ID:', ownUserID)
+            console.log("Received own user ID:", ownUserID)
             UserPanelName.textContent = ownUserID
             receivedOwnUserID = true
             break
         default:
-            console.log('Server sent unknown message type')
+            console.log("Server sent unknown message type")
     }
 }
 
@@ -236,32 +260,67 @@ function preparePacket(type, bigintID, struct) {
         packet.set(typeByte, 4) // 5. byte will be the packet type
         packet.set(jsonBytes, 5) // rest will be the json byte array
 
-        console.log('Prepared packet:', endIndex, packet[4], json)
+        console.log("Prepared packet:", endIndex, packet[4], json)
 
         wsClient.send(packet)
     }
     else {
-        console.log('Websocket is not open')
+        console.log("Websocket is not open")
     }
 }
+
+// function addUserInSight(userID) {
+//     console.log(`Adding user ID [${userID}] into usersInSight`)
+//     usersInSight.set(userID, false)
+//     requestUserInfo(userID)
+// }
+
+// function checkIfUserHasInfo(userID) {
+//     if (usersInSight.get(userID) === false) {
+//         console.log(`User ID [${userID}] doesn't have info, requesting...`)
+//         requestUserInfo(userID)
+//     } else {
+//         console.log(`User ID [${userID}] has info`)
+//     }
+// }
+
+// function requestUserInfo(userID) {
+//     console.log(`Requesting info of a user ID [${userID}]`)
+//     preparePacket(44, userID, {
+//         UserID: userID
+//     })
+// }
+
+// function addUserInfo(userID, displayName, profilePic) {
+//     usersInSight.set(userID, { displayName: displayName, profilePic: profilePic })
+//     console.log(usersInSight.get(userID))
+//     applyUserInfo()
+// }
+
+// function applyUserInfo() {
+//     usersInSight.forEach((value, key) => {
+//         // console.log(`Key: ${key}, Values: ${value.displayName}`)
+//         const member = document.getElementById(key)
+//     })
+// }
 
 function sendChatMessage(message, channelID) { // type is 1
     console.log("Sending a chat message")
     preparePacket(1, channelID, {
-        ChannelID: channelID.toString(),
+        ChannelID: channelID,
         Message: message
     })
 }
 function requestChatHistory(channelID) {
     console.log("Requesting chat history for channel ID", channelID)
     preparePacket(2, channelID, {
-        ChannelID: channelID.toString()
+        ChannelID: channelID
     })
 }
 function requestDeleteChatMessage(messageID) {
     console.log("Requesting to delete chat message ID", messageID)
     preparePacket(3, messageID, {
-        MessageID: messageID.toString()
+        MessageID: messageID
     })
 }
 function requestAddServer(serverName) {
@@ -272,22 +331,22 @@ function requestAddServer(serverName) {
 }
 
 function requestRenameServer(serverID) {
-    console.log('Requesting to rename server ID:', serverID)
+    console.log("Requesting to rename server ID:", serverID)
 }
 
 function requestDeleteServer(serverID) {
-    if (document.getElementById(serverID).getAttribute('owned') == 'false') return
-    console.log('Requesting to delete server ID:', serverID)
+    if (document.getElementById(serverID).getAttribute("owned") == "false") return
+    console.log("Requesting to delete server ID:", serverID)
     preparePacket(23, serverID, {
-        ServerID: serverID.toString()
+        ServerID: serverID
     })
 }
 
 function requestInviteLink(serverID) {
-    if (document.getElementById(serverID).getAttribute('owned') == 'false') return
+    if (document.getElementById(serverID).getAttribute("owned") == "false") return
     console.log("Requesting invite link creation for server ID:", serverID)
     preparePacket(24, serverID, {
-        ServerID: serverID.toString(),
+        ServerID: serverID,
         SingleUse: false,
         Expiration: 7
     })
@@ -299,11 +358,11 @@ function requestServerList() {
 }
 
 function requestAddChannel() {
-    if (document.getElementById(currentServerID).getAttribute('owned') == 'false') return
-    console.log('Requesting to add new channel to server ID:', currentServerID)
+    if (document.getElementById(currentServerID).getAttribute("owned") == "false") return
+    console.log("Requesting to add new channel to server ID:", currentServerID)
     preparePacket(31, currentServerID, {
-        Name: 'Channel',
-        ServerID: currentServerID.toString()
+        Name: "Channel",
+        ServerID: currentServerID
     })
 }
 
@@ -317,13 +376,13 @@ function requestChannelList() {
 function requestMemberList() {
     console.log("Requesting member list for current server ID", currentServerID)
     preparePacket(42, currentServerID, {
-        ServerID: currentServerID.toString()
+        ServerID: currentServerID
     })
 }
 
 function requestLeaveServer(serverID) {
     console.log("Requesting to leave a server ID", serverID)
     preparePacket(43, serverID, {
-        ServerID: serverID.toString()
+        ServerID: serverID
     })
 }

@@ -23,9 +23,9 @@ func (c *Client) onServerMemberListRequest(packetJson []byte) []byte {
 	}
 	var serverID uint64 = userListRequest.ServerID
 
-	var userIDs []string = database.GetServerMembersList(serverID)
+	var userInfos []structs.ServerMemberListResponse = database.GetServerMembersList(serverID)
 
-	jsonBytes, err := json.Marshal(userIDs)
+	jsonBytes, err := json.Marshal(userInfos)
 	if err != nil {
 		macros.ErrorSerializing(err.Error(), jsonType, c.userID)
 	}

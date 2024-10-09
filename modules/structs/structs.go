@@ -28,7 +28,20 @@ type ServerDeletionResponse struct {
 	UserID   string
 }
 
+type ServerMemberListResponse struct {
+	UserID  string
+	Name    string
+	Picture string
+	Status  string
+}
+
 type ServerMemberDeletionResponse struct {
 	ServerID string
 	UserID   string
 }
+
+// type UserInfo struct {
+// 	UserID  string
+// 	Name    string
+// 	Picture string
+// }
