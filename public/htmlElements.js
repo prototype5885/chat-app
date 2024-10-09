@@ -1,5 +1,6 @@
 const AddChannelButton = document.getElementById('add-channel-button')
 const ServerList = document.getElementById('server-list')
+const serverSeparators = ServerList.querySelectorAll(".servers-separator")
 const ChannelList = document.getElementById('channel-list')
 const MemberList = document.getElementById('member-list')
 const ChatMessagesList = document.getElementById('chat-message-list')

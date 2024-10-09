@@ -60,7 +60,7 @@ func (c *Client) onChatMessageRequest(packetJson []byte, packetType byte) Broadc
 }
 
 // when client is requesting chat history for a channel, type 2
-func (c *Client) onChatHistoryRequest(packetJson []byte) []byte {
+func (c *Client) onChatHistoryRequest(packetJson []byte, packetType byte) []byte {
 	const jsonType string = "chat history"
 
 	type ChatHistoryRequest struct {
@@ -74,7 +74,7 @@ func (c *Client) onChatHistoryRequest(packetJson []byte) []byte {
 	}
 	var channelID uint64 = chatHistoryRequest.ChannelID
 
-	var chatHistory []structs.ChatMessageResponse = database.ChatMessagesTable.GetChatMessages(chatHistoryRequest.ChannelID, c.userID)
+	var chatHistory []structs.ChatMessageResponse = database.GetChatMessages(chatHistoryRequest.ChannelID, c.userID)
 
 	// var chatHistoryBytes []byte
 
@@ -109,17 +109,17 @@ func (c *Client) onChatHistoryRequest(packetJson []byte) []byte {
 
 	c.setCurrentChannelID(channelID)
 
-	return macros.PreparePacket(2, jsonBytes)
+	return macros.PreparePacket(packetType, jsonBytes)
 }
 
 // when client wants to delete a message they own, type 3
 func (c *Client) onChatMessageDeleteRequest(packetJson []byte, packetType byte) (BroadcastData, []byte) {
 	const jsonType string = "chat message deletion"
 
+	// deserialize json into this
 	type MessageToDelete struct {
 		MessageID uint64
 	}
-
 	var messageDeleteRequest = MessageToDelete{}
 
 	if err := json.Unmarshal(packetJson, &messageDeleteRequest); err != nil {
@@ -128,18 +128,20 @@ func (c *Client) onChatMessageDeleteRequest(packetJson []byte, packetType byte) 
 		}, nil
 	}
 
-	var messageToDelete = database.ChatMessageDeletion{
-		MessageID: messageDeleteRequest.MessageID,
-		UserID:    c.userID,
-	}
-
-	channelID := database.Delete(messageToDelete)
+	// get the channel ID where the message was deleted,
+	// so can broadcoast it to affected clients
+	var channelID uint64 = database.DeleteChatMessage(messageDeleteRequest.MessageID, c.userID)
 	if channelID == 0 {
 		return BroadcastData{}, macros.RespondFailureReason("Couldn't delete chat message")
 	}
 
+	responseBytes, err := json.Marshal(strconv.FormatUint(messageDeleteRequest.MessageID, 10))
+	if err != nil {
+		macros.ErrorSerializing(err.Error(), jsonType, c.userID)
+	}
+
 	return BroadcastData{
-		MessageBytes: macros.PreparePacket(3, packetJson),
+		MessageBytes: macros.PreparePacket(packetType, responseBytes),
 		ID:           channelID,
 		Type:         packetType,
 	}, nil

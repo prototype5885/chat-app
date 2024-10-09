@@ -24,7 +24,7 @@ func (c *Client) onAddServerRequest(packetJson []byte) []byte {
 		return macros.ErrorDeserializing(err.Error(), jsonType, c.userID)
 	}
 
-	var server database.Server = database.ServersTable.AddNewServer(c.userID, addServerRequest.Name, "default_serverpic.webp")
+	var server database.Server = database.AddNewServer(c.userID, addServerRequest.Name, "default_serverpic.webp")
 
 	// this was made because javascript client doesn't like serialized
 	var serverResponse = structs.ServerResponse{
@@ -45,7 +45,7 @@ func (c *Client) onAddServerRequest(packetJson []byte) []byte {
 func (c *Client) onServerListRequest() []byte {
 	const jsonType string = "server list"
 
-	var servers []structs.ServerResponse = database.ServersTable.GetServerList(c.userID)
+	var servers []structs.ServerResponse = database.GetServerList(c.userID)
 
 	messagesBytes, err := json.Marshal(servers)
 	if err != nil {
@@ -76,7 +76,7 @@ func (c *Client) onServerDeleteRequest(jsonBytes []byte, packetType byte) Broadc
 	}
 
 	success := database.Delete(serverToDelete)
-	if success == 0 {
+	if !success {
 		return BroadcastData{
 			MessageBytes: macros.RespondFailureReason("Couldn't delete server"),
 		}

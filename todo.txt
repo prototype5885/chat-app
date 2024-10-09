@@ -12,3 +12,4 @@ look for security hole in server invation process
 make it possible to set duration on server invation
 make it possible to set set server invation one time use only
 writing goroutine does not tell to reading goroutine if it fails
+placeholder servers stopped working

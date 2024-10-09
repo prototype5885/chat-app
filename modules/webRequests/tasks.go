@@ -175,7 +175,7 @@ func loginUser(username string, passwordBytes []byte) uint64 {
 	log.Debug("Starting login of user [%s]...", username)
 
 	// get the password hash from the database
-	passwordHash, userID := database.UsersTable.GetPasswordAndID(username)
+	passwordHash, userID := database.GetPasswordAndID(username)
 	if passwordHash == nil {
 		log.Warn("No user was found with username [%s]", username)
 		return 0
@@ -245,7 +245,7 @@ func checkIfTokenIsValid(w http.ResponseWriter, r *http.Request) uint64 {
 			return 0
 		}
 
-		userID, expiration := database.TokensTable.ConfirmToken(tokenBytes)
+		userID, expiration := database.ConfirmToken(tokenBytes)
 
 		// check if expired already
 		log.Debug("%d", expiration)
@@ -253,7 +253,7 @@ func checkIfTokenIsValid(w http.ResponseWriter, r *http.Request) uint64 {
 		// renew the token
 		if userID != 0 {
 			var newExpiration uint64 = newTokenExpiration()
-			database.TokensTable.RenewTokenExpiration(newExpiration, tokenBytes)
+			database.RenewTokenExpiration(newExpiration, tokenBytes)
 			var cookie = http.Cookie{
 				Name:     "token",
 				Value:    cookieToken.Value,

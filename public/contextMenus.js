@@ -17,9 +17,10 @@ function deleteCtxMenu() {
 function serverCtxMenu(serverID, owned, pageX, pageY) {
     const actions = []
 
-    if (owned) { actions.push({ text: 'Rename server', func: () => requestRenameServer(serverID) }) }
-    if (owned) { actions.push({ text: 'Create invite link', func: () => requestInviteLink(serverID) }) }
-    if (owned) { actions.push({ text: 'Delete server', color: 'red', func: () => requestDeleteServer(serverID) }) }
+    if (owned) { actions.push({ text: 'Rename Server', func: () => requestRenameServer(serverID) }) }
+    if (owned) { actions.push({ text: 'Create Invite Link', func: () => requestInviteLink(serverID) }) }
+    if (owned) { actions.push({ text: 'Delete Server', color: 'red', func: () => requestDeleteServer(serverID) }) }
+    if (!owned) { actions.push({ text: 'Leave Server', color: 'red', func: () => requestLeaveServer(serverID) }) }
     if (!owned) { actions.push({ text: 'Report Server', color: 'red' }) }
 
     createContextMenu(actions, pageX, pageY)

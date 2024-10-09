@@ -8,16 +8,6 @@ var currentChannelID
 
 var defaultRightClick = false
 
-// hide member list when pressing the button
-document.getElementById("hide-member-list-button").addEventListener("click", function () {
-    const memberList = document.getElementById("member-list")
-    if (memberList.style.display === "none") {
-        memberList.style.display = "flex"
-    } else {
-        memberList.style.display = "none"
-    }
-})
-
 // runs whenever the chat input textarea content changes
 ChatInput.addEventListener("input", () => {
     resizeChatInput()
@@ -53,19 +43,34 @@ document.addEventListener("contextmenu", function (event) {
     deleteCtxMenu()
 })
 
+function toggleMemberListView() {
+    if (MemberList.style.display === "none") {
+        showMemberList()
+    } else {
+        hideMemberList()
+    }
+}
+
+function hideMemberList() {
+    MemberList.style.display = "none"
+}
+
+function showMemberList() {
+    MemberList.style.display = "block"
+}
 
 function serversSeparatorVisibility() {
     const servers = ServerList.querySelectorAll(".server, .placeholder-server")
     localStorage.setItem("serverCount", servers.length)
 
-    const separators = ServerList.querySelectorAll(".servers-separator")
+
 
     if (servers.length != 0) {
-        separators.forEach((separator) => {
+        serverSeparators.forEach((separator) => {
             separator.style.display = "block"
         })
     } else {
-        separators.forEach((separator) => {
+        serverSeparators.forEach((separator) => {
             separator.style.display = "none"
         })
     }
@@ -155,7 +160,7 @@ function lookForDeletedServersInLastChannels() {
 }
 
 // delete a single server from lastChannels
-function deleteServerFromLastChannels(serverID) {
+function removeServerFromLastChannels(serverID) {
     const json = localStorage.getItem("lastChannels")
     if (json != null) {
         let lastChannels = JSON.parse(json)
@@ -279,8 +284,10 @@ function registerClickListeners() {
 }
 
 function createPlaceHolderServers() {
-    var placeholderButtons = []
-    for (i = 0; i < parseInt(localStorage.getItem("serverCount")); i++) {
+    const serverCount = localStorage.getItem("serverCount")
+    console.log('serverCount', serverCount)
+    const placeholderButtons = []
+    for (i = 0; i < serverCount; i++) {
         const buttonParent = addServer("", 0, "phs", "", "placeholder-server")
         let button = buttonParent.querySelector("button")
         button.nextElementSibling.style.backgroundColor = "transparent"
@@ -383,8 +390,8 @@ function deletebubble() {
 function addMember(userID) {
     // create a <li> that holds the user
     const li = document.createElement("li")
-    li.className = "user"
-    li.id = "5"
+    li.className = "member"
+    li.id = userID
 
     // create a <img> that shows profile pic on the left
     const img = document.createElement("img")
@@ -419,6 +426,15 @@ function addMember(userID) {
 
     // and finally append the message to the message list
     MemberList.appendChild(li)
+}
+
+function removeMember(userID) {
+    const element = document.getElementById(userID)
+    if (element.className === "member") {
+        element.remove()
+    } else {
+        console.log(`Trying to remove member ID [${userID}] but the element is not member class: [${element.className}]`)
+    }
 }
 
 function updateServerImage(button, picture, firstCharacter) {
@@ -476,6 +492,13 @@ function addServer(serverID, ownerID, serverName, picture, className) {
     registerRightClick(button, (pageX, pageY) => { serverCtxMenu(serverID, owned, pageX, pageY) })
     registerHover(button, () => { onHoverIn() }, () => { onHoverOut() })
 
+    // this check needs to be made else adding placeholder servers will break serverCount value,
+    // as it would reset the serverCount value while adding placeholders, as fix serverSeparatorVisibility
+    // is ran manually only after creating each placeholder servers on startup
+    if (className === "server") {
+        serversSeparatorVisibility()
+    }
+
     return li
 }
 
@@ -508,11 +531,18 @@ function selectServer(serverID) {
 
     serverButton.nextElementSibling.style.height = "36px"
 
-    // if (serverButton.getAttribute("owned") == "true") {
-    //     AddChannelButton.style.display = "block"
-    // } else {
-    //     AddChannelButton.style.display = "none"
-    // }
+    // hide add channel button if server isn't own
+    if (serverButton.getAttribute("owned") == "true") {
+        AddChannelButton.style.display = "block"
+    } else {
+        AddChannelButton.style.display = "none"
+    }
+
+    if (serverID == "2000") {
+        hideMemberList()
+    } else {
+        showMemberList()
+    }
 
     resetChannels()
     resetMessages()
@@ -525,7 +555,9 @@ function selectServer(serverID) {
 
 function deleteServer(serverID) {
     console.log("Deleting server ID:", serverID)
+    // check if class is correct
     document.getElementById(serverID).parentNode.remove()
+    serversSeparatorVisibility()
 }
 
 function addChannel(channelID, channelName) {

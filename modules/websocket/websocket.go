@@ -1,16 +1,14 @@
 package websocket
 
 import (
-	"bytes"
-	"compress/gzip"
 	"encoding/binary"
 	"encoding/json"
-	"io"
 	"net/http"
 	"proto-chat/modules/database"
 	log "proto-chat/modules/logging"
 	"proto-chat/modules/macros"
 	"proto-chat/modules/snowflake"
+	"strconv"
 	"sync"
 	"time"
 
@@ -64,7 +62,7 @@ func AcceptWsClient(userID uint64, w http.ResponseWriter, r *http.Request) {
 		log.WarnError(err.Error(), "Error upgrading connection of user ID [%d] to websocket protocol", userID)
 		return
 	}
-	username := database.UsersTable.GetUsername(userID)
+	username := database.GetUsername(userID)
 	if username == "" {
 		// no idea why this would happen
 		log.Impossible("After accepting websocket client, user ID [%d] has no username set in the database", userID)
@@ -102,7 +100,7 @@ func AcceptWsClient(userID uint64, w http.ResponseWriter, r *http.Request) {
 	log.Info("Session ID [%d] as user ID [%d] has connected to websocket", sessionID, userID)
 
 	// sends the client it's own user ID
-	jsonUserID, err := json.Marshal(userID)
+	jsonUserID, err := json.Marshal(strconv.FormatUint(userID, 10))
 	if err != nil {
 		macros.ErrorSerializing(err.Error(), "userID", client.userID)
 	}
@@ -187,7 +185,7 @@ func (c *Client) readMessages(wg *sync.WaitGroup) {
 
 		case 2: // user entered a channel, requesting chat history
 			log.Debug("User ID [%d] is asking for chat history", c.userID)
-			c.writeChan <- c.onChatHistoryRequest(packetJson)
+			c.writeChan <- c.onChatHistoryRequest(packetJson, packetType)
 
 		case 3: // user deleting a chat message
 			log.Debug("User ID [%d] wants to delete a chat message", c.userID)
@@ -231,9 +229,17 @@ func (c *Client) readMessages(wg *sync.WaitGroup) {
 
 		case 42: // user entered a server, requesting member list
 			log.Debug("User ID [%d] is requesting list of members of server ID [%d]", c.userID, c.currentServerID)
-			c.writeChan <- c.onMemberListRequest(packetJson)
+			c.writeChan <- c.onServerMemberListRequest(packetJson)
 
-		case 43: // a user was removed from the server
+		case 43: // a user left a server
+			log.Debug("User ID [%d] is requesting to leave from a server", c.userID)
+			broadcastData, failData := c.onServerMemberDeleteRequest(packetJson, packetType)
+			if failData != nil {
+				c.writeChan <- failData
+			} else {
+				broadcastChan <- broadcastData
+				c.writeChan <- broadcastData.MessageBytes
+			}
 
 		// case 42: // client is requesting to send names
 		// 	log.Printf("User ID [%d] is requesting name/names of servers/channels/users", userID)
@@ -311,31 +317,38 @@ func broadCastChannel() {
 						client.writeChan <- broadcastData.MessageBytes
 					}
 				}
+			case 41, 43: // server members
+				for _, client := range clients {
+					if client.currentServerID == broadcastData.ID { // if client is in affected server
+						broadcastLog(broadcastData.Type, client.userID)
+						client.writeChan <- broadcastData.MessageBytes
+					}
+				}
 			}
 		}
 	}
 }
 
-func Compress(dataToCompress []byte) []byte {
-	log.Debug("Size before compression: [%d]", len(dataToCompress))
+// func Compress(dataToCompress []byte) []byte {
+// 	log.Debug("Size before compression: [%d]", len(dataToCompress))
 
-	var buffer bytes.Buffer
-	writer := gzip.NewWriter(&buffer)
+// 	var buffer bytes.Buffer
+// 	writer := gzip.NewWriter(&buffer)
 
-	writer.Write(dataToCompress)
-	writer.Close()
+// 	writer.Write(dataToCompress)
+// 	writer.Close()
 
-	log.Debug("Size after compression: [%d]", len(buffer.Bytes()))
+// 	log.Debug("Size after compression: [%d]", len(buffer.Bytes()))
 
-	return buffer.Bytes()
-}
+// 	return buffer.Bytes()
+// }
 
-func Decompress(compressedData []byte) []byte {
-	reader, _ := gzip.NewReader(bytes.NewReader(compressedData))
+// func Decompress(compressedData []byte) []byte {
+// 	reader, _ := gzip.NewReader(bytes.NewReader(compressedData))
 
-	decompressed, _ := io.ReadAll(reader)
+// 	decompressed, _ := io.ReadAll(reader)
 
-	log.Debug("Size after decompression: [%d]", len(decompressed))
+// 	log.Debug("Size after decompression: [%d]", len(decompressed))
 
-	return decompressed
-}
+// 	return decompressed
+// }

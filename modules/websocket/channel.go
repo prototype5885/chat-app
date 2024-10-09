@@ -32,7 +32,7 @@ func (c *Client) onAddChannelRequest(packetJson []byte, packetType byte) (Broadc
 	}
 
 	// check if client is authorized to add channel to given server
-	var ownerID uint64 = database.ServersTable.GetServerOwner(channelRequest.ServerID)
+	var ownerID uint64 = database.GetServerOwner(channelRequest.ServerID)
 	if ownerID != c.userID {
 		log.Hack("User [%d] is trying to add a channel to server ID [%d] that they dont own", c.userID, channelRequest.ServerID)
 		return BroadcastData{}, macros.RespondFailureReason("Error adding channel called [%s]", channelRequest.Name)
@@ -85,7 +85,7 @@ func (c *Client) onChannelListRequest(packetJson []byte) []byte {
 
 	// TODO check if user has permission to access the server
 
-	var channelList []structs.ChannelResponse = database.ChannelsTable.GetChannelList(channelListRequest.ServerID)
+	var channelList []structs.ChannelResponse = database.GetChannelList(channelListRequest.ServerID)
 
 	messagesBytes, err := json.Marshal(channelList)
 	if err != nil {

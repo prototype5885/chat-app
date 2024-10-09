@@ -12,9 +12,12 @@ type Token struct {
 	Expiration uint64
 }
 
-const insertTokenQuery string = "INSERT INTO tokens (token, user_id, expiration) VALUES (?, ?, ?)"
+const (
+	insertTokenQuery = "INSERT INTO tokens (token, user_id, expiration) VALUES (?, ?, ?)"
+	deleteTokenQuery = "DELETE FROM tokens WHERE token = ?"
+)
 
-func (t *Tokens) CreateTokensTable() {
+func CreateTokensTable() {
 	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS tokens (
 		token BINARY(128) PRIMARY KEY NOT NULL,
 		user_id BIGINT UNSIGNED NOT NULL,
@@ -26,7 +29,7 @@ func (t *Tokens) CreateTokensTable() {
 	}
 }
 
-func (t *Tokens) ConfirmToken(tokenBytes []byte) (uint64, uint64) {
+func ConfirmToken(tokenBytes []byte) (uint64, uint64) {
 	log.Debug("Searching for token in database...")
 
 	const query string = "SELECT user_id, expiration FROM tokens WHERE token = ?"
@@ -47,7 +50,7 @@ func (t *Tokens) ConfirmToken(tokenBytes []byte) (uint64, uint64) {
 	return userID, expiration
 }
 
-func (t *Tokens) RenewTokenExpiration(newExpiration uint64, tokenBytes []byte) {
+func RenewTokenExpiration(newExpiration uint64, tokenBytes []byte) {
 	log.Debug("Updating expiration date for token [%s] as [%d]...", macros.ShortenToken(tokenBytes), newExpiration)
 
 	const query string = "UPDATE tokens SET expiration = ? WHERE token = ?"

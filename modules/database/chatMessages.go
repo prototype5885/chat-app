@@ -1,6 +1,7 @@
 package database
 
 import (
+	"database/sql"
 	log "proto-chat/modules/logging"
 	"proto-chat/modules/structs"
 )
@@ -12,14 +13,12 @@ type ChatMessage struct {
 	Message   string
 }
 
-const insertChatMessageQuery string = "INSERT INTO messages (message_id, channel_id, user_id, message) VALUES (?, ?, ?, ?)"
+const (
+	insertChatMessageQuery = "INSERT INTO messages (message_id, channel_id, user_id, message) VALUES (?, ?, ?, ?)"
+	deleteChatMessageQuery = "DELETE FROM messages WHERE message_id = ? AND user_id = ?"
+)
 
-type ChatMessageDeletion struct {
-	MessageID uint64
-	UserID    uint64
-}
-
-func (m *ChatMessages) CreateChatMessagesTable() {
+func CreateChatMessagesTable() {
 	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS messages (
 		message_id BIGINT UNSIGNED PRIMARY KEY NOT NULL,
 		channel_id BIGINT UNSIGNED NOT NULL,
@@ -33,7 +32,7 @@ func (m *ChatMessages) CreateChatMessagesTable() {
 	}
 }
 
-func (m *ChatMessages) GetChatMessages(channelID uint64, userID uint64) []structs.ChatMessageResponse {
+func GetChatMessages(channelID uint64, userID uint64) []structs.ChatMessageResponse {
 	log.Debug("Getting chat message history of channel ID [%d] from database...", channelID)
 	const query string = "SELECT message_id, user_id, message FROM messages WHERE channel_id = ?"
 
@@ -62,4 +61,20 @@ func (m *ChatMessages) GetChatMessages(channelID uint64, userID uint64) []struct
 	}
 
 	return messages
+}
+
+func DeleteChatMessage(messageID uint64, userID uint64) uint64 {
+	log.Debug("Deleting chat message ID [%d] and returning it's channel ID on the request of user ID [%d]...", messageID, userID)
+
+	var channelID uint64
+	const query string = "DELETE FROM messages WHERE message_id = ? AND user_id = ? RETURNING channel_id"
+	err := db.QueryRow(query, messageID, userID).Scan(&channelID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			log.Hack("There is no message ID [%d] owned by user ID [%d]", messageID, userID)
+			return 0
+		}
+		log.FatalError(err.Error(), "Error deleting message ID [%d] on the request of user ID [%d]", messageID, userID)
+	}
+	return channelID
 }

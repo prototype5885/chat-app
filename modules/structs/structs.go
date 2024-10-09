@@ -27,3 +27,8 @@ type ServerDeletionResponse struct {
 	ServerID string
 	UserID   string
 }
+
+type ServerMemberDeletionResponse struct {
+	ServerID string
+	UserID   string
+}

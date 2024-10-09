@@ -135,22 +135,23 @@ func InviteHandler(w http.ResponseWriter, r *http.Request) {
 			inviteID, err := strconv.ParseUint(inviteIDstring, 10, 64)
 			if err != nil {
 				fmt.Fprintln(w, "What kind of invite ID is that?")
-				log.Warn("User ID [%d] sent a server invite http request where the ID can't be parsed [%s]", userID, inviteIDstring)
+				log.Hack("User ID [%d] sent a server invite http request where the ID can't be parsed [%s]", userID, inviteIDstring)
 				return
 			}
 			log.Debug("Server invite ID is: [%d]", inviteID)
-			var serverID uint64 = database.ServerInvitesTable.ConfirmServerInviteID(inviteID)
+			var serverID uint64 = database.ConfirmServerInviteID(inviteID)
 			if serverID != 0 {
-				log.Debug("Invite ID [%d] belongs to server ID [%d]", inviteID, serverID)
-
 				if database.Insert(database.ServerMember{ServerID: serverID, UserID: userID}) {
 					fmt.Fprintf(w, "Successfully joined server ID [%d]\n", serverID)
+					log.Debug("User ID [%d] successfully joined server ID [%d]", userID, serverID)
+					// http.Redirect(w, r, "/chat", http.StatusMovedPermanently)
 					return
+				} else {
+					fmt.Fprintf(w, "Failed joining server")
 				}
-
-				// http.Redirect(w, r, "/chat", http.StatusMovedPermanently)
 			} else {
 				fmt.Fprintf(w, "No invite exists with this invite ID\n")
+				return
 			}
 		}
 	}

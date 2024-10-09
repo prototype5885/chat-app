@@ -14,14 +14,17 @@ type Server struct {
 	Picture  string
 }
 
-const insertServerQuery string = "INSERT INTO servers (server_id, owner_id, name, picture) VALUES (?, ?, ?, ?)"
-
 type ServerDeletion struct {
 	ServerID uint64
 	UserID   uint64
 }
 
-func (s *Servers) CreateServersTable() {
+const (
+	insertServerQuery = "INSERT INTO servers (server_id, owner_id, name, picture) VALUES (?, ?, ?, ?)"
+	deleteServerQuery = "DELETE FROM servers WHERE server_id = ? AND owner_id = ?"
+)
+
+func CreateServersTable() {
 	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS servers (
 		server_id BIGINT UNSIGNED PRIMARY KEY NOT NULL,
 		owner_id BIGINT UNSIGNED NOT NULL,
@@ -34,7 +37,7 @@ func (s *Servers) CreateServersTable() {
 	}
 }
 
-func (s *Servers) GetServerList(userID uint64) []structs.ServerResponse {
+func GetServerList(userID uint64) []structs.ServerResponse {
 	log.Debug("Getting server list of user ID [%d]...", userID)
 	const query string = `
 		SELECT s.*
@@ -70,7 +73,7 @@ func (s *Servers) GetServerList(userID uint64) []structs.ServerResponse {
 	return servers
 }
 
-func (s *Servers) GetServerOwner(serverID uint64) uint64 {
+func GetServerOwner(serverID uint64) uint64 {
 	log.Debug("Getting owner of server ID [%d]...", serverID)
 	const query string = "SELECT owner_ID FROM servers WHERE server_id = ?"
 
@@ -90,10 +93,10 @@ func (s *Servers) GetServerOwner(serverID uint64) uint64 {
 	return ownerID
 }
 
-func (s *Servers) AddNewServer(userID uint64, name string, picture string) Server {
+func AddNewServer(userID uint64, name string, picture string) Server {
 	tx, err := db.Begin()
 	if err != nil {
-
+		log.FatalError(err.Error(), "Error starting transaction while adding new server requested by user ID [%d]", userID)
 	}
 
 	// insert server
@@ -111,7 +114,6 @@ func (s *Servers) AddNewServer(userID uint64, name string, picture string) Serve
 	if err != nil {
 		log.Error(err.Error())
 		tx.Rollback()
-
 	}
 
 	// insert channel

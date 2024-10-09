@@ -12,14 +12,14 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-type Users struct{}
-type Tokens struct{}
-type Servers struct{}
-type ServerMembers struct{}
-type Channels struct{}
-type ChatMessages struct{}
-type ProfilePics struct{}
-type ServerInvites struct{}
+// type Users struct{}
+// type Tokens struct{}
+// type Servers struct{}
+// type ServerMembers struct{}
+// type Channels struct{}
+// type ChatMessages struct{}
+// type ProfilePics struct{}
+// type ServerInvites struct{}
 
 var db *sql.DB
 
@@ -28,16 +28,16 @@ type Info struct {
 	ValueCount int
 }
 
-var (
-	UsersTable         Users
-	TokensTable        Tokens
-	ServersTable       Servers
-	ServerMembersTable ServerMembers
-	ChannelsTable      Channels
-	ChatMessagesTable  ChatMessages
-	ProfilePicsTable   ProfilePics
-	ServerInvitesTable ServerInvites
-)
+// var (
+// 	UsersTable         Users
+// 	TokensTable        Tokens
+// 	ServersTable       Servers
+// 	ServerMembersTable ServerMembers
+// 	ChannelsTable      Channels
+// 	ChatMessagesTable  ChatMessages
+// 	ProfilePicsTable   ProfilePics
+// 	ServerInvitesTable ServerInvites
+// )
 
 func ConnectSqlite() {
 	log.Info("Opening sqlite database...")
@@ -76,14 +76,14 @@ func CloseDatabaseConnection() error {
 }
 
 func CreateTables() {
-	UsersTable.CreateUsersTable()
-	TokensTable.CreateTokensTable()
-	ServersTable.CreateServersTable()
-	ServerMembersTable.CreateServerMembersTable()
-	ChannelsTable.CreateChannelsTable()
-	ChatMessagesTable.CreateChatMessagesTable()
-	ProfilePicsTable.CreateProfilePicsTable()
-	ServerInvitesTable.CreateServerInvitesTable()
+	CreateUsersTable()
+	CreateTokensTable()
+	CreateServersTable()
+	CreateServerMembersTable()
+	CreateChannelsTable()
+	CreateChatMessagesTable()
+	CreateProfilePicsTable()
+	CreateServerInvitesTable()
 }
 
 func Insert(structo any) bool {
@@ -98,7 +98,7 @@ func Insert(structo any) bool {
 
 	var typeName string
 	var tableName string
-	var id uint64
+	var insertedItemID uint64
 
 	printInsertingMsg := func() {
 		tableName = typeName + "s"
@@ -109,36 +109,36 @@ func Insert(structo any) bool {
 	switch s := structo.(type) {
 	case Channel:
 		typeName = "channel"
-		id = s.ChannelID
+		insertedItemID = s.ChannelID
 		printInsertingMsg()
 		_, err = db.Exec(insertChannelQuery, s.ChannelID, s.ServerID, s.Name)
 	case ChatMessage:
 		typeName = "message"
-		id = s.MessageID
+		insertedItemID = s.MessageID
 		printInsertingMsg()
 		_, err = db.Exec(insertChatMessageQuery, s.MessageID, s.ChannelID, s.UserID, s.Message)
 	case Server:
 		typeName = "server"
-		id = s.ServerID
+		insertedItemID = s.ServerID
 		printInsertingMsg()
 		_, err = db.Exec(insertServerQuery, s.ServerID, s.OwnerID, s.Name, s.Picture)
 	case Token:
 		typeName = "token"
-		id = s.UserID
+		insertedItemID = s.UserID
 		_, err = db.Exec(insertTokenQuery, s.Token, s.UserID, s.Expiration)
 	case User:
 		typeName = "user"
-		id = s.UserID
+		insertedItemID = s.UserID
 		printInsertingMsg()
 		_, err = db.Exec(insertUserQuery, s.UserID, s.Username, s.DisplayName, s.Picture, s.Password, s.Totp)
 	case ServerMember:
 		typeName = "server_member"
-		id = s.UserID
+		insertedItemID = s.UserID
 		printInsertingMsg()
 		_, err = db.Exec(insertServerMemberQuery, s.ServerID, s.UserID)
 	case ServerInvite:
 		typeName = "server_invite"
-		id = s.ServerID
+		insertedItemID = s.ServerID
 		printInsertingMsg()
 		_, err = db.Exec(insertServerInviteQuery, s.InviteID, s.ServerID, s.SingleUse, s.Expiration)
 	default:
@@ -148,7 +148,7 @@ func Insert(structo any) bool {
 	if err != nil {
 		if strings.Contains(err.Error(), "Error 1452") {
 			// Error 1452: Cannot add or update a child row: a foreign key constraint fails
-			log.WarnError(err.Error(), "Failed adding [%s] ID [%d] into db table [%s], it wouldn't have an owner", typeName, id, tableName)
+			log.WarnError(err.Error(), "Failed adding [%s] ID [%d] into db table [%s], it wouldn't have an owner", typeName, insertedItemID, tableName)
 			return false
 		} else if strings.Contains(err.Error(), "Error 1062") {
 			// Error 1062: Duplicate entry for key
@@ -156,7 +156,7 @@ func Insert(structo any) bool {
 			return false
 		} else {
 			// unknown error
-			log.FatalError(err.Error(), "Error adding [%s] ID [%d] into db table [%s]", typeName, id, tableName)
+			log.FatalError(err.Error(), "Error adding [%s] ID [%d] into db table [%s]", typeName, insertedItemID, tableName)
 			return false
 		}
 	}
@@ -165,14 +165,13 @@ func Insert(structo any) bool {
 	return true
 }
 
-func Delete(structo any) uint64 {
+func Delete(structo any) bool {
 	start := time.Now().UnixMicro()
 
 	var typeName string
 	var tableName string
-	var ownerID uint64
-	var itemID uint64
-	var toReturn uint64 = 1
+	var deletedItemOwnerID uint64 // deleted item's owner
+	var deletedItemID uint64      // deleted item
 
 	printDeletingMsg := func() {
 		tableName = typeName + "s"
@@ -183,63 +182,47 @@ func Delete(structo any) uint64 {
 	var result sql.Result
 	switch s := structo.(type) {
 	case Channel:
-	case ChatMessageDeletion:
-		typeName = "message"
-		ownerID = s.UserID
-		itemID = s.MessageID
-		printDeletingMsg()
-		const query string = "DELETE FROM messages WHERE message_id = ? AND user_id = ? RETURNING channel_id"
-		err = db.QueryRow(query, s.MessageID, s.UserID).Scan(&toReturn)
 	case ServerDeletion:
 		typeName = "server"
-		ownerID = s.UserID
-		itemID = s.ServerID
+		deletedItemID = s.ServerID
+		deletedItemOwnerID = s.UserID
 		printDeletingMsg()
-		const query string = "DELETE FROM servers WHERE server_id = ? AND owner_id = ?"
-		result, err = db.Exec(query, s.ServerID, s.UserID)
+		result, err = db.Exec(deleteServerQuery, s.ServerID, s.UserID)
 	case Token:
 	case User:
+	case ServerMember:
+		typeName = "user"
+		deletedItemID = s.UserID
+		deletedItemOwnerID = s.ServerID
+		printDeletingMsg()
+		result, err = db.Exec(deleteServerMemberQuery, s.ServerID, s.UserID)
 	default:
 		log.Fatal("Unknown type in db Insert: [%T]", s)
 	}
 
+	// first check if there are errors executing the query
 	if err != nil {
-		log.Error(err.Error())
-		if err == sql.ErrNoRows {
-			// what was to be deleted was nowhere to be found
-			log.Hack("User ID [%d] doesn't own any [%s] with ID [%d]", ownerID, typeName, itemID)
-			return 0
-		} else {
-			// unknown error
-			log.Fatal("Error deleting [%s] ID [%d] of user ID [%d]", typeName, itemID, ownerID)
-			return 0
-		}
-
+		log.FatalError(err.Error(), "Error deleting [%s] ID [%d] requested by user ID [%d]", typeName, deletedItemID, deletedItemOwnerID)
 	}
 
+	// print time it took
+	var duration int64 = time.Now().UnixMicro() - start
+	log.Time("Deletion took [%d μs] [%d ms]", duration, duration/1000)
+
+	// get how many rows were affected
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		log.FatalError(err.Error(), "Error getting rowsAffected while deleting %s ID [%d] of user ID [%d]", typeName, itemID, ownerID)
+		log.FatalError(err.Error(), "Error getting rowsAffected while deleting %s ID [%d] requested by user ID [%d]", typeName, deletedItemID, deletedItemOwnerID)
 	}
 
-	if rowsAffected != 1 {
-		// this always should be 1, because if its 0 it should have returned already on sql.ErrNoRows,
-		// and it can't be more than 1 either since it's not possible to have duplicate IDs
-		log.Fatal("Multiple or none [%s] with server ID [%d] were found and deleted, it always should be 1", typeName, itemID)
-		return 0
+	if rowsAffected == 1 {
+		log.Debug("[%s] ID [%d] owned by ID [%d] was deleted from database", typeName, deletedItemID, deletedItemOwnerID)
+		return true
+	} else if rowsAffected == 0 {
+		log.Hack("User ID [%d] doesn't own any [%s] with ID [%d]", deletedItemOwnerID, typeName, deletedItemID)
+		return false
+	} else {
+		log.Impossible("Multiple [%s] were found and deleted", typeName)
+		return false
 	}
-
-	// if rowsAffected == 0 {
-	// 	log.Hack("User ID [%d] doesn't own any [%s] with ID [%d]", ownerID, typeName, itemID)
-	// 	return 0
-	// } else if rowsAffected != 1 {
-	// 	// this is not supposed to happen at all since it's not possible to have 2 messages with same ID
-	// 	log.Fatal("Multiple [%s] with same server ID [%d] were found and deleted", typeName, itemID)
-	// 	return 0
-	// }
-
-	log.Debug("[%s] ID [%d] from user ID [%d] was deleted from database", typeName, itemID, ownerID)
-	var duration int64 = time.Now().UnixMicro() - start
-	log.Time("Delete took [%d μs] or [%d ms]", duration, duration/1000)
-	return toReturn
 }

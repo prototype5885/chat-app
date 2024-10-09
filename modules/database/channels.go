@@ -11,9 +11,12 @@ type Channel struct {
 	Name      string
 }
 
-const insertChannelQuery string = "INSERT INTO channels (channel_id, server_id, name) VALUES (?, ?, ?)"
+const (
+	insertChannelQuery = "INSERT INTO channels (channel_id, server_id, name) VALUES (?, ?, ?)"
+	deleteChannelQuery = "DELETE FROM channels WHERE channel_id = ?"
+)
 
-func (c *Channels) CreateChannelsTable() {
+func CreateChannelsTable() {
 	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS channels (
 		channel_id BIGINT UNSIGNED PRIMARY KEY NOT NULL,
 		server_id BIGINT UNSIGNED NOT NULL,
@@ -25,7 +28,7 @@ func (c *Channels) CreateChannelsTable() {
 	}
 }
 
-func (c *Channels) GetChannelList(serverID uint64) []structs.ChannelResponse {
+func GetChannelList(serverID uint64) []structs.ChannelResponse {
 	log.Debug("Getting channel list of server ID [%d] from database...", serverID)
 	const query string = "SELECT channel_id, name FROM channels WHERE server_id = ?"
 

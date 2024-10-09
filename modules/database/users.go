@@ -16,7 +16,7 @@ type User struct {
 
 const insertUserQuery string = "INSERT INTO users (user_id, username, display_name, picture, password, totp) VALUES (?, ?, ?, ?, ?, ?)"
 
-func (u *Users) CreateUsersTable() {
+func CreateUsersTable() {
 	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS users (
 		user_id BIGINT UNSIGNED PRIMARY KEY NOT NULL,
 		username VARCHAR(32) NOT NULL,
@@ -31,7 +31,7 @@ func (u *Users) CreateUsersTable() {
 	}
 }
 
-func (u *Users) GetUsername(userID uint64) string {
+func GetUsername(userID uint64) string {
 	log.Debug("Searching for field [username] in database using user ID [%d]...", userID)
 	const query string = "SELECT username FROM users WHERE user_id = ?"
 	var userName string
@@ -48,7 +48,7 @@ func (u *Users) GetUsername(userID uint64) string {
 	return userName
 }
 
-func (u *Users) GetPasswordAndID(username string) ([]byte, uint64) {
+func GetPasswordAndID(username string) ([]byte, uint64) {
 	log.Debug("Searching for password of user [%s] in database...", username)
 	const query string = "SELECT user_id, password FROM users WHERE username = ?"
 	var passwordHash []byte

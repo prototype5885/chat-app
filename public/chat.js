@@ -28,7 +28,7 @@ function waitUntilBoolIsTrue(checkFunction, interval = 10) {
 
 // this runs after webpage was loaded
 document.addEventListener("DOMContentLoaded", function () {
-    addServer(2000, 0, 'Direct Messages', 'hs.svg', 'dm') // add the direct messages button
+    addServer("2000", 0, 'Direct Messages', 'hs.svg', 'dm') // add the direct messages button
 
     // add place holder servers depending on how many servers the client was in, will delete on websocket connection
     // purely visual
@@ -65,6 +65,9 @@ document.addEventListener("DOMContentLoaded", function () {
 
     registerClickListeners() // add event listener for clicking
     registerHoverListeners() // add event listeners for hovering
+
+    console
+    selectServer("2000")
 })
 
 // when server sends a message
@@ -113,40 +116,35 @@ wsClient.onmessage = async function (event) {
             break
         case 3: // Server sent which message was deleted
             console.log("Server sent which message was deleted")
-            const messageID = json.MessageID
+            const messageID = json
             console.log('Deleting message id ' + messageID)
             document.getElementById(messageID).remove()
             break
         case 21: // Server responded to the add server request
             console.log("Server responded to the add server request")
-            addServer(json.ServerID, json.OwnerID, json.Name, json.Picture, 'server', discordGray, discordBlue)
+            addServer(json.ServerID, json.OwnerID, json.Name, json.Picture, 'server')
             selectServer(json.ServerID)
-            serversSeparatorVisibility()
             break
         case 22: // Server sent the requested server list
             console.log("Server sent the requested server list")
             if (json != null) {
                 for (let i = 0; i < json.length; i++) {
                     console.log('Adding server ID', json[i].ServerID)
-                    addServer(json[i].ServerID, json[i].OwnerID, json[i].Name, json[i].Picture, 'server', discordGray, discordBlue)
+                    addServer(json[i].ServerID, json[i].OwnerID, json[i].Name, json[i].Picture, 'server')
                 }
             } else {
                 console.log('Not being in any servers')
             }
-
-            serversSeparatorVisibility()
             lookForDeletedServersInLastChannels()
             break
         case 23: // Server sent which server was deleted
             console.log("Server sent which server was deleted")
             const serverID = json.ServerID
             deleteServer(serverID)
-            deleteServerFromLastChannels(serverID)
-            // removeDeletedLastChannels()
+            removeServerFromLastChannels(serverID)
             if (serverID == currentServerID) {
-                selectServer(2000)
+                selectServer("2000")
             }
-            serversSeparatorVisibility()
             break
         case 24: // Server sent the requested invite link to the chat server
             console.log("Server sent the requested invite link to the chat server")
@@ -182,6 +180,17 @@ wsClient.onmessage = async function (event) {
                 console.log(json[i])
             }
             break
+        case 43: // Server sent user which user left a server
+            console.log(`Server sent that user ID [${json.UserID}] left server ID [${json.ServerID}]`)
+            if (json.UserID == ownUserID) {
+                console.log(`That's me, deleting server ID [${json.ServerID}]...`)
+                deleteServer(json.ServerID)
+                selectServer("2000")
+            } else {
+                removeMember(json.UserID)
+            }
+            break
+
         case 241: // Server sent the client's own user ID
             ownUserID = json
             console.log('Received own user ID:', ownUserID)
@@ -309,5 +318,12 @@ function requestMemberList() {
     console.log("Requesting member list for current server ID", currentServerID)
     preparePacket(42, currentServerID, {
         ServerID: currentServerID.toString()
+    })
+}
+
+function requestLeaveServer(serverID) {
+    console.log("Requesting to leave a server ID", serverID)
+    preparePacket(43, serverID, {
+        ServerID: serverID.toString()
     })
 }

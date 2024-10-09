@@ -9,21 +9,25 @@ type ServerMember struct {
 	UserID   uint64
 }
 
-const insertServerMemberQuery string = "INSERT INTO server_members (server_id, user_id) VALUES (?, ?)"
+const (
+	insertServerMemberQuery = "INSERT INTO server_members (server_id, user_id) VALUES (?, ?)"
+	deleteServerMemberQuery = "DELETE FROM server_members WHERE server_id = ? AND user_id = ?"
+)
 
-func (sm *ServerMembers) CreateServerMembersTable() {
+func CreateServerMembersTable() {
 	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS server_members (
 		server_id BIGINT UNSIGNED NOT NULL,
 		user_id BIGINT UNSIGNED NOT NULL,
 		FOREIGN KEY (server_id) REFERENCES servers(server_id) ON DELETE CASCADE,
-		FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+		FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+		UNIQUE (server_id, user_id)
 	)`)
 	if err != nil {
 		log.FatalError(err.Error(), "Error creating server_members table")
 	}
 }
 
-func (sm *ServerMembers) GetServerMembersList(serverID uint64) []uint64 {
+func GetServerMembersList(serverID uint64) []string {
 	log.Debug("Getting list of members of server ID [%d]...", serverID)
 	const query string = "SELECT user_id FROM server_members WHERE server_id = ?"
 
@@ -31,15 +35,15 @@ func (sm *ServerMembers) GetServerMembersList(serverID uint64) []uint64 {
 	if err != nil {
 		log.FatalError(err.Error(), "Error searching for members in server ID [%d]", serverID)
 	}
-	var userIDs []uint64
+	var userIDs []string
 
 	var counter int = 0
 	for rows.Next() {
 		counter++
-		var userID uint64
+		var userID string
 		err := rows.Scan(&userID)
 		if err != nil {
-			log.FatalError(err.Error(), "Error scanning server member row into userID of server ID [%d]:", userID)
+			log.FatalError(err.Error(), "Error scanning server member row into userID of server ID [%s]:", userID)
 		}
 		userIDs = append(userIDs, userID)
 	}
@@ -53,7 +57,7 @@ func (sm *ServerMembers) GetServerMembersList(serverID uint64) []uint64 {
 	return userIDs
 }
 
-func (sm *ServerMembers) ConfirmUserMembership(userID uint64, serverID uint64) bool {
+func ConfirmUserMembership(userID uint64, serverID uint64) bool {
 	log.Debug("Searching for user ID [%d] in server ID [%d]...", userID, serverID)
 
 	const query string = "SELECT EXISTS (SELECT 1 FROM server_members WHERE server_id = ? AND user_id = ?)"
