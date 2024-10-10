@@ -3,7 +3,7 @@ package database
 import (
 	"database/sql"
 	log "proto-chat/modules/logging"
-	"proto-chat/modules/structs"
+	"proto-chat/modules/snowflake"
 )
 
 type ChatMessage struct {
@@ -17,6 +17,26 @@ const (
 	insertChatMessageQuery = "INSERT INTO messages (message_id, channel_id, user_id, message) VALUES (?, ?, ?, ?)"
 	deleteChatMessageQuery = "DELETE FROM messages WHERE message_id = ? AND user_id = ?"
 )
+
+func AddChatMessage(userID uint64, channelID uint64, message string) bool {
+	var serverID uint64 = GetServerOfChannel(channelID)
+	if serverID == 0 {
+		return false
+	}
+
+	if !ConfirmServerMembership(userID, serverID) {
+		log.Hack("Can't add chat message from user ID [%d] into channel ID [%d] because user isn't in server ID [%d]", userID, channelID, serverID)
+		return false
+	}
+
+	Insert(ChatMessage{
+		MessageID: snowflake.Generate(),
+		ChannelID: channelID,
+		UserID:    userID,
+		Message:   message,
+	})
+	return true
+}
 
 func CreateChatMessagesTable() {
 	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS messages (
@@ -32,35 +52,40 @@ func CreateChatMessagesTable() {
 	}
 }
 
-func GetChatMessages(channelID uint64, userID uint64) []structs.ChatMessageResponse {
+func GetChatMessages(channelID uint64, userID uint64) []byte {
 	log.Debug("Getting chat message history of channel ID [%d] from database...", channelID)
-	const query string = "SELECT message_id, user_id, message FROM messages WHERE channel_id = ?"
 
-	rows, err := db.Query(query, channelID)
+	var serverID uint64 = GetServerOfChannel(channelID)
+	if serverID == 0 {
+		return nil
+	}
+
+	if !ConfirmServerMembership(userID, serverID) {
+		log.Hack("Can't add chat message from user ID [%d] into channel ID [%d] because user isn't in server ID [%d]", userID, channelID, serverID)
+		return nil
+	}
+
+	const query string = `
+		SELECT JSON_ARRAYAGG(JSON_OBJECT(
+            'IDm', CAST(message_id AS CHAR),
+            'IDu', CAST(user_id AS CHAR),
+            'Msg', message
+        )) AS json_result
+        FROM messages
+        WHERE channel_id = ?
+	`
+
+	var jsonResult []byte
+	err := db.QueryRow(query, channelID).Scan(&jsonResult)
 	if err != nil {
-		log.FatalError(err.Error(), "Error searching for messages on channel ID [%d] in database", channelID)
+		log.FatalError(err.Error(), "Error getting chat history of channel ID [%d] for user ID [%d]", channelID, userID)
 	}
 
-	var messages []structs.ChatMessageResponse
-
-	var counter int = 0
-	for rows.Next() {
-		counter++
-		var message structs.ChatMessageResponse
-		err := rows.Scan(&message.IDm, &message.IDu, &message.Msg)
-		if err != nil {
-			log.FatalError(err.Error(), "Error scanning message row into struct in channel ID [%d]:", channelID)
-		}
-		messages = append(messages, message)
+	if len(jsonResult) == 0 {
+		return nullJson
 	}
 
-	if counter == 0 {
-		log.Debug("No messages found on channel ID: [%d]", channelID)
-	} else {
-		log.Debug("[%d] messages from channel ID [%d] were retrieved successfully", counter, channelID)
-	}
-
-	return messages
+	return jsonResult
 }
 
 func DeleteChatMessage(messageID uint64, userID uint64) uint64 {

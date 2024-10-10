@@ -1,7 +1,8 @@
-const grey1 = "#949BA4"
-const discordGray = "#36393f"
-const discordBlue = "#5865F2"
-const discrodGreen = "#00b700"
+const gray = "#36393f"
+const grayx = "#474a52"
+const grayxx = "#949BA4"
+const blue = "#5865F2"
+const green = "#00b700"
 
 var currentServerID
 var currentChannelID
@@ -30,9 +31,13 @@ function resizeChatInput() {
 
 function getUserInfo(userID) {
     const member = document.getElementById(userID)
-    pic = member.querySelector('img.profile-pic').src
-    username = member.querySelector('div.user-name').textContent
-    return { username: username, pic: pic }
+    if (member != null) {
+        pic = member.querySelector('img.profile-pic').src
+        username = member.querySelector('div.user-name').textContent
+        return { username: username, pic: pic }
+    } else {
+        return { username: userID, pic: "" }
+    }
 }
 
 // delete context menu if left clicked somewhere thats not
@@ -68,9 +73,7 @@ function showMemberList() {
 
 function serversSeparatorVisibility() {
     const servers = ServerList.querySelectorAll(".server, .placeholder-server")
-    localStorage.setItem("serverCount", servers.length)
-
-
+    setServerCount(servers.length)
 
     if (servers.length != 0) {
         serverSeparators.forEach((separator) => {
@@ -100,98 +103,12 @@ function registerClick(element, callback) {
     })
 }
 
-function updateLastChannels() {
-    const json = localStorage.getItem("lastChannels")
-
-    let lastChannels = {}
-
-    // first parse existing list, in case it exists in browser
-    if (json != null) {
-        lastChannels = JSON.parse(json)
-
-        var serverIDstr = currentServerID.toString()
-        var channelIDstr = currentChannelID.toString()
-
-        if (serverIDstr in lastChannels && lastChannels[serverIDstr] === channelIDstr) {
-            // if currentServerID and currentChannelID matches witht hose in lastChannels localStorage, don"t do anything
-        }
-    }
-    // if channel was changed, overwrite with new one
-    lastChannels[serverIDstr] = channelIDstr
-    localStorage.setItem("lastChannels", JSON.stringify(lastChannels))
-}
-
-// selects the last selected channel after clicking on a server
-function selectLastChannels(firstChannelID) {
-    const json = localStorage.getItem("lastChannels")
-    if (json != null) {
-        let lastChannels = JSON.parse(json)
-        const lastChannel = lastChannels[currentServerID.toString()]
-        if (lastChannel != null) {
-            selectChannel(lastChannel)
-        } else {
-            console.log("Current server does not have any last channel set in localStorage, selecting first channel...")
-            selectChannel(firstChannelID)
-        }
-    } else {
-        console.log("No lastChannels in localStorage exists, selecting first channel...")
-        selectChannel(firstChannelID)
-    }
-}
-
-// delete servers from lastChannels that no longer exist
-function lookForDeletedServersInLastChannels() {
-    const json = localStorage.getItem("lastChannels")
-    if (json != null) {
-        let lastChannels = JSON.parse(json)
-
-        const li = ServerList.querySelectorAll(".server")
-
-        const newLastChannels = {}
-        li.forEach((li) => {
-            const button = li.querySelector("button")
-            const id = button.getAttribute("id")
-            newLastChannels[id.toString()] = lastChannels[id.toString()]
-        })
-
-        if (JSON.stringify(lastChannels) === JSON.stringify(newLastChannels)) {
-            console.log("All lastChannels servers in localStorage match")
-        } else {
-            // most likely one or more servers were deleted while user was offline
-            console.warn("lastChannels servers in localStorage don't match with active servers")
-            localStorage.setItem("lastChannels", JSON.stringify(newLastChannels))
-        }
-    } else {
-        console.log("No lastChannels in localStorage exists")
-    }
-}
-
-// delete a single server from lastChannels
-function removeServerFromLastChannels(serverID) {
-    const json = localStorage.getItem("lastChannels")
-    if (json != null) {
-        let lastChannels = JSON.parse(json)
-        if (serverID.toString() in lastChannels) {
-            delete lastChannels[serverID.toString()]
-            localStorage.setItem("lastChannels", JSON.stringify(lastChannels))
-            console.log(`Removed server ID ${serverID} from lastChannels`)
-        }
-        else {
-            console.log(`Server ID ${serverID} doesn"t exist in lastChannels`)
-        }
-    }
-}
-
 // adds the new chat message into html
 function addChatMessage(messageID, userID, message) {
     // extract the message date from messageID
     const msgDate = new Date(Number((BigInt(messageID) >> BigInt(22)))).toLocaleString()
 
     const userInfo = getUserInfo(userID)
-
-    const chatNameColor = "#e7e7e7"
-    // const pic = "default_profilepic.webp"
-    // const username = userID.toString()
 
     // create a <li> that holds the message
     const li = document.createElement("li")
@@ -208,10 +125,14 @@ function addChatMessage(messageID, userID, message) {
 
     // create a <img> that shows profile pic on the left
     const img = document.createElement("img")
-    // img.className = "msg-profile-pic"
     img.className = "msg-profile-pic"
-    img.src = userInfo.pic
-    img.alt = "pfpic"
+
+    if (userInfo.pic !== "") {
+        img.src = userInfo.pic
+    } else {
+        img.src = "discord.webp"
+    }
+
     img.width = 40
     img.height = 40
 
@@ -229,7 +150,6 @@ function addChatMessage(messageID, userID, message) {
     const msgNameDiv = document.createElement("div")
     msgNameDiv.className = "msg-user-name"
     msgNameDiv.textContent = userInfo.username
-    msgDataDiv.style.color = chatNameColor
 
     registerRightClick(msgNameDiv, (pageX, pageY) => { userCtxMenu(userID, pageX, pageY) })
 
@@ -293,15 +213,16 @@ function registerClickListeners() {
 }
 
 function createPlaceHolderServers() {
-    const serverCount = localStorage.getItem("serverCount")
-    console.log('serverCount', serverCount)
+    const serverCount = getServerCount()
     const placeholderButtons = []
-    for (i = 0; i < serverCount; i++) {
-        const buttonParent = addServer("", 0, "phs", "", "placeholder-server")
-        let button = buttonParent.querySelector("button")
-        button.nextElementSibling.style.backgroundColor = "transparent"
-        button.textContent = ""
-        placeholderButtons.push(buttonParent)
+    if (serverCount !== 0) {
+        for (i = 0; i < serverCount; i++) {
+            const buttonParent = addServer("", 0, "phs", "", "placeholder-server")
+            let button = buttonParent.querySelector("button")
+            button.nextElementSibling.style.backgroundColor = "transparent"
+            button.textContent = ""
+            placeholderButtons.push(buttonParent)
+        }
     }
     return placeholderButtons
 }
@@ -418,7 +339,7 @@ function addMember(userID, displayName, picture, status) {
     const userNameDiv = document.createElement("div")
     userNameDiv.className = "user-name"
     userNameDiv.textContent = displayName
-    userNameDiv.style.color = grey1
+    userNameDiv.style.color = grayxx
 
     // now create a <div> under name that display statis
     const userStatusDiv = document.createElement("div")
@@ -446,14 +367,6 @@ function removeMember(userID) {
     }
 }
 
-function updateServerImage(button, picture, firstCharacter) {
-    if (picture !== "") {
-        button.style.backgroundImage = `url(${picture})`
-    } else {
-        button.textContent = firstCharacter.toUpperCase()
-    }
-}
-
 function addServer(serverID, ownerID, serverName, picture, className) {
     // this li will hold the server and notification thing, which is the span
     const li = document.createElement("li")
@@ -463,11 +376,16 @@ function addServer(serverID, ownerID, serverName, picture, className) {
     // create the server button itself
     const button = document.createElement("button")
     button.id = serverID
+    button.setAttribute("name", serverName)
 
     li.append(button)
 
     // set picture of server
-    updateServerImage(button, picture, serverName[0])
+    if (picture !== "") {
+        button.style.backgroundImage = `url(${picture})`
+    } else {
+        button.textContent = serverName[0].toUpperCase()
+    }
 
     const span = document.createElement("span")
     span.className = "server-notification"
@@ -477,6 +395,7 @@ function addServer(serverID, ownerID, serverName, picture, className) {
     function onHoverIn() {
         if (serverID != currentServerID) {
             button.style.borderRadius = "35%"
+            button.style.backgroundColor = "#5865F2"
             span.style.height = "24px"
         }
         createbubble(button, serverID.toString(), "right", 15)
@@ -485,6 +404,7 @@ function addServer(serverID, ownerID, serverName, picture, className) {
     function onHoverOut() {
         if (serverID != currentServerID) {
             button.style.borderRadius = "50%"
+            button.style.backgroundColor = ""
             span.style.height = "8px"
         }
         deletebubble()
@@ -526,14 +446,11 @@ function selectServer(serverID) {
         return
     }
 
-    // this will reset the previously selected server"s
-    // notification"s white thing"s size
+    // this will reset the previously selected server's visuals
     const previousServerButton = document.getElementById(currentServerID)
     if (previousServerButton != null) {
         previousServerButton.nextElementSibling.style.height = "8px"
-    }
-
-    if (previousServerButton != null) {
+        previousServerButton.style.backgroundColor = ""
         previousServerButton.style.borderRadius = "50%"
     }
 
@@ -561,7 +478,7 @@ function selectServer(serverID) {
 
     requestChannelList()
     requestMemberList()
-    localStorage.setItem("lastServer", serverID)
+    ServerNameButton.textContent = serverID.toString()
 }
 
 function deleteServer(serverID) {
@@ -594,7 +511,7 @@ function selectChannel(channelID) {
         return
     }
 
-    document.getElementById(channelID).style.backgroundColor = discordGray
+    document.getElementById(channelID).style.backgroundColor = gray
     const previousChannel = document.getElementById(currentChannelID)
     if (previousChannel != null) {
         document.getElementById(currentChannelID).removeAttribute("style")
@@ -608,6 +525,7 @@ function selectChannel(channelID) {
     resetMessages()
     updateLastChannels()
     requestChatHistory(channelID)
+    ChannelNameTop.textContent = channelID
 }
 
 var channelsHidden = false

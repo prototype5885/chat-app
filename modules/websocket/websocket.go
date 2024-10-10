@@ -25,7 +25,7 @@ const (
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:    4096,
 	WriteBufferSize:   4096,
-	EnableCompression: false,
+	EnableCompression: true,
 }
 
 type BroadcastData struct {
@@ -183,7 +183,12 @@ func (c *Client) readMessages(wg *sync.WaitGroup) {
 		switch packetType {
 		case 1: // user sent a chat message on x channel
 			log.Debug("User ID [%d] sent a chat message", c.userID)
-			broadcastChan <- c.onChatMessageRequest(packetJson, packetType)
+			broadcastData, failData := c.onChatMessageRequest(packetJson, packetType)
+			if failData != nil {
+				c.writeChan <- failData
+			} else {
+				broadcastChan <- broadcastData
+			}
 
 		case 2: // user entered a channel, requesting chat history
 			log.Debug("User ID [%d] is asking for chat history", c.userID)

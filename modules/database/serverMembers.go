@@ -29,7 +29,7 @@ func CreateServerMembersTable() {
 }
 
 func GetServerMembersList(serverID uint64) []structs.ServerMemberListResponse {
-	log.Debug("Getting list of members of server ID [%d]...", serverID)
+	log.Trace("Getting list of members of server ID [%d]...", serverID)
 	// const query string = "SELECT user_id FROM server_members WHERE server_id = ?"
 
 	const query string = `
@@ -65,14 +65,14 @@ func GetServerMembersList(serverID uint64) []structs.ServerMemberListResponse {
 	return userInfos
 }
 
-func ConfirmUserMembership(userID uint64, serverID uint64) bool {
-	log.Debug("Searching for user ID [%d] in server ID [%d]...", userID, serverID)
+func ConfirmServerMembership(userID uint64, serverID uint64) bool {
+	log.Trace("Searching for user ID [%d] in server ID [%d]...", userID, serverID)
 
 	const query string = "SELECT EXISTS (SELECT 1 FROM server_members WHERE server_id = ? AND user_id = ?)"
 
 	var isMember bool = false
 
-	err := db.QueryRow(query, serverID).Scan(&isMember)
+	err := db.QueryRow(query, serverID, userID).Scan(&isMember)
 	if err != nil {
 		// sql.ErrNoRows won't happen here because it returns a bool
 		log.FatalError(err.Error(), "Error checking if user ID [%d] is member of server ID [%d]", userID, serverID)
@@ -81,7 +81,7 @@ func ConfirmUserMembership(userID uint64, serverID uint64) bool {
 	if isMember {
 		log.Debug("User ID [%d] is a member of server ID [%d]", userID, serverID)
 	} else {
-		log.Debug("User ID [%d] is not a member of server ID [%d]", userID, serverID)
+		log.Hack("User ID [%d] is not a member of server ID [%d]", userID, serverID)
 	}
 	return isMember
 }

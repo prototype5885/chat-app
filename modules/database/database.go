@@ -12,32 +12,14 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-// type Users struct{}
-// type Tokens struct{}
-// type Servers struct{}
-// type ServerMembers struct{}
-// type Channels struct{}
-// type ChatMessages struct{}
-// type ProfilePics struct{}
-// type ServerInvites struct{}
-
 var db *sql.DB
 
-type Info struct {
-	ValueNames string
-	ValueCount int
-}
+// type Info struct {
+// 	ValueNames string
+// 	ValueCount int
+// }
 
-// var (
-// 	UsersTable         Users
-// 	TokensTable        Tokens
-// 	ServersTable       Servers
-// 	ServerMembersTable ServerMembers
-// 	ChannelsTable      Channels
-// 	ChatMessagesTable  ChatMessages
-// 	ProfilePicsTable   ProfilePics
-// 	ServerInvitesTable ServerInvites
-// )
+var nullJson = []byte("null")
 
 func ConnectSqlite() {
 	log.Info("Opening sqlite database...")

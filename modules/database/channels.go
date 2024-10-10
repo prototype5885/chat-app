@@ -1,8 +1,8 @@
 package database
 
 import (
+	"database/sql"
 	log "proto-chat/modules/logging"
-	"proto-chat/modules/structs"
 )
 
 type Channel struct {
@@ -28,33 +28,42 @@ func CreateChannelsTable() {
 	}
 }
 
-func GetChannelList(serverID uint64) []structs.ChannelResponse {
+func GetChannelList(serverID uint64) []byte {
 	log.Debug("Getting channel list of server ID [%d] from database...", serverID)
-	const query string = "SELECT channel_id, name FROM channels WHERE server_id = ?"
 
-	rows, err := db.Query(query, serverID)
+	const query string = `
+		SELECT JSON_ARRAYAGG(JSON_OBJECT(
+            'ChannelID', CAST(channel_id AS CHAR),
+            'Name', name
+        )) AS json_result
+        FROM channels
+        WHERE server_id = ?
+	`
+
+	var jsonResult []byte
+	err := db.QueryRow(query, serverID).Scan(&jsonResult)
 	if err != nil {
-		log.FatalError(err.Error(), "Error searching for channels list of server ID [%d]", serverID)
+		log.FatalError(err.Error(), "Error getting channel list of server ID [%d]", serverID)
 	}
 
-	var channels []structs.ChannelResponse
+	if len(jsonResult) == 0 {
+		return nullJson
+	}
 
-	var counter int = 0
-	for rows.Next() {
-		counter++
-		var channel = structs.ChannelResponse{}
-		err := rows.Scan(&channel.ChannelID, &channel.Name)
-		if err != nil {
-			log.FatalError(err.Error(), "Error scanning channel row into struct from server ID [%d]:", serverID)
+	return jsonResult
+}
+
+func GetServerOfChannel(channelID uint64) uint64 {
+	var serverID uint64
+	log.Trace("Getting which server channel ID [%d] belongs to", channelID)
+	err := db.QueryRow("SELECT server_id FROM channels WHERE channel_id = ?", channelID).Scan(&serverID)
+	if err != nil {
+		log.Error(err.Error())
+		if err == sql.ErrNoRows {
+			log.Warn("Channel ID [%d] doesn't belong to any server", channelID)
+			return 0
 		}
-		channels = append(channels, channel)
+		log.Fatal("Error getting which server channel ID [%d] belongs to", channelID)
 	}
-
-	if counter == 0 {
-		log.Debug("Server ID [%d] doesn't have any channels", serverID)
-	} else {
-		log.Debug("Channels from server ID [%d] were retrieved successfully", serverID)
-	}
-
-	return channels
+	return serverID
 }

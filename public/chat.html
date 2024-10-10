@@ -21,7 +21,7 @@
     </ol>
     <div id="second-column">
         <div id="above-friends-channels">
-            <div>Friends top bar</div>
+            <button id="server-name-button">Server Name</button>
         </div>
         <div id="channels">
             <div id="channels-visible-or-add-new">
@@ -52,6 +52,7 @@
     </div>
     <div id="main-container">
         <div id="main-top">
+            <label id="channel-name-top">Channel</label>
             <button id="hide-member-list-button" onclick="toggleMemberListView()"></button>
         </div>
         <div id="main-bottom">
@@ -76,6 +77,7 @@
     </div>
     <audio id="notification-sound" src="discord-notification.mp3" preload="auto"></audio>
     <script src="htmlElements.js"></script>
+    <script src="localStorage.js"></script>
     <script src="contextMenus.js"></script>
     <script src="hoverActions.js"></script>
     <script src="dynamicContent.js"></script>

@@ -21,6 +21,7 @@ button:hover {
 ::-webkit-scrollbar {
     width: 6px;
 }
+
 ::-webkit-scrollbar-track {
     /* background: #2b2d31; */
 }

@@ -6,7 +6,6 @@ import (
 	log "proto-chat/modules/logging"
 	"proto-chat/modules/macros"
 	"proto-chat/modules/snowflake"
-	"proto-chat/modules/structs"
 	"strconv"
 )
 
@@ -51,8 +50,13 @@ func (c *Client) onAddChannelRequest(packetJson []byte, packetType byte) (Broadc
 		return BroadcastData{}, macros.RespondFailureReason("Error adding channel called [%s]", channelRequest.Name)
 	}
 
+	type ChannelResponse struct { // this is whats sent to the client when client requests channel
+		ChannelID string
+		Name      string
+	}
+
 	// serialize response about success
-	var channelResponse = structs.ChannelResponse{
+	var channelResponse = ChannelResponse{
 		ChannelID: strconv.FormatUint(channelID, 10),
 		Name:      channelRequest.Name,
 	}
@@ -81,18 +85,15 @@ func (c *Client) onChannelListRequest(packetJson []byte) []byte {
 	if err := json.Unmarshal(packetJson, &channelListRequest); err != nil {
 		macros.ErrorDeserializing(err.Error(), jsonType, c.userID)
 	}
+
 	var serverID uint64 = channelListRequest.ServerID
 
-	// TODO check if user has permission to access the server
-
-	var channelList []structs.ChannelResponse = database.GetChannelList(channelListRequest.ServerID)
-
-	messagesBytes, err := json.Marshal(channelList)
-	if err != nil {
-		macros.ErrorSerializing(err.Error(), jsonType, c.userID)
+	var isMember bool = database.ConfirmServerMembership(c.userID, serverID)
+	if isMember {
+		c.setCurrentServerID(serverID)
+		var jsonBytes []byte = database.GetChannelList(serverID)
+		return macros.PreparePacket(32, jsonBytes)
+	} else {
+		return macros.RespondFailureReason("Rejected sending channel list of server ID [%d]", serverID)
 	}
-
-	c.setCurrentServerID(serverID)
-
-	return macros.PreparePacket(32, messagesBytes)
 }

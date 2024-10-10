@@ -26,8 +26,14 @@ func (c *Client) onAddServerRequest(packetJson []byte) []byte {
 
 	var server database.Server = database.AddNewServer(c.userID, addServerRequest.Name, "default_serverpic.webp")
 
-	// this was made because javascript client doesn't like serialized
-	var serverResponse = structs.ServerResponse{
+	type ServerResponse struct {
+		ServerID string
+		OwnerID  string
+		Name     string
+		Picture  string
+	}
+
+	var serverResponse = ServerResponse{
 		ServerID: strconv.FormatUint(server.ServerID, 10),
 		OwnerID:  strconv.FormatUint(server.OwnerID, 10),
 		Name:     server.Name,
@@ -43,15 +49,16 @@ func (c *Client) onAddServerRequest(packetJson []byte) []byte {
 
 // when client requests list of server they are in, type 22
 func (c *Client) onServerListRequest() []byte {
-	const jsonType string = "server list"
+	// const jsonType string = "server list"
 
-	var servers []structs.ServerResponse = database.GetServerList(c.userID)
+	// var servers []structs.ServerResponse = database.GetServerList(c.userID)
+	var jsonBytes []byte = database.GetServerList(c.userID)
 
-	messagesBytes, err := json.Marshal(servers)
-	if err != nil {
-		macros.ErrorSerializing(err.Error(), jsonType, c.userID)
-	}
-	return macros.PreparePacket(22, messagesBytes)
+	// messagesBytes, err := json.Marshal(servers)
+	// if err != nil {
+	// 	macros.ErrorSerializing(err.Error(), jsonType, c.userID)
+	// }
+	return macros.PreparePacket(22, jsonBytes)
 }
 
 // when client wants to delete a server, type 23
