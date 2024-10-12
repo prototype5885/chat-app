@@ -29,21 +29,23 @@ var upgrader = websocket.Upgrader{
 }
 
 type BroadcastData struct {
-	MessageBytes []byte
-	Type         byte
-	ID           uint64
+	MessageBytes    []byte
+	Type            byte
+	AffectedServers []uint64
+	AffectedChannel uint64
 }
 
 type Client struct {
-	displayName      string
-	wsConn           *websocket.Conn
-	sessionID        uint64
-	userID           uint64
-	currentChannelID uint64
-	currentServerID  uint64
-	status           string
-	writeChan        chan []byte
-	closeChan        chan bool
+	displayName       string
+	wsConn            *websocket.Conn
+	sessionID         uint64
+	userID            uint64
+	currentChannelID  uint64
+	currentServerID   uint64
+	serverMemberships []uint64
+	status            string
+	writeChan         chan []byte
+	closeChan         chan bool
 }
 
 var broadcastChan = make(chan BroadcastData, 100)
@@ -209,7 +211,7 @@ func (c *Client) readMessages(wg *sync.WaitGroup) {
 
 		case 22: // user requesting their joined server list
 			log.Debug("User ID [%d] is requesting server list", c.userID)
-			c.writeChan <- c.onServerListRequest()
+			c.writeChan <- macros.PreparePacket(22, database.GetServerList(c.userID))
 
 		case 23: // user deleting a server
 			log.Debug("User ID [%d] wants to delete a server", c.userID)
@@ -240,19 +242,21 @@ func (c *Client) readMessages(wg *sync.WaitGroup) {
 
 		case 43: // a user left a server
 			log.Debug("User ID [%d] is requesting to leave from a server", c.userID)
-			broadcastData, failData := c.onServerMemberDeleteRequest(packetJson, packetType)
+			broadcastData, failData := c.onLeaveServerRequest(packetJson, packetType)
 			if failData != nil {
 				c.writeChan <- failData
 			} else {
 				broadcastChan <- broadcastData
 				c.writeChan <- broadcastData.MessageBytes
 			}
-		// case 44: // a user requested info of an other user
-		// 	log.Debug("User ID [%d] is requesting info of a user", c.userID)
-		// 	c.writeChan <- c.onUserInfoRequest(packetJson, packetType)
-
-		// case 42: // client is requesting to send names
-		// 	log.Printf("User ID [%d] is requesting name/names of servers/channels/users", userID)
+		case 51: // user wants to change their display name
+			log.Debug("User ID [%d] is requesting to change their display name", c.userID)
+			broadcastData, failData := c.onChangeDisplayNameRequest(packetJson, packetType)
+			if failData != nil {
+				c.writeChan <- failData
+			} else {
+				broadcastChan <- broadcastData
+			}
 
 		default: // if unknown
 			log.Hack("User ID [%d] sent invalid packet type: [%d]", c.userID, packetType)
@@ -310,7 +314,7 @@ func broadCastChannel() {
 			switch broadcastData.Type {
 			case 1, 3: // chat messages
 				for _, client := range clients {
-					if client.currentChannelID == broadcastData.ID { // if client is in affected channel
+					if client.currentChannelID == broadcastData.AffectedChannel { // if client is in affected channel
 						broadcastLog(broadcastData.Type, client.userID)
 						client.writeChan <- broadcastData.MessageBytes
 					}
@@ -318,20 +322,28 @@ func broadCastChannel() {
 			case 21, 23: // servers
 				for _, client := range clients {
 					client.writeChan <- broadcastData.MessageBytes
-
 				}
-			case 31, 33: //channels
+			case 31, 33: // channels
 				for _, client := range clients {
-					if client.currentServerID == broadcastData.ID { // if client is in affected server
+					if client.currentServerID == broadcastData.AffectedServers[0] { // if client is in affected server
 						broadcastLog(broadcastData.Type, client.userID)
 						client.writeChan <- broadcastData.MessageBytes
 					}
 				}
 			case 41, 43: // server members
 				for _, client := range clients {
-					if client.currentServerID == broadcastData.ID { // if client is in affected server
+					if client.currentServerID == broadcastData.AffectedServers[0] { // if client is in affected server
 						broadcastLog(broadcastData.Type, client.userID)
 						client.writeChan <- broadcastData.MessageBytes
+					}
+				}
+			case 51: // changing display name
+				for _, client := range clients {
+					for i := 0; i < len(broadcastData.AffectedServers); i++ {
+						if client.currentServerID == broadcastData.AffectedServers[i] { // if client is in affected servers
+							broadcastLog(broadcastData.Type, client.userID)
+							client.writeChan <- broadcastData.MessageBytes
+						}
 					}
 				}
 			}

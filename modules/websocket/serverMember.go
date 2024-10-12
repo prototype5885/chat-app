@@ -33,7 +33,7 @@ func (c *Client) onServerMemberListRequest(packetJson []byte) []byte {
 	return macros.PreparePacket(42, jsonBytes)
 }
 
-func (c *Client) onServerMemberDeleteRequest(packetJson []byte, packetType byte) (BroadcastData, []byte) {
+func (c *Client) onLeaveServerRequest(packetJson []byte, packetType byte) (BroadcastData, []byte) {
 	const jsonType string = "server member deletion"
 
 	type LeaveServerRequest struct {
@@ -67,9 +67,13 @@ func (c *Client) onServerMemberDeleteRequest(packetJson []byte, packetType byte)
 		macros.ErrorSerializing(err.Error(), jsonType, c.userID)
 	}
 
+	// to make sure client wont receive messages after leaving
+	c.currentServerID = 200
+	c.currentChannelID = 0
+
 	return BroadcastData{
-		MessageBytes: macros.PreparePacket(packetType, responseBytes),
-		ID:           leaveServerRequest.ServerID,
-		Type:         packetType,
+		MessageBytes:    macros.PreparePacket(packetType, responseBytes),
+		AffectedServers: []uint64{leaveServerRequest.ServerID},
+		Type:            packetType,
 	}, nil
 }

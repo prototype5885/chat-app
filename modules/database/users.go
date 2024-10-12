@@ -2,6 +2,7 @@ package database
 
 import (
 	"database/sql"
+	"fmt"
 	log "proto-chat/modules/logging"
 )
 
@@ -68,6 +69,7 @@ func GetPasswordAndID(username string) ([]byte, uint64) {
 
 func GetUserInfo(userID uint64) (string, string) {
 	log.Debug("Searching for fields display_name and picture in database of user ID [%d]...", userID)
+
 	const query string = "SELECT display_name, picture FROM users WHERE user_id = ?"
 
 	var displayName string
@@ -84,4 +86,33 @@ func GetUserInfo(userID uint64) (string, string) {
 	}
 	log.Debug("Display name and picture of user ID [%d] were retrieved from database successfully", userID)
 	return displayName, profilePic
+}
+
+func ChangeDisplayName(userID uint64, newDisplayName string) bool {
+	var info string = fmt.Sprintf("Updating field display_name of user ID [%d] with [%s]", userID, newDisplayName)
+	log.Debug(info)
+
+	const query string = "UPDATE users SET display_name = ? WHERE user_id = ?"
+	result, err := db.Exec(query, newDisplayName, userID)
+	if err != nil {
+		log.FatalError(err.Error(), "Fatal Error: "+info)
+		return false
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		log.FatalError(err.Error(), "Fatal Error: Getting rowsAffected in ChangeDisplayName for user ID [%d]", userID)
+		return false
+	}
+
+	if rowsAffected == 1 {
+		log.Debug("Display name of user ID [%d] was successfully changed to [%s]", userID, newDisplayName)
+		return true
+	} else if rowsAffected == 0 {
+		log.Hack("User ID [%d] tried to change their display name to same as their current one", userID)
+		return false
+	} else {
+		log.Impossible("For some reason rowsAffected value is [%d] in ChangeDisplayName for user ID [%d], it should be only 1", rowsAffected, userID)
+		return false
+	}
 }

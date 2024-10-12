@@ -81,6 +81,19 @@ document.addEventListener("DOMContentLoaded", function () {
     selectServer("2000")
 })
 
+class ReceivedChatMessage {
+    constructor(messageID, userID, message) {
+        this.messageID = messageID;
+        this.userID = userID;
+        this.message = message;
+    }
+
+    static fromJSON(jsonString) {
+        const data = JSON.parse(jsonString);
+        return new ReceivedChatMessage(data.IDm, data.IDu, this.Msg);
+    }
+}
+
 // when server sends a message
 wsClient.onmessage = async function (event) {
     let receivedBytes = new Uint8Array(event.data)
@@ -211,9 +224,10 @@ wsClient.onmessage = async function (event) {
                 removeMember(json.UserID)
             }
             break
-        case 44: // Server sent the requested info of a user
-            console.log("Server sent requested info of a user")
-            addUserInfo(json.UserID, json.Name, json.Picture)
+        case 51: // Server sent that a user changed display name
+            console.log(`Server sent that user ID [${json.UserID}] changed their name to [${json.NewName}]`)
+            changeDisplayName(json.UserID, json.NewName)
+            break
 
         case 241: // Server sent the client"s own user ID
             ownUserID = json
@@ -352,5 +366,12 @@ function requestLeaveServer(serverID) {
     console.log("Requesting to leave a server ID", serverID)
     preparePacket(43, [serverID], {
         ServerID: serverID
+    })
+}
+
+function requestChangeDisplayName(newName) {
+    console.log("Requesting to change display name to:", newName)
+    preparePacket(51, [], {
+        NewName: newName
     })
 }

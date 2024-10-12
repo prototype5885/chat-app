@@ -48,9 +48,9 @@ func (c *Client) onChatMessageRequest(packetJson []byte, packetType byte) (Broad
 	}
 
 	return BroadcastData{
-		MessageBytes: macros.PreparePacket(1, jsonBytes),
-		Type:         packetType,
-		ID:           chatMessageRequest.ChannelID,
+		MessageBytes:    macros.PreparePacket(1, jsonBytes),
+		Type:            packetType,
+		AffectedChannel: chatMessageRequest.ChannelID,
 	}, nil
 }
 
@@ -107,8 +107,8 @@ func (c *Client) onChatMessageDeleteRequest(packetJson []byte, packetType byte) 
 	}
 
 	return BroadcastData{
-		MessageBytes: macros.PreparePacket(packetType, responseBytes),
-		ID:           channelID,
-		Type:         packetType,
+		MessageBytes:    macros.PreparePacket(packetType, responseBytes),
+		AffectedChannel: channelID,
+		Type:            packetType,
 	}, nil
 }

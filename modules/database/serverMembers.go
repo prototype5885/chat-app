@@ -61,7 +61,7 @@ func GetServerMembersList(serverID uint64) []structs.ServerMemberListResponse {
 		return userInfos
 	}
 
-	log.Debug("Members of server ID [%d] were retrieved successfully", serverID)
+	log.Trace("Members of server ID [%d] were retrieved successfully", serverID)
 	return userInfos
 }
 
@@ -79,9 +79,33 @@ func ConfirmServerMembership(userID uint64, serverID uint64) bool {
 	}
 
 	if isMember {
-		log.Debug("User ID [%d] is a member of server ID [%d]", userID, serverID)
+		log.Trace("User ID [%d] is a member of server ID [%d]", userID, serverID)
 	} else {
 		log.Hack("User ID [%d] is not a member of server ID [%d]", userID, serverID)
 	}
 	return isMember
+}
+
+func GetJoinedServersList(userID uint64) ([]byte, bool) {
+	log.Trace("Getting list of server IDs where user ID [%d] is joined", userID)
+
+	const query string = `
+		SELECT JSON_ARRAYAGG(s.server_id) AS json_result
+		FROM servers s
+		JOIN server_members m ON s.server_id = m.server_id 
+		WHERE m.user_id = ?
+		`
+
+	var jsonResult []byte
+	err := db.QueryRow(query, userID).Scan(&jsonResult)
+	if err != nil {
+		log.FatalError(err.Error(), "Error getting server list of user ID [%d]", userID)
+		return nil, false
+	}
+
+	if len(jsonResult) == 0 {
+		return nil, true
+	}
+
+	return jsonResult, false
 }

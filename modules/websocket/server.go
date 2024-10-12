@@ -48,18 +48,9 @@ func (c *Client) onAddServerRequest(packetJson []byte) []byte {
 }
 
 // when client requests list of server they are in, type 22
-func (c *Client) onServerListRequest() []byte {
-	// const jsonType string = "server list"
-
-	// var servers []structs.ServerResponse = database.GetServerList(c.userID)
-	var jsonBytes []byte = database.GetServerList(c.userID)
-
-	// messagesBytes, err := json.Marshal(servers)
-	// if err != nil {
-	// 	macros.ErrorSerializing(err.Error(), jsonType, c.userID)
-	// }
-	return macros.PreparePacket(22, jsonBytes)
-}
+// func (c *Client) onServerListRequest() []byte {
+// 	return macros.PreparePacket(22, database.GetServerList(c.userID))
+// }
 
 // when client wants to delete a server, type 23
 func (c *Client) onServerDeleteRequest(jsonBytes []byte, packetType byte) BroadcastData {
@@ -100,9 +91,9 @@ func (c *Client) onServerDeleteRequest(jsonBytes []byte, packetType byte) Broadc
 	}
 
 	return BroadcastData{
-		MessageBytes: macros.PreparePacket(23, messagesBytes),
-		Type:         packetType,
-		ID:           serverDeleteRequest.ServerID,
+		MessageBytes:    macros.PreparePacket(23, messagesBytes),
+		Type:            packetType,
+		AffectedServers: []uint64{serverDeleteRequest.ServerID},
 	}
 }
 

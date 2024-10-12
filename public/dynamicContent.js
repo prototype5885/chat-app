@@ -3,11 +3,10 @@ const grayx = "#474a52"
 const grayxx = "#949BA4"
 const blue = "#5865F2"
 const green = "#00b700"
+const backgroundGray = "#36393f"
 
 var currentServerID
 var currentChannelID
-
-var defaultRightClick = false
 
 // runs whenever the chat input textarea content changes
 ChatInput.addEventListener("input", () => {
@@ -40,20 +39,21 @@ function getUserInfo(userID) {
     }
 }
 
-// delete context menu if left clicked somewhere thats not
-// a context menu list element
-document.addEventListener("click", function (event) {
-    deleteCtxMenu()
-})
+function changeDisplayName(userID, newDisplayName) {
+    const user = document.getElementById(userID)
+    const username = user.querySelector(".user-name")
 
-// delete context menu if right clicked somewhere thats not registered
-// with context menu listener
-document.addEventListener("contextmenu", function (event) {
-    if (!defaultRightClick) {
-        event.preventDefault()
-    }
-    deleteCtxMenu()
-})
+    if (userID == ownUserID) { console.log("Old name:", username.textContent) }
+    username.textContent = newDisplayName
+    if (userID == ownUserID) { console.log("New name:", username.textContent) }
+
+    const chatMessages = ChatMessagesList.querySelectorAll(".msg")
+    chatMessages.forEach((chatMessage) => {
+        if (chatMessage.getAttribute("user-id") == userID) {
+            chatMessage.querySelector(".msg-user-name").textContent = newDisplayName
+        }
+    })
+}
 
 function toggleMemberListView() {
     if (MemberList.style.display === "none") {
@@ -121,7 +121,7 @@ function addChatMessage(messageID, userID, message) {
         owner = true
     }
 
-    registerRightClick(li, (pageX, pageY) => { messageCtxMenu(messageID, owner, pageX, pageY) })
+    registerContextMenu(li, (pageX, pageY) => { messageCtxMenu(messageID, owner, pageX, pageY) })
 
     // create a <img> that shows profile pic on the left
     const img = document.createElement("img")
@@ -136,7 +136,7 @@ function addChatMessage(messageID, userID, message) {
     img.width = 40
     img.height = 40
 
-    registerRightClick(img, (pageX, pageY) => { userCtxMenu(userID, pageX, pageY) })
+    registerContextMenu(img, (pageX, pageY) => { userCtxMenu(userID, pageX, pageY) })
 
     // create a nested <div> that will contain sender name, message and date
     const msgDataDiv = document.createElement("div")
@@ -151,7 +151,7 @@ function addChatMessage(messageID, userID, message) {
     msgNameDiv.className = "msg-user-name"
     msgNameDiv.textContent = userInfo.username
 
-    registerRightClick(msgNameDiv, (pageX, pageY) => { userCtxMenu(userID, pageX, pageY) })
+    registerContextMenu(msgNameDiv, (pageX, pageY) => { userCtxMenu(userID, pageX, pageY) })
 
     // and next to it create a <div> that displays the date of msg on the right
     const msgDateDiv = document.createElement("div")
@@ -207,8 +207,35 @@ function registerHoverListeners() {
 
 function registerClickListeners() {
     // add channel button
-    {
-        registerClick(AddChannelButton, () => { requestAddChannel() })
+    // {
+    //     registerClick(AddChannelButton, () => { requestAddChannel() })
+    // }
+}
+
+function toggleSettingsWindow(type) {
+    const settingsWindow = document.getElementById("settings")
+    if (settingsWindow == null) {
+        constructSettingsWindow(type)
+    } else {
+        settingsWindow.remove()
+    }
+}
+
+function constructSettingsWindow(type) {
+    const settingsWindow = document.createElement("div")
+    settingsWindow.id = "settings"
+
+    settingsWindow.style.top = "12.5%"
+    settingsWindow.style.left = "12.5%"
+    settingsWindow.style.width = "75%"
+    settingsWindow.style.height = "75%"
+
+    document.body.appendChild(settingsWindow)
+
+    switch (type) {
+        case "user":
+
+            break
     }
 }
 
@@ -226,42 +253,6 @@ function createPlaceHolderServers() {
     }
     return placeholderButtons
 }
-
-function createContextMenu(actions, pageX, pageY) {
-    if (actions.length == 0) {
-        return
-    }
-
-    // create the right click menu
-    const rightClickMenu = document.createElement("div")
-    rightClickMenu.id = "right-click-menu"
-    document.body.appendChild(rightClickMenu)
-
-    // create ul that holds the menu items
-    let ul = document.createElement("ul")
-    rightClickMenu.appendChild(ul)
-
-    // add a menu item for each action
-    actions.forEach(function (action) {
-        const li = document.createElement("li")
-        li.textContent = action.text
-        if (action.color === "red") {
-            li.className = "cm-red" // to make the text red from css
-        }
-        // this will assing the function for each element
-        li.onclick = function () {
-            action.func()
-        }
-
-        ul.appendChild(li)
-    })
-
-    // creates the right click menu on cursor position
-    rightClickMenu.style.display = "block"
-    rightClickMenu.style.left = `${pageX}px`
-    rightClickMenu.style.top = `${pageY}px`
-}
-
 
 function createbubble(element, text, direction, distance) {
     const content = document.createElement("div")
@@ -398,7 +389,7 @@ function addServer(serverID, ownerID, serverName, picture, className) {
             button.style.backgroundColor = "#5865F2"
             span.style.height = "24px"
         }
-        createbubble(button, serverID.toString(), "right", 15)
+        createbubble(button, serverName, "right", 15)
     }
 
     function onHoverOut() {
@@ -418,7 +409,7 @@ function addServer(serverID, ownerID, serverName, picture, className) {
     button.setAttribute("owned", owned.toString())
 
     registerClick(button, () => { selectServer(serverID) })
-    registerRightClick(button, (pageX, pageY) => { serverCtxMenu(serverID, owned, pageX, pageY) })
+    registerContextMenu(button, (pageX, pageY) => { serverCtxMenu(serverID, owned, pageX, pageY) })
     registerHover(button, () => { onHoverIn() }, () => { onHoverOut() })
 
     // this check needs to be made else adding placeholder servers will break serverCount value,
@@ -459,8 +450,10 @@ function selectServer(serverID) {
 
     serverButton.nextElementSibling.style.height = "36px"
 
+    const owned = serverButton.getAttribute("owned")
+
     // hide add channel button if server isn't own
-    if (serverButton.getAttribute("owned") == "true") {
+    if (owned == "true") {
         AddChannelButton.style.display = "block"
     } else {
         AddChannelButton.style.display = "none"
@@ -478,7 +471,8 @@ function selectServer(serverID) {
 
     requestChannelList()
     requestMemberList()
-    ServerNameButton.textContent = serverID.toString()
+
+    ServerName.textContent = serverButton.getAttribute("name")
 }
 
 function deleteServer(serverID) {
@@ -492,15 +486,15 @@ function addChannel(channelID, channelName) {
     const button = document.createElement("button")
     button.id = channelID
 
-    const buttonName = document.createElement("div")
-    buttonName.textContent = channelID.toString()
+    const nameContainer = document.createElement("div")
+    nameContainer.textContent = channelName
 
-    button.appendChild(buttonName)
+    button.appendChild(nameContainer)
 
     ChannelList.appendChild(button)
 
     registerClick(button, () => { selectChannel(channelID) })
-    registerRightClick(button, (pageX, pageY) => { channelCtxMenu(channelID, pageX, pageY) })
+    registerContextMenu(button, (pageX, pageY) => { channelCtxMenu(channelID, pageX, pageY) })
 }
 
 function selectChannel(channelID) {
@@ -511,7 +505,9 @@ function selectChannel(channelID) {
         return
     }
 
-    document.getElementById(channelID).style.backgroundColor = gray
+    const channelButton = document.getElementById(channelID)
+    channelButton.style.backgroundColor = gray
+
     const previousChannel = document.getElementById(currentChannelID)
     if (previousChannel != null) {
         document.getElementById(currentChannelID).removeAttribute("style")
@@ -525,7 +521,7 @@ function selectChannel(channelID) {
     resetMessages()
     updateLastChannels()
     requestChatHistory(channelID)
-    ChannelNameTop.textContent = channelID
+    ChannelNameTop.textContent = channelButton.querySelector("div").textContent
 }
 
 var channelsHidden = false

@@ -21,7 +21,10 @@
     </ol>
     <div id="second-column">
         <div id="above-friends-channels">
-            <button id="server-name-button">Server Name</button>
+            <button id="server-name-button">
+                <div id="server-name">Server Name</div>
+                <div id="server-name-arrow">></div>
+            </button>
         </div>
         <div id="channels">
             <div id="channels-visible-or-add-new">
@@ -29,7 +32,7 @@
                     <div>></div>
                     <div>text channels</div>
                 </button>
-                <button id="add-channel-button">+</button>
+                <button id="add-channel-button" onclick="requestAddChannel()">+</button>
             </div>
             <div id="channel-list"></div>
         </div>
@@ -44,7 +47,7 @@
                 </button>
                 <div id="user-panel-buttons">
                     <button id="toggle-microphone-button"></button>
-                    <button id="user-settings-button"></button>
+                    <button id="user-settings-button" onclick="toggleSettingsWindow('user')"></button>
                 </div>
             </div>
 
@@ -52,8 +55,13 @@
     </div>
     <div id="main-container">
         <div id="main-top">
-            <label id="channel-name-top">Channel</label>
-            <button id="hide-member-list-button" onclick="toggleMemberListView()"></button>
+            <div id="main-top-left">
+                <label id="channel-name-top">Channel</label>
+            </div>
+            <div id="main-top-right">
+                <button id="help-button"></button>
+                <button id="hide-member-list-button" onclick="toggleMemberListView()"></button>
+            </div>
         </div>
         <div id="main-bottom">
             <div id="main-center-container">

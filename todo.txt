@@ -12,7 +12,9 @@ look for security hole in server invation process
 make it possible to set duration on server invation
 make it possible to set set server invation one time use only
 writing goroutine does not tell to reading goroutine if it fails
-placeholder servers stopped working
+    DONE // placeholder servers stopped working
 check if user is authorized to get channels/messages from a server
     DONE // make sure client cant send messages to channels where they are not authorized
-    DONE //make sure client cant request chat history of channel where they are not authorized
+    DONE // make sure client cant request chat history of channel where they are not authorized
+when new user joins a server, for others he wont show up in real time unless refreshed
+serverMember.go line 70 is not optimal

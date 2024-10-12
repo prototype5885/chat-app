@@ -1,10 +1,62 @@
-function registerRightClick(element, callback) {
+var defaultRightClick = false
+
+// delete context menu if left clicked somewhere thats not
+// a context menu list element
+document.addEventListener("click", function (event) {
+    deleteCtxMenu()
+})
+
+// delete context menu if right clicked somewhere thats not registered
+// with context menu listener
+document.addEventListener("contextmenu", function (event) {
+    if (!defaultRightClick) {
+        event.preventDefault()
+    }
+    deleteCtxMenu()
+})
+
+function registerContextMenu(element, callback) {
     element.addEventListener('contextmenu', (event) => {
         event.preventDefault()
         deleteCtxMenu()
         event.stopPropagation()
         callback(event.pageX, event.pageY)
     })
+}
+
+function createContextMenu(actions, pageX, pageY) {
+    if (actions.length == 0) {
+        return
+    }
+
+    // create the right click menu
+    const rightClickMenu = document.createElement("div")
+    rightClickMenu.id = "right-click-menu"
+    document.body.appendChild(rightClickMenu)
+
+    // create ul that holds the menu items
+    let ul = document.createElement("ul")
+    rightClickMenu.appendChild(ul)
+
+    // add a menu item for each action
+    actions.forEach(function (action) {
+        const li = document.createElement("li")
+        li.textContent = action.text
+        if (action.color === "red") {
+            li.className = "cm-red" // to make the text red from css
+        }
+        // this will assing the function for each element
+        li.onclick = function () {
+            action.func()
+        }
+
+        ul.appendChild(li)
+    })
+
+    // creates the right click menu on cursor position
+    rightClickMenu.style.display = "block"
+    rightClickMenu.style.left = `${pageX}px`
+    rightClickMenu.style.top = `${pageY}px`
 }
 
 function deleteCtxMenu() {
