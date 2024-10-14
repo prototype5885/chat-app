@@ -18,8 +18,15 @@ func printReceivedRequest(url string, method string) {
 	log.Trace("Received %s %s request", url, method)
 }
 
+func respondText(w http.ResponseWriter, response string, v ...any) {
+	_, err := fmt.Fprintf(w, response+"\n", v...)
+	if err != nil {
+		log.Error(err.Error())
+	}
+}
+
 func getHtmlFilePath(name string) string {
-	log.Debug(fmt.Sprintf("%s%s.html", publicFolder, name))
+	// log.Debug("%s%s.html", publicFolder, name)
 	return fmt.Sprintf("%s%s.html", publicFolder, name)
 }
 
@@ -125,7 +132,7 @@ func InviteHandler(w http.ResponseWriter, r *http.Request) {
 
 	var userID uint64 = checkIfTokenIsValid(w, r)
 	if userID == 0 { // if user has no valid token
-		fmt.Fprintln(w, "Not logged in")
+		respondText(w, "Not logged in")
 		log.Debug("Someone without authorized token clicked on an invite link")
 		return
 	} else {
@@ -134,7 +141,7 @@ func InviteHandler(w http.ResponseWriter, r *http.Request) {
 			var inviteIDstring string = parts[len(parts)-1]
 			inviteID, err := strconv.ParseUint(inviteIDstring, 10, 64)
 			if err != nil {
-				fmt.Fprintln(w, "What kind of invite ID is that?")
+				respondText(w, "What kind of invite ID is that?")
 				log.Hack("User ID [%d] sent a server invite http request where the ID can't be parsed [%s]", userID, inviteIDstring)
 				return
 			}
@@ -142,18 +149,17 @@ func InviteHandler(w http.ResponseWriter, r *http.Request) {
 			var serverID uint64 = database.ConfirmServerInviteID(inviteID)
 			if serverID != 0 {
 				if database.Insert(database.ServerMember{ServerID: serverID, UserID: userID}) {
-					fmt.Fprintf(w, "Successfully joined server ID [%d]\n", serverID)
+					respondText(w, "Successfully joined server ID [%d]", serverID)
 					log.Debug("User ID [%d] successfully joined server ID [%d]", userID, serverID)
 					// http.Redirect(w, r, "/chat", http.StatusMovedPermanently)
 					return
 				} else {
-					fmt.Fprintf(w, "Failed joining server")
+					respondText(w, "Failed joining server")
 				}
 			} else {
-				fmt.Fprintf(w, "No invite exists with this invite ID\n")
+				respondText(w, "No invite exists with this invite ID")
 				return
 			}
 		}
 	}
-	// fmt.Fprintf(w, "Could not join server\n")
 }

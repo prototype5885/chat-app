@@ -64,8 +64,7 @@ func main() {
 		var config ConfigFile
 		err = json.NewDecoder(file).Decode(&config)
 		if err != nil {
-			log.Error(err.Error())
-			log.Fatal("Error decoding config file")
+			log.FatalError(err.Error(), "Error decoding config file")
 		}
 		return config
 	}

@@ -1,12 +1,21 @@
+:root {
+    --main-color: #36393f;
+    --bit-darker-color: #2B2D31;
+    --dark-color: #232428;
+    --darker-color: #1E1F22;
+    --text-color: #C5C7CB;
+    --dark-transparent: #111214d1;
+    --loading-color: #00000080;
+}
+
 body {
     font-family: Roboto, Helvetica, Arial, sans-serif;
-    color: #C5C7CB;
+    color: var(--text-color);
     font-size: 14px;
 }
 
-body,
-#settings {
-    background-color: #36393f;
+body {
+    background-color: var(--main-color);
 }
 
 /* default settings for all buttons */

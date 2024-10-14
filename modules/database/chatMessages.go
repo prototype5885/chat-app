@@ -25,7 +25,7 @@ func AddChatMessage(userID uint64, channelID uint64, message string) bool {
 	}
 
 	if !ConfirmServerMembership(userID, serverID) {
-		log.Hack("Can't add chat message from user ID [%d] into channel ID [%d] because user isn't in server ID [%d]", userID, channelID, serverID)
+		// log.Hack("Can't add chat message from user ID [%d] into channel ID [%d] because user isn't in server ID [%d]", userID, channelID, serverID)
 		return false
 	}
 
@@ -61,7 +61,7 @@ func GetChatMessages(channelID uint64, userID uint64) []byte {
 	}
 
 	if !ConfirmServerMembership(userID, serverID) {
-		log.Hack("Can't add chat message from user ID [%d] into channel ID [%d] because user isn't in server ID [%d]", userID, channelID, serverID)
+		// log.Hack("Can't add chat message from user ID [%d] into channel ID [%d] because user isn't in server ID [%d]", userID, channelID, serverID)
 		return nil
 	}
 

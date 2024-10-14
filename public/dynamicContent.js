@@ -39,6 +39,14 @@ function getUserInfo(userID) {
     }
 }
 
+// function getChannelname(channelID) {
+//     return document.getElementById(channelID).querySelector("div").textContent
+// }
+
+// function setChannelname(channelID, channelName) {
+//     document.getElementById(channelID).querySelector("div").textContent = channelName
+// }
+
 function changeDisplayName(userID, newDisplayName) {
     const user = document.getElementById(userID)
     const username = user.querySelector(".user-name")
@@ -210,33 +218,6 @@ function registerClickListeners() {
     // {
     //     registerClick(AddChannelButton, () => { requestAddChannel() })
     // }
-}
-
-function toggleSettingsWindow(type) {
-    const settingsWindow = document.getElementById("settings")
-    if (settingsWindow == null) {
-        constructSettingsWindow(type)
-    } else {
-        settingsWindow.remove()
-    }
-}
-
-function constructSettingsWindow(type) {
-    const settingsWindow = document.createElement("div")
-    settingsWindow.id = "settings"
-
-    settingsWindow.style.top = "12.5%"
-    settingsWindow.style.left = "12.5%"
-    settingsWindow.style.width = "75%"
-    settingsWindow.style.height = "75%"
-
-    document.body.appendChild(settingsWindow)
-
-    switch (type) {
-        case "user":
-
-            break
-    }
 }
 
 function createPlaceHolderServers() {
@@ -514,7 +495,8 @@ function selectChannel(channelID) {
     }
 
     // sets the placeholder text in the area where you enter the chat message
-    ChatInput.placeholder = `Message ${channelID}`
+    channelName = channelButton.querySelector("div").textContent
+    ChatInput.placeholder = `Message ${channelName}`
 
     currentChannelID = channelID
 
