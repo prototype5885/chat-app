@@ -25,8 +25,14 @@ body {
 .window {
     position: absolute;
     border-radius: 5px;
+}
+
+#bubble,
+#right-click-menu,
+.window-top-bar {
     backdrop-filter: blur(3px);
 }
+
 
 #bubble,
 #right-click-menu {
@@ -39,7 +45,7 @@ body {
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    border: 1px solid var(--dark-transparent)
+    /* border: 1px solid var(--dark-transparent) */
 }
 
 .window-main {
@@ -51,7 +57,6 @@ body {
 .window-top-bar {
     height: 32px;
     display: flex;
-    background-color: var(--dark-transparent);
 }
 
 .window-top-bar-left {
@@ -621,26 +626,6 @@ body {
 .user-status-text {
     pointer-events: none;
     font-size: 12px;
-}
-
-
-
-
-#bubble {
-    font-size: smaller;
-    z-index: 999;
-    display: block;
-    max-width: 240px;
-    height: auto;
-    word-wrap: break-word;
-    overflow-wrap: break-word;
-}
-
-#bubble div {
-    padding: 8px;
-    padding-left: 12px;
-    padding-right: 12px;
-    font-size: larger;
 }
 
 #right-click-menu {

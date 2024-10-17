@@ -5,6 +5,8 @@
     --darker-color: #1E1F22;
     --text-color: #C5C7CB;
     --dark-transparent: #111214d1;
+    --dark-non-transparent: #111214;
+    --brighter-transparent: #656565d1;
     --loading-color: #00000080;
 }
 
@@ -74,4 +76,21 @@ button:hover {
     background-color: #909aa3;
     border-radius: 0.5rem;
     box-shadow: 10px 10px 10px rgba(0, 0, 0, 0.35);
+}
+
+#bubble {
+    font-size: smaller;
+    z-index: 999;
+    display: block;
+    max-width: 240px;
+    height: auto;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+#bubble div {
+    padding: 8px;
+    padding-left: 12px;
+    padding-right: 12px;
+    font-size: larger;
 }

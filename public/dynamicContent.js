@@ -1,9 +1,17 @@
-const gray = "#36393f"
-const grayx = "#474a52"
-const grayxx = "#949BA4"
+const mainColor = "#36393f"
+const bitDarkerColor = "#2B2D31"
+const darkColor = "#232428"
+const darkerColor = "#1E1F22"
+const grayTextColor = "#949BA4"
+const darkTransparent = "#111214d1"
+const darkNonTransparent = "#111214"
+const brighterTransparent = "#656565d1"
+const loadingColor = "#00000080"
+
+const textColor = "#C5C7CB"
+
 const blue = "#5865F2"
 const green = "#00b700"
-const backgroundGray = "#36393f"
 
 var currentServerID
 var currentChannelID
@@ -311,7 +319,7 @@ function addMember(userID, displayName, picture, status) {
     const userNameDiv = document.createElement("div")
     userNameDiv.className = "user-name"
     userNameDiv.textContent = displayName
-    userNameDiv.style.color = grayxx
+    userNameDiv.style.color = grayTextColor
 
     // now create a <div> under name that display statis
     const userStatusDiv = document.createElement("div")
@@ -487,7 +495,7 @@ function selectChannel(channelID) {
     }
 
     const channelButton = document.getElementById(channelID)
-    channelButton.style.backgroundColor = gray
+    channelButton.style.backgroundColor = mainColor
 
     const previousChannel = document.getElementById(currentChannelID)
     if (previousChannel != null) {
