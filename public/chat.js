@@ -256,7 +256,6 @@ function preparePacket(type, bigIntIDs, struct) {
             }
         }
 
-
         // serialize the struct into json then convert to byte array
         let jsonBytes
         if (struct != null) {

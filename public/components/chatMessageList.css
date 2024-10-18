@@ -1,0 +1,55 @@
+#chat-message-list {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow-y: scroll;
+    margin: 0;
+    padding: 0;
+}
+
+#chat-message-list>li {
+    padding: 8px 32px;
+    display: flex;
+    flex-direction: row;
+}
+
+#chat-message-list>li:hover {
+    background-color: #2E3035;
+}
+
+/* chat scroll gap */
+#chat-message-list>div {
+    order: 1;
+    min-height: 20px;
+}
+
+.msg-data {
+    margin-left: 14px;
+    display: flex;
+    flex-direction: column;
+}
+
+.msg-name-and-date {
+    display: flex;
+    flex-direction: row;
+}
+
+.msg-user-name {
+    line-height: 20px;
+    vertical-align: baseline;
+    font-size: 15px;
+    color: #e7e7e7;
+}
+
+.msg-date {
+    margin-left: 8px;
+    color: #949BA4;
+    font-size: 70%;
+    line-height: 20px;
+    cursor: default;
+}
+
+.msg-text {
+    vertical-align: baseline;
+    overflow-wrap: anywhere;
+}

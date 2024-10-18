@@ -1,0 +1,29 @@
+#channels {
+    overflow-y: scroll;
+    padding: 8px;
+    flex: 1;
+}
+
+#channel-list {
+    display: flex;
+    flex-direction: column;
+}
+
+#channel-list button {
+    height: 32px;
+    display: flex;
+    align-items: center;
+    border-radius: 8px;
+    border: none;
+    font-size: medium;
+    transition: font-size 0.2s ease, height 0.2s ease;
+}
+
+#channel-list button:hover {
+    background-color: #313338;
+    font-size: large;
+}
+
+#channel-list button>div {
+    padding-left: 12px;
+}

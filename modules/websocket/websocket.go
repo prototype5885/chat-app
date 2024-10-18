@@ -50,7 +50,7 @@ type Client struct {
 
 var broadcastChan = make(chan BroadcastData, 100)
 
-// var mutex sync.Mutex // used so only 1 goroutine can access the clients list at one time
+var mu sync.Mutex // used so only 1 goroutine can access the clients hashmap at one time
 
 var clients = make(map[uint64]*Client)
 
@@ -91,8 +91,9 @@ func AcceptWsClient(userID uint64, w http.ResponseWriter, r *http.Request) {
 	}
 
 	// add to clients hashmap
+	mu.Lock()
 	clients[sessionID] = client
-	// log.Info("Added user ID [%d] with session ID [%d] to the connected websocket clients list", userID, sessionID)
+	mu.Unlock()
 
 	// create 2 goroutines for reading and writing messages
 	var wg sync.WaitGroup
@@ -121,7 +122,9 @@ func AcceptWsClient(userID uint64, w http.ResponseWriter, r *http.Request) {
 	// }
 
 	// lastly remove the client from hashmap
+	mu.Lock()
 	delete(clients, sessionID)
+	mu.Unlock()
 	log.Info("Removed session ID [%d] as user ID [%d] from the connected clients", sessionID, userID)
 }
 
