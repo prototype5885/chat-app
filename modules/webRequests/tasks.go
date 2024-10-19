@@ -5,8 +5,10 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"proto-chat/modules/database"
 	log "proto-chat/modules/logging"
 	"proto-chat/modules/snowflake"
@@ -15,6 +17,38 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 )
+
+var jsFilePaths []string = []string{
+	"main.js",
+	"localStorage.js",
+	"comp/contextMenu.js",
+	"comp/bubble.js",
+	"comp/serverList.js",
+	"comp/memberList.js",
+	"comp/channelList.js",
+	"comp/chatMessageList.js",
+	"comp/window.js",
+	"comp/chatInput.js",
+	"chat.js",
+	"dynamicContent.js",
+	"websocket.js"}
+
+func printReceivedRequest(url string, method string) {
+	log.Trace("Received %s %s request", url, method)
+}
+
+func respondText(w http.ResponseWriter, response string, v ...any) {
+	_, err := fmt.Fprintf(w, response+"\n", v...)
+	if err != nil {
+		log.Error(err.Error())
+	}
+}
+
+func getHtmlFilePath(name string) string {
+	var htmlFilePath string = fmt.Sprintf("%s%s.html", publicFolder, name)
+	log.Debug(htmlFilePath)
+	return htmlFilePath
+}
 
 func findCookie(cookies []*http.Cookie, cookieName string) (http.Cookie, bool) {
 	log.Debug("Searching for cookie called: %s...", cookieName)
@@ -270,4 +304,108 @@ func checkIfTokenIsValid(w http.ResponseWriter, r *http.Request) uint64 {
 		return userID
 	}
 	return 0
+}
+
+func MergeJsFilesMem() string {
+	var javascript string
+	// loop through javascript files and
+	log.Trace("Loop through javascript files...")
+	log.Trace("Amount of javascript files: [%d]", len(jsFilePaths))
+	for _, file := range jsFilePaths {
+		log.Trace("Opening javascript file [%s]", file)
+		inFile, err := os.Open("./public/jsSrc/" + file)
+		if err != nil {
+			log.FatalError(err.Error(), "Error opening javascript file [%s]", file)
+		}
+		defer inFile.Close()
+
+		// writes the filename before copying
+		// _, err = outFile.WriteString(fmt.Sprintf("// %s\n\n", file))
+		// if err != nil {
+		// 	log.FatalError(err.Error(), "Error writing filename between merged contents in script.js")
+		// }
+
+		javascript += fmt.Sprintf("// %s\n\n", file)
+
+		// Copy the contents of the input file to the output file
+		// log.Trace("Writing content of javascript file [%s] into script.js", file)
+		// _, err = io.Copy(outFile, inFile)
+		// if err != nil {
+		// 	log.FatalError(err.Error(), "Error merging javascript files")
+		// }
+
+		content, err := os.ReadFile(inFile.Name())
+		if err != nil {
+			log.Fatal(err.Error())
+		}
+		javascript += string(content)
+
+		// Add a newline to separate the contents of different files
+		// _, err = outFile.WriteString("\n\n")
+		// if err != nil {
+		// 	log.FatalError(err.Error(), "Error adding newlines after copying javascript content into script.js")
+		// }
+		javascript += "\n\n"
+	}
+
+	log.Info("JavaScript files merged successfully into javascript string")
+	return javascript
+}
+
+func MergeJsFiles() {
+	// // Get the list of JavaScript files to merge
+	// log.Trace("Getting names of javascript files...")
+	// jsFiles, err := filepath.Glob("./public/jsSrc/*.js")
+	// if err != nil {
+	// 	log.FatalError(err.Error(), "Error getting names of javascript files")
+	// }
+
+	// log.Trace("Getting names of javascript component files...")
+	// jsCompFiles, err := filepath.Glob("./public/jsSrc/comp/*.js")
+	// if err != nil {
+	// 	log.FatalError(err.Error(), "Error getting namesof javascript component files")
+	// }
+
+	// var jsFilePaths []string = append(jsFiles, jsCompFiles...)
+
+	// Create a new file to store the merged JavaScript code
+	log.Trace("Create script.js that will store all js content")
+	outFile, err := os.OpenFile("./public/js/script.js", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
+	if err != nil {
+		log.FatalError(err.Error(), "Error creating script.js")
+	}
+	defer outFile.Close()
+
+	// loop through javascript files and
+	log.Trace("Loop through javascript files...")
+	log.Trace("Amount of javascript files: [%d]", len(jsFilePaths))
+	for _, file := range jsFilePaths {
+		log.Trace("Opening javascript file [%s]", file)
+		inFile, err := os.Open("./public/jsSrc/" + file)
+		if err != nil {
+			log.FatalError(err.Error(), "Error opening javascript file [%s]", file)
+		}
+		defer inFile.Close()
+
+		// writes the filename before copying
+		_, err = outFile.WriteString(fmt.Sprintf("// %s\n\n", file))
+		if err != nil {
+			log.FatalError(err.Error(), "Error writing filename between merged contents in script.js")
+		}
+
+		// Copy the contents of the input file to the output file
+		log.Trace("Writing content of javascript file [%s] into script.js", file)
+		_, err = io.Copy(outFile, inFile)
+		if err != nil {
+			log.FatalError(err.Error(), "Error merging javascript files")
+		}
+
+		// Add a newline to separate the contents of different files
+		_, err = outFile.WriteString("\n\n")
+		if err != nil {
+			log.FatalError(err.Error(), "Error adding newlines after copying javascript content into script.js")
+		}
+	}
+
+	log.Info("JavaScript files merged successfully into script.js")
 }

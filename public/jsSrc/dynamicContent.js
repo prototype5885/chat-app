@@ -13,9 +13,6 @@ const textColor = "#C5C7CB"
 const blue = "#5865F2"
 const green = "#00b700"
 
-var currentServerID
-var currentChannelID
-
 // runs whenever the chat input textarea content changes
 ChatInput.addEventListener("input", () => {
     resizeChatInput()
@@ -29,12 +26,6 @@ ChatInput.addEventListener("keydown", function (event) {
         readChatInput()
     }
 })
-
-// dynamically resize the chat input textarea to fit the text content
-function resizeChatInput() {
-    ChatInput.style.height = "auto"
-    ChatInput.style.height = ChatInput.scrollHeight + "px"
-}
 
 function getUserInfo(userID) {
     const member = document.getElementById(userID)
@@ -55,43 +46,6 @@ function getUserInfo(userID) {
 //     document.getElementById(channelID).querySelector("div").textContent = channelName
 // }
 
-function changeDisplayName(userID, newDisplayName) {
-    const user = document.getElementById(userID)
-    const username = user.querySelector(".user-name")
-
-    if (userID == ownUserID) { console.log("Old name:", username.textContent) }
-    username.textContent = newDisplayName
-    if (userID == ownUserID) { console.log("New name:", username.textContent) }
-
-    changeDisplayNameInChatMessages()
-}
-
-
-
-function serversSeparatorVisibility() {
-    const servers = ServerList.querySelectorAll(".server, .placeholder-server")
-    setServerCount(servers.length)
-
-    if (servers.length != 0) {
-        serverSeparators.forEach((separator) => {
-            separator.style.display = "block"
-        })
-    } else {
-        serverSeparators.forEach((separator) => {
-            separator.style.display = "none"
-        })
-    }
-}
-
-// read the text message for sending
-function readChatInput() {
-    if (ChatInput.value) {
-        sendChatMessage(ChatInput.value, currentChannelID)
-        ChatInput.value = ""
-        resizeChatInput()
-    }
-}
-
 function registerClick(element, callback) {
     element.addEventListener("click", (event) => {
         deleteCtxMenu()
@@ -99,7 +53,6 @@ function registerClick(element, callback) {
         callback()
     })
 }
-
 
 function registerHoverListeners() {
     // add server button
@@ -123,13 +76,6 @@ function registerHoverListeners() {
     }
 }
 
-function registerClickListeners() {
-    // add channel button
-    // {
-    //     registerClick(AddChannelButton, () => { requestAddChannel() })
-    // }
-}
-
 function registerHover(element, callbackIn, callbackOut) {
     element.addEventListener('mouseover', (event) => {
         // console.log('hovering over', element)
@@ -140,8 +86,4 @@ function registerHover(element, callbackIn, callbackOut) {
         // console.log('hovering out', element)
         callbackOut()
     })
-}
-
-function serverWhiteThingSize(thing, newSize) {
-    thing.style.height = `${newSize}px`
 }

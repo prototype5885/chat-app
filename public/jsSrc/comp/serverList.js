@@ -136,3 +136,22 @@ function deleteServer(serverID) {
     document.getElementById(serverID).parentNode.remove()
     serversSeparatorVisibility()
 }
+
+function serversSeparatorVisibility() {
+    const servers = ServerList.querySelectorAll(".server, .placeholder-server")
+    setServerCount(servers.length)
+
+    if (servers.length != 0) {
+        serverSeparators.forEach((separator) => {
+            separator.style.display = "block"
+        })
+    } else {
+        serverSeparators.forEach((separator) => {
+            separator.style.display = "none"
+        })
+    }
+}
+
+function serverWhiteThingSize(thing, newSize) {
+    thing.style.height = `${newSize}px`
+}

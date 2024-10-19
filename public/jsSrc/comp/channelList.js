@@ -41,26 +41,22 @@ function selectChannel(channelID) {
     ChannelNameTop.textContent = channelButton.querySelector("div").textContent
 }
 
-var channelsHidden = false
 function toggleChannelsVisibility() {
     const channels = Array.from(ChannelList.children)
 
     channels.forEach(channel => {
-        if (!channelsHidden) {
+        // check if channel is visible
+        if (channel.style.display = "") {
+            // hide if the channel isn't the current selected one
             if (channel.id != currentChannelID) {
                 channel.style.display = "none"
             }
         } else {
+            // make all channels visible
             channel.style.display = ""
         }
     })
-    if (!channelsHidden) {
-        channelsHidden = true
-    } else {
-        channelsHidden = false
-    }
 }
-
 
 function resetChannels() {
     ChannelList.innerHTML = ""

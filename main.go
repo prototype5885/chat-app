@@ -70,7 +70,9 @@ func main() {
 	}
 
 	config := readConfigFile()
-	log.SetupLogging("TRACE", config.LogConsole, config.LogFile)
+	log.SetupLogging("DEBUG", config.LogConsole, config.LogFile)
+
+	// webRequests.MergeJsFiles()
 
 	// database
 	if config.Sqlite {
@@ -86,25 +88,7 @@ func main() {
 	// websocket
 	websocket.Init()
 
-	var wsType string
-	if config.TLS {
-		wsType = "/wss"
-	} else {
-		wsType = "/ws"
-	}
-	http.HandleFunc(wsType, func(w http.ResponseWriter, r *http.Request) {
-		webRequests.WssHandler(w, r)
-	})
-
-	// http requests
-
-	http.HandleFunc("GET /login-register", webRequests.LoginRegisterHandler)
-	http.HandleFunc("GET /invite/", webRequests.InviteHandler)
-	http.HandleFunc("GET /chat", webRequests.ChatHandler)
-
-	http.HandleFunc("POST /login", webRequests.PostRequestHandler)
-	http.HandleFunc("POST /register", webRequests.PostRequestHandler)
-
+	// handle http requests
 	http.HandleFunc("/", webRequests.MainHandler)
 
 	var address string

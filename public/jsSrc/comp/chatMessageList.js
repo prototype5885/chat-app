@@ -78,7 +78,7 @@ function addChatMessage(messageID, userID, message) {
     ChatMessagesList.appendChild(li)
 }
 
-function changeDisplayNameInChatMessages() {
+function changeDisplayNameInChatMessageList(userID, newDisplayName) {
     const chatMessages = ChatMessagesList.querySelectorAll(".msg")
     chatMessages.forEach((chatMessage) => {
         if (chatMessage.getAttribute("user-id") == userID) {

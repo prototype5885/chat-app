@@ -7,6 +7,8 @@
     --dark-transparent: #111214d1;
     --dark-non-transparent: #111214;
     --brighter-transparent: #656565d1;
+    --chat-input-color: #383a40;
+    --separator-color: #3c3c3c;
     --loading-color: #00000080;
 }
 
@@ -98,4 +100,21 @@ button:hover {
 #main-top-left {
     color: #e7e7e7;
     font-size: 16px;
+}
+
+#bubble {
+    font-size: smaller;
+    z-index: 999;
+    display: block;
+    max-width: 240px;
+    height: auto;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+#bubble div {
+    padding: 8px;
+    padding-left: 12px;
+    padding-right: 12px;
+    font-size: larger;
 }

@@ -67,3 +67,8 @@ function showMemberList() {
 function resetMemberList() {
     MemberList.innerHTML = ""
 }
+
+function changeDisplayNameInMemberList(userID, newDisplayName) {
+    const user = document.getElementById(userID)
+    user.querySelector(".user-name").textContent = newDisplayName
+}

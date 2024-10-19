@@ -5,19 +5,14 @@
 <head>
     <meta name="viewport" content="width=device-width,height=device-height,user-scalable=no,initial-scale=1.0">
     <title>Discord Clone</title>
-    <link rel="stylesheet" href="global.css">
-    <link rel="stylesheet" href="chat.css">
-    <link rel="stylesheet" href="components/bubble.css">
-    <link rel="stylesheet" href="components/channelList.css">
-    <link rel="stylesheet" href="components/chatMessageList.css">
-    <link rel="stylesheet" href="components/contextMenu.css">
-    <link rel="stylesheet" href="components/memberList.css">
-    <link rel="stylesheet" href="components/serverList.css">
-    <link rel="stylesheet" href="components/window.css">
+    <link rel="stylesheet" href="css/global.css">
+    <link rel="stylesheet" href="css/chat.css">
 </head>
 
 <body>
     <div id="loading"></div>
+    <!-- <img id="imagePreview" alt="Image Preview" style="display: none; max-width: 300px; margin-top: 20px;"> -->
+    <input type="file" id="attachment-input" style="display: none;" onchange="attachmentAdded()">
     <ol id="server-list">
         <div class="servers-separator" id="first-servers-separator" style="display: none;"></div>
         <div class="servers-separator" id="second-servers-separator" style="display: none;"></div>
@@ -72,10 +67,13 @@
         <div id="main-bottom">
             <div id="main-center-container">
                 <ol id="chat-message-list"></ol>
+                <div id="attachment-preview-container">
+                    <div id="attachment-preview"></div>
+                </div>
                 <div id="chat-input-form-container" action="">
                     <div id="chat-input-form">
-                        <button id="attachment-button" class="chat-button">
-                            <div id="attachment-button-icon" class="chat-button-icon">Atch</div>
+                        <button id="attachment-button" class="chat-button" onclick="uploadAttachment()">
+                            <div id="attachment-button-icon" class="chat-button-icon"></div>
                         </button>
                         <textarea id="chat-input" autocomplete="off" placeholder="Message ..."></textarea>
                         <button id="send-button" class="chat-button" onclick="readChatInput()">
@@ -89,19 +87,20 @@
             </ol>
         </div>
     </div>
-    <audio id="notification-sound" src="discord-notification.mp3" preload="auto"></audio>
-    <script src="htmlElements.js"></script>
+    <audio id="notification-sound" src="sounds/discord-notification.mp3" preload="auto"></audio>
+    <!-- <script src="htmlElements.js"></script>
     <script src="localStorage.js"></script>
-    <script src="components/contextMenu.js"></script>
-    <script src="components/bubble.js"></script>
-    <script src="components/serverList.js"></script>
-    <script src="components/memberList.js"></script>
-    <script src="components/channelList.js"></script>
-    <script src="components/chatMessageList.js"></script>
-    <script src="components/channelList.js"></script>
-    <script src="components/window.js"></script>
+    <script src="comp/contextMenu.js"></script>
+    <script src="comp/bubble.js"></script>
+    <script src="comp/serverList.js"></script>
+    <script src="comp/memberList.js"></script>
+    <script src="comp/channelList.js"></script>
+    <script src="comp/chatMessageList.js"></script>
+    <script src="comp/window.js"></script>
+    <script src="comp/chatInput.js"></script>
     <script src="dynamicContent.js"></script>
-    <script src="chat.js"></script>
+    <script src="chat.js"></script> -->
+    <script src="script.js"></script>
 </body>
 
 </html>

@@ -1,13 +1,13 @@
 var localStorageSupported = false
 
-if (typeof (Storage) === "undefined") {
-    console.log("Browser doesn't support storage")
-} else {
-    console.log("Browser supports storage")
-    localStorageSupported = true
+function initLocalStorage() {
+    if (typeof (Storage) === "undefined") {
+        console.log("Browser doesn't support storage")
+    } else {
+        console.log("Browser supports storage")
+        localStorageSupported = true
+    }
 }
-
-// lastChannels 1.
 
 function getLastChannels() {
     return localStorage.getItem("lastChannels")
