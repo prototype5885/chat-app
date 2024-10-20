@@ -75,7 +75,8 @@
                         <button id="attachment-button" class="chat-button" onclick="uploadAttachment()">
                             <div id="attachment-button-icon" class="chat-button-icon"></div>
                         </button>
-                        <textarea id="chat-input" autocomplete="off" placeholder="Message ..."></textarea>
+                        <textarea id="chat-input" autocomplete="off" placeholder="Message ..."
+                            oninput="resizeChatInput()" onkeydown="sendChatEnter(event)"></textarea>
                         <button id="send-button" class="chat-button" onclick="readChatInput()">
                             <div id="send-button-icon" class="chat-button-icon">Send</div>
                         </button>
@@ -88,18 +89,6 @@
         </div>
     </div>
     <audio id="notification-sound" src="sounds/discord-notification.mp3" preload="auto"></audio>
-    <!-- <script src="htmlElements.js"></script>
-    <script src="localStorage.js"></script>
-    <script src="comp/contextMenu.js"></script>
-    <script src="comp/bubble.js"></script>
-    <script src="comp/serverList.js"></script>
-    <script src="comp/memberList.js"></script>
-    <script src="comp/channelList.js"></script>
-    <script src="comp/chatMessageList.js"></script>
-    <script src="comp/window.js"></script>
-    <script src="comp/chatInput.js"></script>
-    <script src="dynamicContent.js"></script>
-    <script src="chat.js"></script> -->
     <script src="script.js"></script>
 </body>
 

@@ -11,11 +11,15 @@ const AddServerButton = document.getElementById("add-server-button")
 const UserSettingsButton = document.getElementById("user-settings-button")
 const ToggleMicrophoneButton = document.getElementById("toggle-microphone-button")
 const ChatInput = document.getElementById("chat-input")
+const ChatInputForm = document.getElementById("chat-input-form")
 const NotificationSound = document.getElementById("notification-sound")
 const ChannelNameTop = document.getElementById("channel-name-top")
 const AboveFriendsChannels = document.getElementById("above-friends-channels")
 const ServerNameButton = document.getElementById("server-name-button")
 const ServerName = document.getElementById("server-name")
+const AttachmentInput = document.getElementById("attachment-input")
+const AttachmentPreviewContainer = document.getElementById("attachment-preview-container")
+const AttachmentPreview = document.getElementById("attachment-preview")
 
 var ownUserID // this will be the first thing server will send
 var receivedOwnUserID = false // don't continue loading until own user ID is received
@@ -24,57 +28,87 @@ var memberListLoaded = false // don't add chat history until server member list 
 var currentServerID
 var currentChannelID
 
-if (Notification.permission !== "granted") {
-    console.warn("Notifications are not enabled, requesting permission...")
-    Notification.requestPermission()
-} else {
-    console.log("Notifications are enabled")
+
+function waitUntilBoolIsTrue(checkFunction, interval = 10) {
+    return new Promise((resolve) => {
+        const intervalId = setInterval(() => {
+            if (checkFunction()) {
+                clearInterval(intervalId)
+                resolve()
+            }
+        }, interval)
+    })
 }
 
-// this runs after webpage was loaded
-document.addEventListener("DOMContentLoaded", async function () {
-    initLocalStorage()
+function main() {
+    // this runs after webpage was loaded
+    document.addEventListener("DOMContentLoaded", async function () {
+        initNotification()
+        initLocalStorage()
+        initContextMenu()
 
-    addServer("2000", 0, "Direct Messages", "hs.svg", "dm") // add the direct messages button
+        addServer("2000", 0, "Direct Messages", "hs.svg", "dm") // add the direct messages button
 
-    // add place holder servers depending on how many servers the client was in, will delete on websocket connection
-    // purely visual
-    const placeholderButtons = createPlaceHolderServers()
-    serversSeparatorVisibility()
-    console.log("Placeholder buttons:", placeholderButtons.length)
+        // add place holder servers depending on how many servers the client was in, will delete on websocket connection
+        // purely visual
+        const placeholderButtons = createPlaceHolderServers()
+        serversSeparatorVisibility()
+        console.log("Placeholder buttons:", placeholderButtons.length)
 
-    // this will continue when websocket connected
-    console.log("1")
-    await connectToWebsocket()
-    console.log("2")
+        // this will continue when websocket connected
+        await connectToWebsocket()
 
-    // waits until server sends user"s own ID
-    console.log("Waiting for server to send own user ID...")
-    await waitUntilBoolIsTrue(() => receivedOwnUserID)
+        // waits until server sends user"s own ID
+        console.log("Waiting for server to send own user ID...")
+        await waitUntilBoolIsTrue(() => receivedOwnUserID)
 
-    const loading = document.getElementById("loading")
-    const fadeOut = 0.25 //seconds
+        const loading = document.getElementById("loading")
+        const fadeOut = 0.25 //seconds
 
-    setTimeout(() => {
-        loading.remove() // Remove the element from the DOM
-    }, fadeOut * 1000)
+        setTimeout(() => {
+            loading.remove() // Remove the element from the DOM
+        }, fadeOut * 1000)
 
-    loading.style.transition = `background-color ${fadeOut}s ease`
-    loading.style.backgroundColor = "#00000000"
-    loading.style.pointerEvents = "none"
+        loading.style.transition = `background-color ${fadeOut}s ease`
+        loading.style.backgroundColor = "#00000000"
+        loading.style.pointerEvents = "none"
 
-    // remove placeholder servers
-    for (let i = 0; i < placeholderButtons.length; i++) {
-        placeholderButtons[i].remove()
+        // remove placeholder servers
+        for (let i = 0; i < placeholderButtons.length; i++) {
+            placeholderButtons[i].remove()
+        }
+
+        requestServerList()
+
+        registerHoverListeners() // add event listeners for hovering
+
+        console
+        selectServer("2000")
+    })
+}
+
+main()
+
+// notification.js
+
+function initNotification() {
+    if (Notification.permission !== "granted") {
+        console.warn("Notifications are not enabled, requesting permission...")
+        Notification.requestPermission()
+    } else {
+        console.log("Notifications are enabled")
     }
+}
 
-    requestServerList()
-
-    registerHoverListeners() // add event listeners for hovering
-
-    console
-    selectServer("2000")
-})
+function sendNotification(userID, message) {
+    const userInfo = getUserInfo(userID)
+    if (Notification.permission === "granted") {
+        new Notification(userInfo.username, {
+            body: message,
+            icon: userInfo.pic // Optional icon
+        })
+    }
+}
 
 // localStorage.js
 
@@ -234,20 +268,23 @@ function setServerCount(value) {
 
 var defaultRightClick = false
 
-// delete context menu if left clicked somewhere thats not
-// a context menu list element
-document.addEventListener("click", function (event) {
-    deleteCtxMenu()
-})
+function initContextMenu() {
+    // delete context menu if left clicked somewhere thats not
+    // a context menu list element
+    document.addEventListener("click", function (event) {
+        console.log("wtf")
+        deleteCtxMenu()
+    })
 
-// delete context menu if right clicked somewhere thats not registered
-// with context menu listener
-document.addEventListener("contextmenu", function (event) {
-    if (!defaultRightClick) {
-        event.preventDefault()
-    }
-    deleteCtxMenu()
-})
+    // delete context menu if right clicked somewhere thats not registered
+    // with context menu listener
+    document.addEventListener("contextmenu", function (event) {
+        if (!defaultRightClick) {
+            event.preventDefault()
+        }
+        deleteCtxMenu()
+    })
+}
 
 function registerContextMenu(element, callback) {
     element.addEventListener("contextmenu", (event) => {
@@ -632,6 +669,17 @@ function removeMember(userID) {
         element.remove()
     } else {
         console.log(`Trying to remove member ID [${userID}] but the element is not member class: [${element.className}]`)
+    }
+}
+
+function getUserInfo(userID) {
+    const member = document.getElementById(userID)
+    if (member != null) {
+        pic = member.querySelector('img.profile-pic').src
+        username = member.querySelector('div.user-name').textContent
+        return { username: username, pic: pic }
+    } else {
+        return { username: userID, pic: "" }
     }
 }
 
@@ -1087,9 +1135,18 @@ class Window {
 // comp/chatInput.js
 
 // dynamically resize the chat input textarea to fit the text content
+// runs whenever the chat input textarea content changes
 function resizeChatInput() {
     ChatInput.style.height = "auto"
     ChatInput.style.height = ChatInput.scrollHeight + "px"
+}
+
+// send the text message on enter
+function sendChatEnter(event) {
+    if (event.key === "Enter" && !event.shiftKey) {
+        event.preventDefault()
+        readChatInput()
+    }
 }
 
 // read the text message for sending
@@ -1101,27 +1158,52 @@ function readChatInput() {
     }
 }
 
-// chat.js
+function uploadAttachment() {
+    AttachmentInput.click()
 
-function sendNotification(userID, message) {
-    const userInfo = getUserInfo(userID)
-    if (Notification.permission === "granted") {
-        new Notification(userInfo.username, {
-            body: message,
-            icon: userInfo.pic // Optional icon
-        })
-    }
+
+    // const response = await fetch(url, {
+    //     method: 'POST',
+    //     headers: {
+    //         'Content-Type': 'application/json'
+    //     },
+    //     body: JSON.stringify(dataToSend)
+    // })
+    // const result = await response.json()
 }
 
-function waitUntilBoolIsTrue(checkFunction, interval = 10) {
-    return new Promise((resolve) => {
-        const intervalId = setInterval(() => {
-            if (checkFunction()) {
-                clearInterval(intervalId)
-                resolve()
-            }
-        }, interval)
-    })
+function attachmentAdded() {
+    AttachmentPreviewContainer.style.display = "block"
+    ChatInputForm.style.borderTopLeftRadius = "0px"
+    ChatInputForm.style.borderTopRightRadius = "0px"
+    ChatInputForm.style.borderTopStyle = "solid"
+
+    for (i = 0; i < AttachmentInput.files.length; i++) {
+        const reader = new FileReader()
+        reader.readAsDataURL(AttachmentInput.files[i]) // Read the file as a data URL
+
+        reader.onload = function (e) {
+            const imgContainer = document.createElement("div")
+
+            const imgElement = document.createElement("img")
+            imgElement.src = e.target.result
+            imgElement.style.display = 'block'
+            imgContainer.appendChild(imgElement)
+            AttachmentPreview.appendChild(imgContainer)
+        }
+    }
+
+
+
+
+
+    // }
+    // } else if (AttachmentInput.files.length == 0) {
+    //     AttachmentPreviewContainer.style.display = "none"
+    //     ChatInputForm.style.borderTopLeftRadius = "12px"
+    //     ChatInputForm.style.borderTopRightRadius = "12px"
+    //     ChatInputForm.style.borderTopStyle = "none"
+    // }
 }
 
 // dynamicContent.js
@@ -1140,31 +1222,6 @@ const textColor = "#C5C7CB"
 
 const blue = "#5865F2"
 const green = "#00b700"
-
-// runs whenever the chat input textarea content changes
-ChatInput.addEventListener("input", () => {
-    resizeChatInput()
-})
-
-// send the text message on enter
-ChatInput.addEventListener("keydown", function (event) {
-    // wont send if its shift enter so can make new lines
-    if (event.key === "Enter" && !event.shiftKey) {
-        event.preventDefault()
-        readChatInput()
-    }
-})
-
-function getUserInfo(userID) {
-    const member = document.getElementById(userID)
-    if (member != null) {
-        pic = member.querySelector('img.profile-pic').src
-        username = member.querySelector('div.user-name').textContent
-        return { username: username, pic: pic }
-    } else {
-        return { username: userID, pic: "" }
-    }
-}
 
 // function getChannelname(channelID) {
 //     return document.getElementById(channelID).querySelector("div").textContent

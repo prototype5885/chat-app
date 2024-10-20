@@ -26,54 +26,63 @@ var memberListLoaded = false // don't add chat history until server member list 
 var currentServerID
 var currentChannelID
 
-if (Notification.permission !== "granted") {
-    console.warn("Notifications are not enabled, requesting permission...")
-    Notification.requestPermission()
-} else {
-    console.log("Notifications are enabled")
+
+function waitUntilBoolIsTrue(checkFunction, interval = 10) {
+    return new Promise((resolve) => {
+        const intervalId = setInterval(() => {
+            if (checkFunction()) {
+                clearInterval(intervalId)
+                resolve()
+            }
+        }, interval)
+    })
 }
 
-// this runs after webpage was loaded
-document.addEventListener("DOMContentLoaded", async function () {
-    initLocalStorage()
+function main() {
+    // this runs after webpage was loaded
+    document.addEventListener("DOMContentLoaded", async function () {
+        initNotification()
+        initLocalStorage()
+        initContextMenu()
 
-    addServer("2000", 0, "Direct Messages", "hs.svg", "dm") // add the direct messages button
+        addServer("2000", 0, "Direct Messages", "hs.svg", "dm") // add the direct messages button
 
-    // add place holder servers depending on how many servers the client was in, will delete on websocket connection
-    // purely visual
-    const placeholderButtons = createPlaceHolderServers()
-    serversSeparatorVisibility()
-    console.log("Placeholder buttons:", placeholderButtons.length)
+        // add place holder servers depending on how many servers the client was in, will delete on websocket connection
+        // purely visual
+        const placeholderButtons = createPlaceHolderServers()
+        serversSeparatorVisibility()
+        console.log("Placeholder buttons:", placeholderButtons.length)
 
-    // this will continue when websocket connected
-    console.log("1")
-    await connectToWebsocket()
-    console.log("2")
+        // this will continue when websocket connected
+        await connectToWebsocket()
 
-    // waits until server sends user"s own ID
-    console.log("Waiting for server to send own user ID...")
-    await waitUntilBoolIsTrue(() => receivedOwnUserID)
+        // waits until server sends user"s own ID
+        console.log("Waiting for server to send own user ID...")
+        await waitUntilBoolIsTrue(() => receivedOwnUserID)
 
-    const loading = document.getElementById("loading")
-    const fadeOut = 0.25 //seconds
+        const loading = document.getElementById("loading")
+        const fadeOut = 0.25 //seconds
 
-    setTimeout(() => {
-        loading.remove() // Remove the element from the DOM
-    }, fadeOut * 1000)
+        setTimeout(() => {
+            loading.remove() // Remove the element from the DOM
+        }, fadeOut * 1000)
 
-    loading.style.transition = `background-color ${fadeOut}s ease`
-    loading.style.backgroundColor = "#00000000"
-    loading.style.pointerEvents = "none"
+        loading.style.transition = `background-color ${fadeOut}s ease`
+        loading.style.backgroundColor = "#00000000"
+        loading.style.pointerEvents = "none"
 
-    // remove placeholder servers
-    for (let i = 0; i < placeholderButtons.length; i++) {
-        placeholderButtons[i].remove()
-    }
+        // remove placeholder servers
+        for (let i = 0; i < placeholderButtons.length; i++) {
+            placeholderButtons[i].remove()
+        }
 
-    requestServerList()
+        requestServerList()
 
-    registerHoverListeners() // add event listeners for hovering
+        registerHoverListeners() // add event listeners for hovering
 
-    console
-    selectServer("2000")
-})
+        console
+        selectServer("2000")
+    })
+}
+
+main()

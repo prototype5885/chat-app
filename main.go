@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"proto-chat/modules/database"
+	jsfilesmerger "proto-chat/modules/jsFilesMerger"
 	log "proto-chat/modules/logging"
 	"proto-chat/modules/snowflake"
 	"proto-chat/modules/webRequests"
@@ -72,7 +73,7 @@ func main() {
 	config := readConfigFile()
 	log.SetupLogging("DEBUG", config.LogConsole, config.LogFile)
 
-	// webRequests.MergeJsFiles()
+	jsfilesmerger.Init()
 
 	// database
 	if config.Sqlite {

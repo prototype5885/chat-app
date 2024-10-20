@@ -22,10 +22,7 @@ var db *sql.DB
 var nullJson = []byte("null")
 
 func ConnectSqlite() {
-	log.Info("Opening sqlite database...")
-
 	//os.Remove("./database/database.db")
-
 	if err := os.MkdirAll("database", os.ModePerm); err != nil {
 		log.FatalError(err.Error(), "Error creating sqlite database folder")
 	}
@@ -37,11 +34,10 @@ func ConnectSqlite() {
 	}
 
 	db.SetMaxOpenConns(1)
+	log.Info("Connection to Sqlite database opened")
 }
 
 func ConnectMariadb(username string, password string, address string, port string, dbName string) {
-	log.Info("Opening MySQL/MariaDB database...")
-
 	var err error
 	db, err = sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", username, password, address, port, dbName))
 	if err != nil {
@@ -49,6 +45,7 @@ func ConnectMariadb(username string, password string, address string, port strin
 	}
 
 	db.SetMaxOpenConns(100)
+	log.Info("Connection to MySQL/MariaDB database opened")
 }
 
 func CloseDatabaseConnection() error {

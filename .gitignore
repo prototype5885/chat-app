@@ -13,3 +13,5 @@ proto-chat
 *.Identifier
 *.gz
 discord-notification.mp3
+public/js/script.js
+jsHashes.bin

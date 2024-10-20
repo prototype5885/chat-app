@@ -1,19 +1,22 @@
 var defaultRightClick = false
 
-// delete context menu if left clicked somewhere thats not
-// a context menu list element
-document.addEventListener("click", function (event) {
-    deleteCtxMenu()
-})
+function initContextMenu() {
+    // delete context menu if left clicked somewhere thats not
+    // a context menu list element
+    document.addEventListener("click", function (event) {
+        console.log("wtf")
+        deleteCtxMenu()
+    })
 
-// delete context menu if right clicked somewhere thats not registered
-// with context menu listener
-document.addEventListener("contextmenu", function (event) {
-    if (!defaultRightClick) {
-        event.preventDefault()
-    }
-    deleteCtxMenu()
-})
+    // delete context menu if right clicked somewhere thats not registered
+    // with context menu listener
+    document.addEventListener("contextmenu", function (event) {
+        if (!defaultRightClick) {
+            event.preventDefault()
+        }
+        deleteCtxMenu()
+    })
+}
 
 function registerContextMenu(element, callback) {
     element.addEventListener("contextmenu", (event) => {

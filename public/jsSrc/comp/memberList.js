@@ -48,6 +48,17 @@ function removeMember(userID) {
     }
 }
 
+function getUserInfo(userID) {
+    const member = document.getElementById(userID)
+    if (member != null) {
+        pic = member.querySelector('img.profile-pic').src
+        username = member.querySelector('div.user-name').textContent
+        return { username: username, pic: pic }
+    } else {
+        return { username: userID, pic: "" }
+    }
+}
+
 function toggleMemberListView() {
     if (MemberList.style.display === "none") {
         showMemberList()

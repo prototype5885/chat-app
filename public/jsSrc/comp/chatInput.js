@@ -1,7 +1,16 @@
 // dynamically resize the chat input textarea to fit the text content
+// runs whenever the chat input textarea content changes
 function resizeChatInput() {
     ChatInput.style.height = "auto"
     ChatInput.style.height = ChatInput.scrollHeight + "px"
+}
+
+// send the text message on enter
+function sendChatEnter(event) {
+    if (event.key === "Enter" && !event.shiftKey) {
+        event.preventDefault()
+        readChatInput()
+    }
 }
 
 // read the text message for sending
@@ -28,29 +37,28 @@ function uploadAttachment() {
 }
 
 function attachmentAdded() {
-    // if (AttachmentInput.files.length > 0) {
     AttachmentPreviewContainer.style.display = "block"
     ChatInputForm.style.borderTopLeftRadius = "0px"
     ChatInputForm.style.borderTopRightRadius = "0px"
     ChatInputForm.style.borderTopStyle = "solid"
 
-    // for (let i = 0; i < AttachmentInput.files.length; i++) {
+    for (i = 0; i < AttachmentInput.files.length; i++) {
+        const reader = new FileReader()
+        reader.readAsDataURL(AttachmentInput.files[i]) // Read the file as a data URL
 
-    const selectedFile = AttachmentInput.files[0]
-    const reader = new FileReader()
-    reader.readAsDataURL(selectedFile) // Read the file as a data URL
+        reader.onload = function (e) {
+            const imgContainer = document.createElement("div")
 
-    reader.onload = function (e) {
-        const imgContainer = document.createElement("div")
-
-        const imgElement = document.createElement("img")
-        imgElement.src = e.target.result
-        imgElement.style.display = 'block'
-        imgContainer.appendChild(imgElement)
-        AttachmentPreview.appendChild(imgContainer)
-
-        console.log(selectedFile.type)
+            const imgElement = document.createElement("img")
+            imgElement.src = e.target.result
+            imgElement.style.display = 'block'
+            imgContainer.appendChild(imgElement)
+            AttachmentPreview.appendChild(imgContainer)
+        }
     }
+
+
+
 
 
     // }

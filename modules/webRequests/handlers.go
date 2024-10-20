@@ -37,13 +37,12 @@ func loginRegisterHandler(w http.ResponseWriter, r *http.Request) {
 	userID := checkIfTokenIsValid(w, r)
 	if userID != 0 { // if user is trying to login but has a token
 		log.Debug("User is trying to access /login-register but already has authorized token, redirecting to /chat...")
-		http.Redirect(w, r, "/chat", http.StatusMovedPermanently)
+		redirect(w, r, "/chat")
 		return
 	}
 
 	// serve static files
 	http.ServeFile(w, r, getHtmlFilePath(r.URL.Path))
-	// http.FileServer(http.Dir(publicFolder)).ServeHTTP(w, r)
 }
 
 // on /chat GET request
@@ -54,7 +53,7 @@ func chatHandler(w http.ResponseWriter, r *http.Request) {
 	userID := checkIfTokenIsValid(w, r)
 	if userID == 0 { // if user tries to use the chat but has no token
 		log.Debug("Someone is trying to access /chat without authorized token, redirecting to / ...")
-		http.Redirect(w, r, "/", http.StatusMovedPermanently)
+		redirect(w, r, "/")
 		return
 	}
 
@@ -130,7 +129,7 @@ func inviteHandler(w http.ResponseWriter, r *http.Request) {
 				if database.Insert(database.ServerMember{ServerID: serverID, UserID: userID}) {
 					respondText(w, "Successfully joined server ID [%d]", serverID)
 					log.Debug("User ID [%d] successfully joined server ID [%d]", userID, serverID)
-					// http.Redirect(w, r, "/chat", http.StatusMovedPermanently)
+					redirect(w, r, "/chat")
 					return
 				} else {
 					respondText(w, "Failed joining server")

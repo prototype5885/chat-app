@@ -13,31 +13,6 @@ const textColor = "#C5C7CB"
 const blue = "#5865F2"
 const green = "#00b700"
 
-// runs whenever the chat input textarea content changes
-ChatInput.addEventListener("input", () => {
-    resizeChatInput()
-})
-
-// send the text message on enter
-ChatInput.addEventListener("keydown", function (event) {
-    // wont send if its shift enter so can make new lines
-    if (event.key === "Enter" && !event.shiftKey) {
-        event.preventDefault()
-        readChatInput()
-    }
-})
-
-function getUserInfo(userID) {
-    const member = document.getElementById(userID)
-    if (member != null) {
-        pic = member.querySelector('img.profile-pic').src
-        username = member.querySelector('div.user-name').textContent
-        return { username: username, pic: pic }
-    } else {
-        return { username: userID, pic: "" }
-    }
-}
-
 // function getChannelname(channelID) {
 //     return document.getElementById(channelID).querySelector("div").textContent
 // }

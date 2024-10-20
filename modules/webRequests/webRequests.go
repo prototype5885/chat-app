@@ -1,16 +1,16 @@
 package webRequests
 
 import (
-	"io"
 	"net/http"
 	"path/filepath"
+	jsfilesmerger "proto-chat/modules/jsFilesMerger"
 	log "proto-chat/modules/logging"
 )
 
 const publicFolder string = "./public"
 const picsFolder string = publicFolder + "/pics"
 
-// const jsFolder string = publicFolder + "/js"
+const jsFolder string = publicFolder + "/js"
 const uiFolder string = publicFolder + "/ui"
 
 // on any requests
@@ -30,12 +30,13 @@ func MainHandler(w http.ResponseWriter, r *http.Request) {
 			case ".css":
 				http.ServeFile(w, r, publicFolder+r.URL.Path)
 			case ".js":
-				w.Header().Set("Content-Type", "application/javascript")
-				_, err := io.WriteString(w, MergeJsFilesMem())
-				if err != nil {
-					log.WarnError(err.Error(), "Error sending javascript string to client")
-				}
-				// http.ServeFile(w, r, jsFolder+r.URL.Path)
+				// w.Header().Set("Content-Type", "application/javascript")
+				// _, err := io.WriteString(w, jsfilesmerger.MergeJsFiles())
+				// if err != nil {
+				// 	log.WarnError(err.Error(), "Error sending javascript string to client")
+				// }
+				jsfilesmerger.CheckForChanges()
+				http.ServeFile(w, r, jsFolder+r.URL.Path)
 			}
 			// don't continue if request was confirmed to be a file
 			return
