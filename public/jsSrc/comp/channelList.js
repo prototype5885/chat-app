@@ -15,6 +15,7 @@ function addChannel(channelID, channelName) {
 
 function selectChannel(channelID) {
     console.log("Selected channel ID:", channelID)
+    reachedBeginning = false
 
     if (channelID == currentChannelID) {
         console.log("Channel selected is already the current one")
@@ -37,7 +38,7 @@ function selectChannel(channelID) {
 
     resetChatMessages()
     updateLastChannels()
-    requestChatHistory(channelID)
+    requestChatHistory(channelID, 0)
     ChannelNameTop.textContent = channelButton.querySelector("div").textContent
 }
 

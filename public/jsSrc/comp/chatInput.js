@@ -37,29 +37,44 @@ function uploadAttachment() {
 }
 
 function attachmentAdded() {
-    AttachmentPreviewContainer.style.display = "block"
-    ChatInputForm.style.borderTopLeftRadius = "0px"
-    ChatInputForm.style.borderTopRightRadius = "0px"
-    ChatInputForm.style.borderTopStyle = "solid"
-
     for (i = 0; i < AttachmentInput.files.length; i++) {
         const reader = new FileReader()
         reader.readAsDataURL(AttachmentInput.files[i]) // Read the file as a data URL
 
         reader.onload = function (e) {
-            const imgContainer = document.createElement("div")
+            const attachmentContainer = document.createElement("div")
+            AttachmentList.appendChild(attachmentContainer)
 
+            attachmentContainer.addEventListener("click", function () {
+                attachmentContainer.remove()
+                calculateAttachments()
+            })
+
+            const text = false
+
+            const attachmentPreview = document.createElement("div")
+            attachmentPreview.className = "attachment-preview"
+            if (text) {
+                attachmentContainer.style.height = "224px"
+            } else {
+                attachmentContainer.style.height = "200px"
+            }
             const imgElement = document.createElement("img")
             imgElement.src = e.target.result
             imgElement.style.display = 'block'
-            imgContainer.appendChild(imgElement)
-            AttachmentPreview.appendChild(imgContainer)
+            attachmentPreview.appendChild(imgElement)
+            attachmentContainer.appendChild(attachmentPreview)
+
+            if (text) {
+                // attachmentPreview.style.height = "224px"
+                const attachmentName = document.createElement("div")
+                attachmentName.className = "attachment-name"
+                attachmentName.textContent = "test.jpg"
+                attachmentContainer.appendChild(attachmentName)
+            }
+            calculateAttachments()
         }
     }
-
-
-
-
 
     // }
     // } else if (AttachmentInput.files.length == 0) {
@@ -68,4 +83,21 @@ function attachmentAdded() {
     //     ChatInputForm.style.borderTopRightRadius = "12px"
     //     ChatInputForm.style.borderTopStyle = "none"
     // }
+}
+
+function calculateAttachments() {
+    const count = AttachmentList.children.length
+    console.log("attachments:", count)
+
+    if (count > 0 && AttachmentContainer.style.display != "block") {
+        AttachmentContainer.style.display = "block"
+        ChatInputForm.style.borderTopLeftRadius = "0px"
+        ChatInputForm.style.borderTopRightRadius = "0px"
+        ChatInputForm.style.borderTopStyle = "solid"
+    } else if (count == 0 && AttachmentContainer.style.display == "block") {
+        AttachmentContainer.style.display = "none"
+        ChatInputForm.style.borderTopLeftRadius = "12px"
+        ChatInputForm.style.borderTopRightRadius = "12px"
+        ChatInputForm.style.borderTopStyle = "none"
+    }
 }

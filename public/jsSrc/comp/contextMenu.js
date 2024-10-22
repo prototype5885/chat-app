@@ -4,7 +4,6 @@ function initContextMenu() {
     // delete context menu if left clicked somewhere thats not
     // a context menu list element
     document.addEventListener("click", function (event) {
-        console.log("wtf")
         deleteCtxMenu()
     })
 

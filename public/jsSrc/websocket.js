@@ -40,41 +40,13 @@ async function connectToWebsocket() {
                 console.warn(json.Reason)
                 break
             case 1: // Server sent a chat message
-                console.log(`New chat message ID [${json.IDm}] received`)
-                addChatMessage(json.IDm, json.IDu, json.Msg)
-                ChatMessagesList.scrollTo({
-                    top: ChatMessagesList.scrollHeight,
-                    behavior: "smooth"
-                })
-
-                if (json.IDu !== ownUserID) {
-                    if (Notification.permission === "granted") {
-                        sendNotification(json.IDu, json.Msg)
-                    } else {
-                        NotificationSound.play()
-                    }
-                }
+                chatMessageReceived(json)
                 break
             case 2: // Server sent the requested chat history
-                console.log(`Requested chat history for current channel arrived`)
-
-                await waitUntilBoolIsTrue(() => memberListLoaded) // wait until members are loaded
-                if (json !== null) {
-                    for (let i = 0; i < json.length; i++) {
-                        addChatMessage(json[i].IDm, json[i].IDu, json[i].Msg) // messageID, userID, Message
-                    }
-                    ChatMessagesList.scrollTo({
-                        top: ChatMessagesList.scrollHeight,
-                        behavior: "instant"
-                    })
-                } else {
-                    console.log("Current channel has no chat history")
-                }
+                chatHistoryReceived(json)
                 break
             case 3: // Server sent which message was deleted
-                const messageID = json
-                console.log(`Deleting message ID [${messageID}]`)
-                document.getElementById(messageID).remove()
+                deleteChatMessage(json)
                 break
             case 21: // Server responded to the add server request
                 console.log("Add server request response arrived")
@@ -235,10 +207,12 @@ function sendChatMessage(message, channelID) { // type is 1
         Message: message
     })
 }
-function requestChatHistory(channelID) {
+function requestChatHistory(channelID, lastMessageID) {
     console.log("Requesting chat history for channel ID", channelID)
-    preparePacket(2, [channelID], {
-        ChannelID: channelID
+    preparePacket(2, [channelID, lastMessageID], {
+        ChannelID: channelID,
+        FromMessageID: lastMessageID,
+        Older: true // if true it will request older, if false it will request newer messages from the message id
     })
 }
 function requestDeleteChatMessage(messageID) {

@@ -512,38 +512,55 @@ body {
     overflow-wrap: anywhere;
 }
 
-#attachment-preview-container,
+#attachment-container,
 #chat-input-form-container {
     padding-left: 16px;
     padding-right: 16px;
 }
 
-#attachment-preview-container {
+#attachment-container {
     display: none;
 }
 
-#attachment-preview {
+#attachment-list {
     display: flex;
     flex-direction: row;
-    /* height: 268px; */
     background-color: var(--chat-input-color);
     align-items: center;
     padding: 6px;
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
 }
 
-#attachment-preview>div {
+#attachment-list>div {
+    /* height: 200px; */
+    width: 200px;
+    background-color: var(--bit-darker-color);
+    border-radius: 6px;
+    margin: 6px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.attachment-preview {
     height: 192px;
     width: 192px;
-    background-color: var(--bit-darker-color);
-    border-radius: 12px;
-    margin: 6px;
+    border-radius: 4px;
+    overflow: hidden;
+    /* background-color: red; */
 }
 
-#attachment-preview>div>img {
+.attachment-preview>img {
     width: 100%;
     height: 100%;
     object-fit: scale-down;
-    /* max-width: 256px; */
+}
+
+.attachment-name {
+    margin-top: 4px;
+    /* font-size: larger; */
 }
 
 /* chat input */
@@ -559,7 +576,7 @@ body {
     min-height: 32px;
     flex: 1;
     border-width: 1px;
-    border-top: var(--text-color);
+    border-top: var(--light-color);
     border-top-style: none;
     border-top-left-radius: 12px;
     border-top-right-radius: 12px;

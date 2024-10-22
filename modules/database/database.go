@@ -95,7 +95,7 @@ func Insert(structo any) bool {
 		typeName = "message"
 		insertedItemID = s.MessageID
 		printInsertingMsg()
-		_, err = db.Exec(insertChatMessageQuery, s.MessageID, s.ChannelID, s.UserID, s.Message)
+		_, err = db.Exec(insertChatMessageQuery, s.MessageID, s.ChannelID, s.UserID, s.Timestamp, s.Message)
 	case Server:
 		typeName = "server"
 		insertedItemID = s.ServerID

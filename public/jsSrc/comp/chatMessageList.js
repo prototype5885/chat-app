@@ -1,5 +1,5 @@
 // adds the new chat message into html
-function addChatMessage(messageID, userID, message) {
+function addChatMessage(messageID, userID, message, after) {
     // extract the message date from messageID
     const msgDate = new Date(Number((BigInt(messageID) >> BigInt(22)))).toLocaleString()
 
@@ -75,7 +75,90 @@ function addChatMessage(messageID, userID, message) {
     li.appendChild(msgDataDiv)
 
     // and finally append the message to the message list
-    ChatMessagesList.appendChild(li)
+    if (after) {
+        ChatMessagesList.insertAdjacentElement("beforeend", li)
+    } else {
+        ChatMessagesList.insertAdjacentElement("afterbegin", li)
+    }
+}
+
+function deleteChatMessage() {
+    const messageID = json
+    console.log(`Deleting message ID [${messageID}]`)
+    document.getElementById(messageID).remove()
+    amountOfmessagesChanged()
+}
+
+async function chatMessageReceived(json) {
+    if (!memberListLoaded) {
+        await waitUntilBoolIsTrue(() => memberListLoaded) // wait until members are loaded
+    }
+
+    console.log(`New chat message ID [${json.IDm}] received`)
+    addChatMessage(json.IDm, json.IDu, json.Msg, true)
+
+    if (getScrollDistanceFromBottom(ChatMessagesList) < 200 || json.IDu == ownUserID) {
+        ChatMessagesList.scrollTo({
+            top: ChatMessagesList.scrollHeight,
+            behavior: "smooth"
+        })
+    } else {
+        console.log("Too far from current chat messages, not scrolling down on new message")
+    }
+
+    if (json.IDu !== ownUserID) {
+        if (Notification.permission === "granted") {
+            sendNotification(json.IDu, json.Msg)
+        } else {
+            NotificationSound.play()
+        }
+    }
+    amountOfmessagesChanged()
+}
+
+async function chatHistoryReceived(json) {
+    console.log(`Requested chat history for current channel arrived`)
+    if (!memberListLoaded) {
+        await waitUntilBoolIsTrue(() => memberListLoaded) // wait until members are loaded
+    }
+
+    if (json !== null) {
+        // runs if json contains chat history
+        // loop through the json and add each messages one by one
+        for (let i = 0; i < json.length; i++) {
+            // false here means these messages will be inserted before existing ones
+            addChatMessage(json[i].IDm, json[i].IDu, json[i].Msg, false)
+        }
+        // only auto scroll down when entering channel, and not when
+        // server sends rest of history while scrolling up manually
+        if (currentChannelID != lastChannelID) {
+            // this runs when entered a channel
+            ChatMessagesList.scrollTo({
+                top: ChatMessagesList.scrollHeight,
+                behavior: "instant"
+            })
+            // set this so it won't scroll down anymore as messages arrive while scrolling up
+            // and won't request useless chat history requests when scrolling on top
+            // if already reached the beginning
+            lastChannelID = currentChannelID
+        }
+    } else {
+        if (currentChannelID == lastChannelID) {
+            // this can only run if already in channel
+            console.warn("Reached the beginning of the chat, don't request more")
+            // will become false upon entering an other channel
+            reachedBeginning = true
+        } else {
+            // and this only when entering a channel
+            console.warn("Current channel has no chat history")
+        }
+    }
+    amountOfmessagesChanged()
+}
+
+function amountOfmessagesChanged() {
+    const count = ChatMessagesList.querySelectorAll("li").length
+    console.log(count)
 }
 
 function changeDisplayNameInChatMessageList(userID, newDisplayName) {
@@ -87,12 +170,24 @@ function changeDisplayNameInChatMessageList(userID, newDisplayName) {
     })
 }
 
+var alreadyReached = false
+function scrolledOnChat(event) {
+    if (!alreadyReached && !reachedBeginning && ChatMessagesList.scrollTop < 200) {
+        const chatmessage = ChatMessagesList.querySelector("li")
+        if (chatmessage != null) {
+            requestChatHistory(currentChannelID, chatmessage.id)
+            alreadyReached = true
+        }
+    } else if (alreadyReached == true && ChatMessagesList.scrollTop > 200) {
+        alreadyReached = false
+    }
+}
+
 function resetChatMessages() {
     // empties chat
     ChatMessagesList.innerHTML = ""
 
     // this makes sure there will be a little gap between chat input box
     // and the chat messages when user is viewing the latest message
-    const chatScrollGap = document.createElement("div")
-    ChatMessagesList.appendChild(chatScrollGap)
+    ChatMessagesList.appendChild(document.createElement("div"))
 }

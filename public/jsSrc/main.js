@@ -16,8 +16,8 @@ const AboveFriendsChannels = document.getElementById("above-friends-channels")
 const ServerNameButton = document.getElementById("server-name-button")
 const ServerName = document.getElementById("server-name")
 const AttachmentInput = document.getElementById("attachment-input")
-const AttachmentPreviewContainer = document.getElementById("attachment-preview-container")
-const AttachmentPreview = document.getElementById("attachment-preview")
+const AttachmentContainer = document.getElementById("attachment-container")
+const AttachmentList = document.getElementById("attachment-list")
 
 var ownUserID // this will be the first thing server will send
 var receivedOwnUserID = false // don't continue loading until own user ID is received
@@ -25,7 +25,8 @@ var memberListLoaded = false // don't add chat history until server member list 
 
 var currentServerID
 var currentChannelID
-
+var lastChannelID
+var reachedBeginning = false
 
 function waitUntilBoolIsTrue(checkFunction, interval = 10) {
     return new Promise((resolve) => {
@@ -83,6 +84,14 @@ function main() {
         console
         selectServer("2000")
     })
+}
+
+function getScrollDistanceFromBottom(e) {
+    return e.scrollHeight - e.scrollTop - e.clientHeight
+}
+
+function getScrollDistanceFromTop(e) {
+
 }
 
 main()

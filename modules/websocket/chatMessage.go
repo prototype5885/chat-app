@@ -58,22 +58,24 @@ func (c *Client) onChatMessageRequest(packetJson []byte, packetType byte) (Broad
 func (c *Client) onChatHistoryRequest(packetJson []byte, packetType byte) []byte {
 	const jsonType string = "chat history"
 
-	type ChatHistoryRequest struct {
-		ChannelID uint64
+	type Req struct {
+		ChannelID     uint64
+		FromMessageID uint64
+		Older         bool
 	}
 
-	var chatHistoryRequest ChatHistoryRequest
+	var req Req
 
-	if err := json.Unmarshal(packetJson, &chatHistoryRequest); err != nil {
+	if err := json.Unmarshal(packetJson, &req); err != nil {
 		return macros.ErrorDeserializing(err.Error(), jsonType, c.userID)
 	}
 
-	var jsonBytes []byte = database.GetChatMessages(chatHistoryRequest.ChannelID, c.userID)
+	var jsonBytes []byte = database.GetChatHistory(req.ChannelID, req.FromMessageID, req.Older, c.userID)
 	if jsonBytes == nil {
 		return macros.RespondFailureReason("Denied chat history request")
 	}
 
-	c.setCurrentChannelID(chatHistoryRequest.ChannelID)
+	c.setCurrentChannelID(req.ChannelID)
 
 	return macros.PreparePacket(packetType, jsonBytes)
 }

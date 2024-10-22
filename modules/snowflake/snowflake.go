@@ -66,6 +66,10 @@ func Extract(snowflakeId uint64) (uint64, uint64, uint64) {
 	return timestamp, workerID, increment
 }
 
+func ExtractTimestamp(snowflakeId uint64) uint64 {
+	return snowflakeId >> timestampPos
+}
+
 func Print(snowflakeId uint64) {
 	timestamp, workerID, increment := Extract(snowflakeId)
 	// var realTimestamp = timestamp + timestampOffset

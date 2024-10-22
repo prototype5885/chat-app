@@ -18,8 +18,8 @@ const AboveFriendsChannels = document.getElementById("above-friends-channels")
 const ServerNameButton = document.getElementById("server-name-button")
 const ServerName = document.getElementById("server-name")
 const AttachmentInput = document.getElementById("attachment-input")
-const AttachmentPreviewContainer = document.getElementById("attachment-preview-container")
-const AttachmentPreview = document.getElementById("attachment-preview")
+const AttachmentContainer = document.getElementById("attachment-container")
+const AttachmentList = document.getElementById("attachment-list")
 
 var ownUserID // this will be the first thing server will send
 var receivedOwnUserID = false // don't continue loading until own user ID is received
@@ -27,7 +27,8 @@ var memberListLoaded = false // don't add chat history until server member list 
 
 var currentServerID
 var currentChannelID
-
+var lastChannelID
+var reachedBeginning = false
 
 function waitUntilBoolIsTrue(checkFunction, interval = 10) {
     return new Promise((resolve) => {
@@ -85,6 +86,14 @@ function main() {
         console
         selectServer("2000")
     })
+}
+
+function getScrollDistanceFromBottom(e) {
+    return e.scrollHeight - e.scrollTop - e.clientHeight
+}
+
+function getScrollDistanceFromTop(e) {
+
 }
 
 main()
@@ -272,7 +281,6 @@ function initContextMenu() {
     // delete context menu if left clicked somewhere thats not
     // a context menu list element
     document.addEventListener("click", function (event) {
-        console.log("wtf")
         deleteCtxMenu()
     })
 
@@ -727,6 +735,7 @@ function addChannel(channelID, channelName) {
 
 function selectChannel(channelID) {
     console.log("Selected channel ID:", channelID)
+    reachedBeginning = false
 
     if (channelID == currentChannelID) {
         console.log("Channel selected is already the current one")
@@ -749,7 +758,7 @@ function selectChannel(channelID) {
 
     resetChatMessages()
     updateLastChannels()
-    requestChatHistory(channelID)
+    requestChatHistory(channelID, 0)
     ChannelNameTop.textContent = channelButton.querySelector("div").textContent
 }
 
@@ -777,7 +786,7 @@ function resetChannels() {
 // comp/chatMessageList.js
 
 // adds the new chat message into html
-function addChatMessage(messageID, userID, message) {
+function addChatMessage(messageID, userID, message, after) {
     // extract the message date from messageID
     const msgDate = new Date(Number((BigInt(messageID) >> BigInt(22)))).toLocaleString()
 
@@ -853,7 +862,90 @@ function addChatMessage(messageID, userID, message) {
     li.appendChild(msgDataDiv)
 
     // and finally append the message to the message list
-    ChatMessagesList.appendChild(li)
+    if (after) {
+        ChatMessagesList.insertAdjacentElement("beforeend", li)
+    } else {
+        ChatMessagesList.insertAdjacentElement("afterbegin", li)
+    }
+}
+
+function deleteChatMessage() {
+    const messageID = json
+    console.log(`Deleting message ID [${messageID}]`)
+    document.getElementById(messageID).remove()
+    amountOfmessagesChanged()
+}
+
+async function chatMessageReceived(json) {
+    if (!memberListLoaded) {
+        await waitUntilBoolIsTrue(() => memberListLoaded) // wait until members are loaded
+    }
+
+    console.log(`New chat message ID [${json.IDm}] received`)
+    addChatMessage(json.IDm, json.IDu, json.Msg, true)
+
+    if (getScrollDistanceFromBottom(ChatMessagesList) < 200 || json.IDu == ownUserID) {
+        ChatMessagesList.scrollTo({
+            top: ChatMessagesList.scrollHeight,
+            behavior: "smooth"
+        })
+    } else {
+        console.log("Too far from current chat messages, not scrolling down on new message")
+    }
+
+    if (json.IDu !== ownUserID) {
+        if (Notification.permission === "granted") {
+            sendNotification(json.IDu, json.Msg)
+        } else {
+            NotificationSound.play()
+        }
+    }
+    amountOfmessagesChanged()
+}
+
+async function chatHistoryReceived(json) {
+    console.log(`Requested chat history for current channel arrived`)
+    if (!memberListLoaded) {
+        await waitUntilBoolIsTrue(() => memberListLoaded) // wait until members are loaded
+    }
+
+    if (json !== null) {
+        // runs if json contains chat history
+        // loop through the json and add each messages one by one
+        for (let i = 0; i < json.length; i++) {
+            // false here means these messages will be inserted before existing ones
+            addChatMessage(json[i].IDm, json[i].IDu, json[i].Msg, false)
+        }
+        // only auto scroll down when entering channel, and not when
+        // server sends rest of history while scrolling up manually
+        if (currentChannelID != lastChannelID) {
+            // this runs when entered a channel
+            ChatMessagesList.scrollTo({
+                top: ChatMessagesList.scrollHeight,
+                behavior: "instant"
+            })
+            // set this so it won't scroll down anymore as messages arrive while scrolling up
+            // and won't request useless chat history requests when scrolling on top
+            // if already reached the beginning
+            lastChannelID = currentChannelID
+        }
+    } else {
+        if (currentChannelID == lastChannelID) {
+            // this can only run if already in channel
+            console.warn("Reached the beginning of the chat, don't request more")
+            // will become false upon entering an other channel
+            reachedBeginning = true
+        } else {
+            // and this only when entering a channel
+            console.warn("Current channel has no chat history")
+        }
+    }
+    amountOfmessagesChanged()
+}
+
+function amountOfmessagesChanged() {
+    const count = ChatMessagesList.querySelectorAll("li").length
+    console.log(count)
 }
 
 function changeDisplayNameInChatMessageList(userID, newDisplayName) {
@@ -865,14 +957,26 @@ function changeDisplayNameInChatMessageList(userID, newDisplayName) {
     })
 }
 
+var alreadyReached = false
+function scrolledOnChat(event) {
+    if (!alreadyReached && !reachedBeginning && ChatMessagesList.scrollTop < 200) {
+        const chatmessage = ChatMessagesList.querySelector("li")
+        if (chatmessage != null) {
+            requestChatHistory(currentChannelID, chatmessage.id)
+            alreadyReached = true
+        }
+    } else if (alreadyReached == true && ChatMessagesList.scrollTop > 200) {
+        alreadyReached = false
+    }
+}
+
 function resetChatMessages() {
     // empties chat
     ChatMessagesList.innerHTML = ""
 
     // this makes sure there will be a little gap between chat input box
     // and the chat messages when user is viewing the latest message
-    const chatScrollGap = document.createElement("div")
-    ChatMessagesList.appendChild(chatScrollGap)
+    ChatMessagesList.appendChild(document.createElement("div"))
 }
 
 // comp/window.js
@@ -1173,29 +1277,44 @@ function uploadAttachment() {
 }
 
 function attachmentAdded() {
-    AttachmentPreviewContainer.style.display = "block"
-    ChatInputForm.style.borderTopLeftRadius = "0px"
-    ChatInputForm.style.borderTopRightRadius = "0px"
-    ChatInputForm.style.borderTopStyle = "solid"
-
     for (i = 0; i < AttachmentInput.files.length; i++) {
         const reader = new FileReader()
         reader.readAsDataURL(AttachmentInput.files[i]) // Read the file as a data URL
 
         reader.onload = function (e) {
-            const imgContainer = document.createElement("div")
+            const attachmentContainer = document.createElement("div")
+            AttachmentList.appendChild(attachmentContainer)
 
+            attachmentContainer.addEventListener("click", function () {
+                attachmentContainer.remove()
+                calculateAttachments()
+            })
+
+            const text = false
+
+            const attachmentPreview = document.createElement("div")
+            attachmentPreview.className = "attachment-preview"
+            if (text) {
+                attachmentContainer.style.height = "224px"
+            } else {
+                attachmentContainer.style.height = "200px"
+            }
             const imgElement = document.createElement("img")
             imgElement.src = e.target.result
             imgElement.style.display = 'block'
-            imgContainer.appendChild(imgElement)
-            AttachmentPreview.appendChild(imgContainer)
+            attachmentPreview.appendChild(imgElement)
+            attachmentContainer.appendChild(attachmentPreview)
+
+            if (text) {
+                // attachmentPreview.style.height = "224px"
+                const attachmentName = document.createElement("div")
+                attachmentName.className = "attachment-name"
+                attachmentName.textContent = "test.jpg"
+                attachmentContainer.appendChild(attachmentName)
+            }
+            calculateAttachments()
         }
     }
-
-
-
-
 
     // }
     // } else if (AttachmentInput.files.length == 0) {
@@ -1204,6 +1323,23 @@ function attachmentAdded() {
     //     ChatInputForm.style.borderTopRightRadius = "12px"
     //     ChatInputForm.style.borderTopStyle = "none"
     // }
+}
+
+function calculateAttachments() {
+    const count = AttachmentList.children.length
+    console.log("attachments:", count)
+
+    if (count > 0 && AttachmentContainer.style.display != "block") {
+        AttachmentContainer.style.display = "block"
+        ChatInputForm.style.borderTopLeftRadius = "0px"
+        ChatInputForm.style.borderTopRightRadius = "0px"
+        ChatInputForm.style.borderTopStyle = "solid"
+    } else if (count == 0 && AttachmentContainer.style.display == "block") {
+        AttachmentContainer.style.display = "none"
+        ChatInputForm.style.borderTopLeftRadius = "12px"
+        ChatInputForm.style.borderTopRightRadius = "12px"
+        ChatInputForm.style.borderTopStyle = "none"
+    }
 }
 
 // dynamicContent.js
@@ -1317,41 +1453,13 @@ async function connectToWebsocket() {
                 console.warn(json.Reason)
                 break
             case 1: // Server sent a chat message
-                console.log(`New chat message ID [${json.IDm}] received`)
-                addChatMessage(json.IDm, json.IDu, json.Msg)
-                ChatMessagesList.scrollTo({
-                    top: ChatMessagesList.scrollHeight,
-                    behavior: "smooth"
-                })
-
-                if (json.IDu !== ownUserID) {
-                    if (Notification.permission === "granted") {
-                        sendNotification(json.IDu, json.Msg)
-                    } else {
-                        NotificationSound.play()
-                    }
-                }
+                chatMessageReceived(json)
                 break
             case 2: // Server sent the requested chat history
-                console.log(`Requested chat history for current channel arrived`)
-
-                await waitUntilBoolIsTrue(() => memberListLoaded) // wait until members are loaded
-                if (json !== null) {
-                    for (let i = 0; i < json.length; i++) {
-                        addChatMessage(json[i].IDm, json[i].IDu, json[i].Msg) // messageID, userID, Message
-                    }
-                    ChatMessagesList.scrollTo({
-                        top: ChatMessagesList.scrollHeight,
-                        behavior: "instant"
-                    })
-                } else {
-                    console.log("Current channel has no chat history")
-                }
+                chatHistoryReceived(json)
                 break
             case 3: // Server sent which message was deleted
-                const messageID = json
-                console.log(`Deleting message ID [${messageID}]`)
-                document.getElementById(messageID).remove()
+                deleteChatMessage(json)
                 break
             case 21: // Server responded to the add server request
                 console.log("Add server request response arrived")
@@ -1512,10 +1620,12 @@ function sendChatMessage(message, channelID) { // type is 1
         Message: message
     })
 }
-function requestChatHistory(channelID) {
+function requestChatHistory(channelID, lastMessageID) {
     console.log("Requesting chat history for channel ID", channelID)
-    preparePacket(2, [channelID], {
-        ChannelID: channelID
+    preparePacket(2, [channelID, lastMessageID], {
+        ChannelID: channelID,
+        FromMessageID: lastMessageID,
+        Older: true // if true it will request older, if false it will request newer messages from the message id
     })
 }
 function requestDeleteChatMessage(messageID) {
