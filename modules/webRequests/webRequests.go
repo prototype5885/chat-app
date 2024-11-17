@@ -63,6 +63,8 @@ func MainHandler(w http.ResponseWriter, r *http.Request) {
 			loginRequestHandler(w, r)
 		case "/upload":
 			log.Debug("Uploading")
+		case "/channel":
+			log.Debug("Channel changed POST request")
 		}
 	}
 }

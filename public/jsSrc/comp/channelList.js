@@ -40,6 +40,7 @@ function selectChannel(channelID) {
     updateLastChannels()
     requestChatHistory(channelID, 0)
     ChannelNameTop.textContent = channelButton.querySelector("div").textContent
+    // window.history.pushState(currentChannelID, currentChannelID, `/channel/${currentServerID}/${currentChannelID}`)
 }
 
 function toggleChannelsVisibility() {

@@ -16,6 +16,23 @@ import (
 )
 
 const (
+	addChatMessage     byte = 1
+	chatHistory        byte = 2
+	deleteChatMessage  byte = 3
+	addServer          byte = 21
+	serverList         byte = 22
+	deleteServer       byte = 23
+	serverInviteLink   byte = 24
+	addChannel         byte = 31
+	channelList        byte = 32
+	deleteChannel      byte = 33
+	addServerMember    byte = 41
+	serverMemberList   byte = 42
+	deleteServerMember byte = 43
+	changedDisplayName byte = 51
+)
+
+const (
 	timeoutWrite   = 10 * time.Second // timeout in x seconds after writing fails for 10 seconds
 	timeout        = 60 * time.Second // timeout in x seconds if no pong or message received
 	pingPeriod     = 30 * time.Second // sends ping in x interval
@@ -186,7 +203,7 @@ func (c *Client) readMessages(wg *sync.WaitGroup) {
 
 		log.Trace("Received packet: endIndex [%d], type [%d], json [%s]", endIndex, packetType, string(packetJson))
 		switch packetType {
-		case 1: // user sent a chat message on x channel
+		case addChatMessage: // user sent a chat message on x channel
 			log.Debug("User ID [%d] sent a chat message", c.userID)
 			broadcastData, failData := c.onChatMessageRequest(packetJson, packetType)
 			if failData != nil {
@@ -195,11 +212,11 @@ func (c *Client) readMessages(wg *sync.WaitGroup) {
 				broadcastChan <- broadcastData
 			}
 
-		case 2: // user entered a channel, requesting chat history
+		case chatHistory: // user entered a channel, requesting chat history
 			log.Debug("User ID [%d] is asking for chat history", c.userID)
 			c.writeChan <- c.onChatHistoryRequest(packetJson, packetType)
 
-		case 3: // user deleting a chat message
+		case deleteChatMessage: // user deleting a chat message
 			log.Debug("User ID [%d] wants to delete a chat message", c.userID)
 			broadcastData, failData := c.onChatMessageDeleteRequest(packetJson, packetType)
 			if failData != nil {
@@ -208,23 +225,23 @@ func (c *Client) readMessages(wg *sync.WaitGroup) {
 				broadcastChan <- broadcastData
 			}
 
-		case 21: // user adding a server
+		case addServer: // user adding a server
 			log.Debug("User ID [%d] wants to create a server", c.userID)
 			c.writeChan <- c.onAddServerRequest(packetJson)
 
-		case 22: // user requesting their joined server list
+		case serverList: // user requesting their server list
 			log.Debug("User ID [%d] is requesting server list", c.userID)
 			c.writeChan <- macros.PreparePacket(22, database.GetServerList(c.userID))
 
-		case 23: // user deleting a server
+		case deleteServer: // user deleting a server
 			log.Debug("User ID [%d] wants to delete a server", c.userID)
 			broadcastChan <- c.onServerDeleteRequest(packetJson, packetType)
 
-		case 24: // user requested an invite link for a server
+		case serverInviteLink: // user requested an invite link for a server
 			log.Debug("User ID [%d] is requesting an invite link for a server", c.userID)
 			c.writeChan <- c.onServerInviteRequest(packetJson)
 
-		case 31: // user added a channel to their server
+		case addChannel: // user added a channel to their server
 			log.Debug("User ID [%d] wants to add a channel", c.userID)
 			broadcastData, failData := c.onAddChannelRequest(packetJson, packetType)
 			if failData != nil {
@@ -233,17 +250,17 @@ func (c *Client) readMessages(wg *sync.WaitGroup) {
 				broadcastChan <- broadcastData
 			}
 
-		case 32: // user entered a server, requesting channel list
+		case channelList: // user entered a server, requesting channel list
 			log.Debug("User ID [%d] is requesting channel list of a server", c.userID)
 			c.writeChan <- c.onChannelListRequest(packetJson)
 
-		case 41: // a new user connected to the server
+		case addServerMember: // a new user connected to the server
 
-		case 42: // user entered a server, requesting member list
+		case serverMemberList: // user entered a server, requesting member list
 			log.Debug("User ID [%d] is requesting list of members of server ID [%d]", c.userID, c.currentServerID)
 			c.writeChan <- c.onServerMemberListRequest(packetJson)
 
-		case 43: // a user left a server
+		case deleteServerMember: // a user left a server
 			log.Debug("User ID [%d] is requesting to leave from a server", c.userID)
 			broadcastData, failData := c.onLeaveServerRequest(packetJson, packetType)
 			if failData != nil {
@@ -252,7 +269,7 @@ func (c *Client) readMessages(wg *sync.WaitGroup) {
 				broadcastChan <- broadcastData
 				c.writeChan <- broadcastData.MessageBytes
 			}
-		case 51: // user wants to change their display name
+		case changedDisplayName: // user wants to change their display name
 			log.Debug("User ID [%d] is requesting to change their display name", c.userID)
 			broadcastData, failData := c.onChangeDisplayNameRequest(packetJson, packetType)
 			if failData != nil {
@@ -302,7 +319,6 @@ func (c *Client) writeMessages(wg *sync.WaitGroup) {
 				return
 			}
 		}
-
 	}
 }
 
@@ -315,32 +331,33 @@ func broadCastChannel() {
 		select {
 		case broadcastData := <-broadcastChan:
 			switch broadcastData.Type {
-			case 1, 3: // chat messages
+			case addChatMessage, deleteChatMessage: // chat messages
 				for _, client := range clients {
 					if client.currentChannelID == broadcastData.AffectedChannel { // if client is in affected channel
 						broadcastLog(broadcastData.Type, client.userID)
 						client.writeChan <- broadcastData.MessageBytes
 					}
 				}
-			case 21, 23: // servers
+			case addServer, deleteServer: // servers
 				for _, client := range clients {
+					broadcastLog(broadcastData.Type, client.userID)
 					client.writeChan <- broadcastData.MessageBytes
 				}
-			case 31, 33: // channels
+			case addChannel, deleteChannel: // channels
 				for _, client := range clients {
 					if client.currentServerID == broadcastData.AffectedServers[0] { // if client is in affected server
 						broadcastLog(broadcastData.Type, client.userID)
 						client.writeChan <- broadcastData.MessageBytes
 					}
 				}
-			case 41, 43: // server members
+			case addServerMember, deleteServerMember: // server members
 				for _, client := range clients {
 					if client.currentServerID == broadcastData.AffectedServers[0] { // if client is in affected server
 						broadcastLog(broadcastData.Type, client.userID)
 						client.writeChan <- broadcastData.MessageBytes
 					}
 				}
-			case 51: // changing display name
+			case changedDisplayName: // changing display name
 				for _, client := range clients {
 					for i := 0; i < len(broadcastData.AffectedServers); i++ {
 						if client.currentServerID == broadcastData.AffectedServers[i] { // if client is in affected servers

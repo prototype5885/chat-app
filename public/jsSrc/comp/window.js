@@ -11,6 +11,7 @@ class Window {
         this.window
         this.topBar
         this.topBarLeft
+        this.main
         this.type = type
         this.lastTop
         this.lastLeft
@@ -120,11 +121,10 @@ class Window {
 
     // when window is clicked on, makes it selected window
     selectWindow() {
-        // check if selected window is selected already
-        // if (this.lastSelected == 0) {
-        //     console.log("Current window is already the selected one")
-        //     return
-        // }
+        // check if selected window is maximized, then don't select if it is
+        if (this.maximized) {
+            return
+        }
 
         this.makeActive()
 
@@ -177,6 +177,20 @@ class Window {
         }
     }
 
+    createSettingsWindowArea() {
+        const leftSide = document.createElement("div")
+        leftSide.className = "settings-left"
+        const rightSide = document.createElement("div")
+        rightSide.className = "settings-right"
+
+        this.main.appendChild(leftSide)
+        this.main.appendChild(rightSide)
+    }
+
+    addElementsLeftSide(elements) {
+
+    }
+
     createWindow() {
         // create main window div
         this.window = document.createElement("div")
@@ -200,10 +214,6 @@ class Window {
         this.topBar.style.backgroundColor = darkTransparent
         this.window.appendChild(this.topBar)
 
-        const mainPart = document.createElement("div")
-        mainPart.className = "window-main"
-        this.window.appendChild(mainPart)
-
         // the left part that holds title name
         this.topBarLeft = document.createElement("div")
         this.topBarLeft.className = "window-top-bar-left"
@@ -218,6 +228,11 @@ class Window {
         const maximizeButton = document.createElement("button")
         maximizeButton.className = "window-maximize-button"
         topBarRight.appendChild(maximizeButton)
+
+        // this is the main part under the top bar that holds content
+        this.main = document.createElement("div")
+        this.main.className = "window-main"
+        this.window.appendChild(this.main)
 
         registerClick(maximizeButton, () => { this.maximizeWindow() })
 
@@ -243,9 +258,13 @@ class Window {
         switch (this.type) {
             case "user-settings":
                 this.topBarLeft.textContent = "User settings"
+                this.createSettingsWindowArea()
+                this.addElementsLeftSide(["wtf", "XDDDD"])
                 break
             case "server-settings":
                 this.topBarLeft.textContent = "Server settings"
+                this.createSettingsWindowArea()
+                this.addElementsLeftSide(leftSide)
                 break
         }
 

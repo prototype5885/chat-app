@@ -71,7 +71,7 @@ func main() {
 	}
 
 	config := readConfigFile()
-	log.SetupLogging("DEBUG", config.LogConsole, config.LogFile)
+	log.SetupLogging("TRACE", config.LogConsole, config.LogFile)
 
 	jsfilesmerger.Init()
 

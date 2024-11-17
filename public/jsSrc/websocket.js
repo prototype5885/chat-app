@@ -91,7 +91,6 @@ async function connectToWebsocket() {
                     console.warn("No channels on server ID", currentServerID)
                     break
                 }
-                console.log(json)
                 for (let i = 0; i < json.length; i++) {
                     addChannel(json[i].ChannelID, json[i].Name)
                 }

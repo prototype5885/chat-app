@@ -69,7 +69,7 @@ func (c *Client) onAddChannelRequest(packetJson []byte, packetType byte) (Broadc
 	return BroadcastData{
 		MessageBytes:    macros.PreparePacket(31, messagesBytes),
 		Type:            packetType,
-		AffectedChannel: channelRequest.ServerID,
+		AffectedServers: []uint64{channelRequest.ServerID},
 	}, nil
 }
 

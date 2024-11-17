@@ -24,6 +24,10 @@ body {
 #right-click-menu,
 .window {
     position: absolute;
+}
+
+#bubble,
+#right-click-menu {
     border-radius: 5px;
 }
 
@@ -88,6 +92,20 @@ body {
 
 .window-exit-button {
     background-color: violet;
+}
+
+.window-main {
+    display: flex;
+}
+
+.settings-left {
+    width: 35%;
+    background-color: red;
+}
+
+.settings-right {
+    width: 65%;
+    background-color: blue;
 }
 
 /* server list column on the left side */

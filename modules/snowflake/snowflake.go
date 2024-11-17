@@ -31,7 +31,7 @@ var (
 
 func SetSnowflakeWorkerID(id uint64) {
 	if id > maxWorkerValue {
-		log.Fatal("")
+		log.Fatal("Worker ID value exceeds maximum value of [%d]", maxWorkerValue)
 	}
 	if !alreadyHasWorkerID {
 		workerID = id

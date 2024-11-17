@@ -70,16 +70,6 @@ func GetChatHistory(channelID uint64, fromMessageID uint64, older bool, userID u
 		return nil
 	}
 
-	// const query string = `
-	// 	SELECT JSON_ARRAYAGG(JSON_OBJECT(
-	//         'IDm', CAST(message_id AS CHAR),
-	//         'IDu', CAST(user_id AS CHAR),
-	//         'Msg', message
-	//     )) AS json_result
-	//     FROM messages
-	//     WHERE channel_id = ?
-	// `
-
 	const query string = `
 		SELECT JSON_ARRAYAGG(JSON_OBJECT(
 			'IDm', CAST(message_id AS CHAR),

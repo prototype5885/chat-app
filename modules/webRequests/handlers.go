@@ -73,12 +73,12 @@ func loginRequestHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// will close body on return
-	defer func() {
-		err := r.Body.Close()
-		if err != nil {
-			log.Fatal("Unable to close body: %s", err)
-		}
-	}()
+	// defer func() {
+	// 	err := r.Body.Close()
+	// 	if err != nil {
+	// 		log.Fatal("Unable to close body: %s", err)
+	// 	}
+	// }()
 
 	// print received json
 	log.Debug("Received json: %s", string(bodyBytes))
@@ -140,4 +140,8 @@ func inviteHandler(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+}
+
+func channelsHandler(w http.ResponseWriter, r *http.Request) {
+
 }

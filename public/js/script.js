@@ -273,6 +273,28 @@ function setServerCount(value) {
     }
 }
 
+// comp/httpRequests.js
+
+async function sendPostRequest(url, struct) {
+    const response = await fetch(window.location.origin + url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(struct)
+    })
+    const result = await response.json()
+    return result
+
+    // console.log('Success:', result.Success)
+    // console.log('Message:', result.Message)
+}
+
+// async function requestChannelList() {
+//     const response = await fetch(`/channels/${currentChannelID}`);
+//     const data = await response.text();
+// }
+
 // comp/contextMenu.js
 
 var defaultRightClick = false
@@ -760,6 +782,7 @@ function selectChannel(channelID) {
     updateLastChannels()
     requestChatHistory(channelID, 0)
     ChannelNameTop.textContent = channelButton.querySelector("div").textContent
+    // window.history.pushState(currentChannelID, currentChannelID, `/channel/${currentServerID}/${currentChannelID}`)
 }
 
 function toggleChannelsVisibility() {
@@ -994,6 +1017,7 @@ class Window {
         this.window
         this.topBar
         this.topBarLeft
+        this.main
         this.type = type
         this.lastTop
         this.lastLeft
@@ -1103,11 +1127,10 @@ class Window {
 
     // when window is clicked on, makes it selected window
     selectWindow() {
-        // check if selected window is selected already
-        // if (this.lastSelected == 0) {
-        //     console.log("Current window is already the selected one")
-        //     return
-        // }
+        // check if selected window is maximized, then don't select if it is
+        if (this.maximized) {
+            return
+        }
 
         this.makeActive()
 
@@ -1160,6 +1183,20 @@ class Window {
         }
     }
 
+    createSettingsWindowArea() {
+        const leftSide = document.createElement("div")
+        leftSide.className = "settings-left"
+        const rightSide = document.createElement("div")
+        rightSide.className = "settings-right"
+
+        this.main.appendChild(leftSide)
+        this.main.appendChild(rightSide)
+    }
+
+    addElementsLeftSide(elements) {
+
+    }
+
     createWindow() {
         // create main window div
         this.window = document.createElement("div")
@@ -1183,10 +1220,6 @@ class Window {
         this.topBar.style.backgroundColor = darkTransparent
         this.window.appendChild(this.topBar)
 
-        const mainPart = document.createElement("div")
-        mainPart.className = "window-main"
-        this.window.appendChild(mainPart)
-
         // the left part that holds title name
         this.topBarLeft = document.createElement("div")
         this.topBarLeft.className = "window-top-bar-left"
@@ -1201,6 +1234,11 @@ class Window {
         const maximizeButton = document.createElement("button")
         maximizeButton.className = "window-maximize-button"
         topBarRight.appendChild(maximizeButton)
+
+        // this is the main part under the top bar that holds content
+        this.main = document.createElement("div")
+        this.main.className = "window-main"
+        this.window.appendChild(this.main)
 
         registerClick(maximizeButton, () => { this.maximizeWindow() })
 
@@ -1226,15 +1264,18 @@ class Window {
         switch (this.type) {
             case "user-settings":
                 this.topBarLeft.textContent = "User settings"
+                this.createSettingsWindowArea()
+                this.addElementsLeftSide(["wtf", "XDDDD"])
                 break
             case "server-settings":
                 this.topBarLeft.textContent = "Server settings"
+                this.createSettingsWindowArea()
+                this.addElementsLeftSide(leftSide)
                 break
         }
 
     }
 }
-
 
 // comp/chatInput.js
 
@@ -1504,7 +1545,6 @@ async function connectToWebsocket() {
                     console.warn("No channels on server ID", currentServerID)
                     break
                 }
-                console.log(json)
                 for (let i = 0; i < json.length; i++) {
                     addChannel(json[i].ChannelID, json[i].Name)
                 }
