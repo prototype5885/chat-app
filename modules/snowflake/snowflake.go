@@ -12,7 +12,7 @@ const (
 	timestampLength uint64 = 42                                    // 42
 	timestampPos    uint64 = 64 - timestampLength                  // 20
 	workerLength    uint64 = 10                                    // 10
-	workerPos       uint64 = timestampPos - workerLength           // 17
+	workerPos       uint64 = timestampPos - workerLength           // 12
 	incrementLength        = 64 - (timestampLength + workerLength) // 12
 )
 

@@ -1,3 +1,5 @@
+let waitingForHistory = false
+
 // adds the new chat message into html
 function addChatMessage(messageID, userID, message, after) {
     // extract the message date from messageID
@@ -86,7 +88,7 @@ function deleteChatMessage() {
     const messageID = json
     console.log(`Deleting message ID [${messageID}]`)
     document.getElementById(messageID).remove()
-    amountOfmessagesChanged()
+    amountOfMessagesChanged()
 }
 
 async function chatMessageReceived(json) {
@@ -113,7 +115,7 @@ async function chatMessageReceived(json) {
             NotificationSound.play()
         }
     }
-    amountOfmessagesChanged()
+    amountOfMessagesChanged()
 }
 
 async function chatHistoryReceived(json) {
@@ -131,7 +133,7 @@ async function chatHistoryReceived(json) {
         }
         // only auto scroll down when entering channel, and not when
         // server sends rest of history while scrolling up manually
-        if (currentChannelID != lastChannelID) {
+        if (currentChannelID !== lastChannelID) {
             // this runs when entered a channel
             ChatMessagesList.scrollTo({
                 top: ChatMessagesList.scrollHeight,
@@ -143,43 +145,47 @@ async function chatHistoryReceived(json) {
             lastChannelID = currentChannelID
         }
     } else {
+        // run if server sent json that doesn't contain any more messages
         if (currentChannelID == lastChannelID) {
             // this can only run if already in channel
             console.warn("Reached the beginning of the chat, don't request more")
             // will become false upon entering an other channel
-            reachedBeginning = true
+            reachedBeginningOfChannel = true
         } else {
             // and this only when entering a channel
             console.warn("Current channel has no chat history")
         }
     }
-    amountOfmessagesChanged()
+    waitingForHistory = false
+    ChatLoadingIndicator.style.display = "none"
+    ChatMessagesList.style.overflowY = ""
+    amountOfMessagesChanged()
 }
 
-function amountOfmessagesChanged() {
+function amountOfMessagesChanged() {
     const count = ChatMessagesList.querySelectorAll("li").length
-    console.log(count)
+    console.log("Amount of messages loaded:", count)
 }
 
 function changeDisplayNameInChatMessageList(userID, newDisplayName) {
     const chatMessages = ChatMessagesList.querySelectorAll(".msg")
     chatMessages.forEach((chatMessage) => {
-        if (chatMessage.getAttribute("user-id") == userID) {
+        if (chatMessage.getAttribute("user-id") === userID) {
             chatMessage.querySelector(".msg-user-name").textContent = newDisplayName
         }
     })
 }
 
-var alreadyReached = false
 function scrolledOnChat(event) {
-    if (!alreadyReached && !reachedBeginning && ChatMessagesList.scrollTop < 200) {
-        const chatmessage = ChatMessagesList.querySelector("li")
-        if (chatmessage != null) {
-            requestChatHistory(currentChannelID, chatmessage.id)
-            alreadyReached = true
+    console.log("Scrolled")
+    if (!waitingForHistory && !reachedBeginningOfChannel && ChatMessagesList.scrollTop < 200) {
+        const chatMessage = ChatMessagesList.querySelector("li")
+        if (chatMessage != null) {
+            requestChatHistory(currentChannelID, chatMessage.id)
+            waitingForHistory = true
+            ChatLoadingIndicator.style.display = "flex"
+            ChatMessagesList.style.overflowY = "hidden"
         }
-    } else if (alreadyReached == true && ChatMessagesList.scrollTop > 200) {
-        alreadyReached = false
     }
 }
 

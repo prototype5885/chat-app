@@ -92,11 +92,15 @@ func newLogFile(timeStamp [3]int) {
 }
 
 func compressPreviousLogs() {
+	Debug("Compressing previous logs...")
 	// Specify the directory you want to read
 	dir := "./logs" // Change to your directory
 
+	var err error
+
 	// Read all files in the directory
-	files, err := os.ReadDir(dir)
+	var files []os.DirEntry
+	files, err = os.ReadDir(dir)
 	if err != nil {
 		FatalError(err.Error(), "Error reading log files in log directory")
 	}
@@ -111,7 +115,8 @@ func compressPreviousLogs() {
 
 			var filePath string = fmt.Sprintf("%s/%s", dir, file.Name())
 
-			logFile, err := os.OpenFile(filePath, os.O_RDONLY, 0666)
+			var logFile *os.File
+			logFile, err = os.OpenFile(filePath, os.O_RDONLY, 0666)
 			if err != nil {
 				FatalError(err.Error(), "Error opening log file [%s] for compression", file.Name())
 			}
@@ -127,15 +132,23 @@ func compressPreviousLogs() {
 			}
 
 			writer := gzip.NewWriter(compressedFile)
-			writer.Write(data)
+			_, err = writer.Write(data)
 			if err != nil {
 				FatalError(err.Error(), "Error writing compressed file")
 			}
-			writer.Close()
+			err = writer.Close()
+			if err != nil {
+				FatalError(err.Error(), "Error closing writer that wrote gzip bytes into file")
+			}
+			err = logFile.Close()
+			if err != nil {
+				FatalError(err.Error(), "Error closing log file that was compressed")
+			}
 
 			// remove previous log file that was compressed
-			if os.Remove(filePath) != nil {
-				FatalError(err.Error(), "Error removing log file")
+			err = os.Remove(filePath)
+			if err != nil {
+				FatalError(err.Error(), "Error removing older log file")
 			}
 			counter++
 		}

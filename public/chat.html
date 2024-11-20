@@ -10,7 +10,7 @@
 </head>
 
 <body>
-    <div id="loading"></div>
+    <div id="loading">Loading</div>
     <!-- <img id="imagePreview" alt="Image Preview" style="display: none; max-width: 300px; margin-top: 20px;"> -->
     <input type="file" id="attachment-input" style="display: none;" onchange="attachmentAdded()">
     <ol id="server-list">
@@ -66,6 +66,7 @@
         </div>
         <div id="main-bottom">
             <div id="main-center-container">
+                <div id="chat-loading-indicator">Loading</div>
                 <ol id="chat-message-list" onscroll="scrolledOnChat(event)"></ol>
                 <div id="attachment-container">
                     <div id="attachment-list"></div>

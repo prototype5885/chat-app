@@ -15,9 +15,9 @@ function addChannel(channelID, channelName) {
 
 function selectChannel(channelID) {
     console.log("Selected channel ID:", channelID)
-    reachedBeginning = false
+    reachedBeginningOfChannel = false
 
-    if (channelID == currentChannelID) {
+    if (channelID === currentChannelID) {
         console.log("Channel selected is already the current one")
         return
     }
@@ -31,7 +31,7 @@ function selectChannel(channelID) {
     }
 
     // sets the placeholder text in the area where you enter the chat message
-    channelName = channelButton.querySelector("div").textContent
+    const channelName = channelButton.querySelector("div").textContent
     ChatInput.placeholder = `Message ${channelName}`
 
     currentChannelID = channelID

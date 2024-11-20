@@ -1,6 +1,8 @@
-var wsClient
+let wsClient
+let wsConnected
 
 async function connectToWebsocket() {
+    console.log("Connecting to websocket...")
     // check if protocol is http or https
     if (location.protocol === "https:") {
         wsClient = new WebSocket("wss://" + window.location.host + "/wss")
@@ -11,11 +13,30 @@ async function connectToWebsocket() {
     // make the websocket work with byte arrays
     wsClient.binaryType = "arraybuffer"
 
-    var websocketConnected
     wsClient.onopen = async function (_event) {
         console.log("Connected to WebSocket successfully.")
-        websocketConnected = true
+        wsConnected = true
+        if (currentChannelID != null) {
+            currentServerID = 0
+            currentChannelID = 0
+            lastChannelID = 0
+            refreshWebsocketContent()
+        }
+        fadeOutLoading()
     }
+
+    wsClient.onclose = async function (_event) {
+        console.log("Connection lost to websocket")
+        wsConnected = false
+        fadeInLoading()
+        await connectToWebsocket()
+    }
+
+    // wsClient.onerror = async function (_event) {
+        // console.log("Error in websocket")
+        // wsConnected = false
+        // await reconnectToWebsocket()
+    // }
 
     // when server sends a message
     wsClient.onmessage = async function (event) {
@@ -40,10 +61,10 @@ async function connectToWebsocket() {
                 console.warn(json.Reason)
                 break
             case 1: // Server sent a chat message
-                chatMessageReceived(json)
+                await chatMessageReceived(json)
                 break
             case 2: // Server sent the requested chat history
-                chatHistoryReceived(json)
+                await chatHistoryReceived(json)
                 break
             case 3: // Server sent which message was deleted
                 deleteChatMessage(json)
@@ -70,7 +91,7 @@ async function connectToWebsocket() {
                 const serverID = json.ServerID
                 deleteServer(serverID)
                 removeServerFromLastChannels(serverID)
-                if (serverID == currentServerID) {
+                if (serverID === currentServerID) {
                     selectServer("2000")
                 }
                 break
@@ -79,7 +100,7 @@ async function connectToWebsocket() {
                 const inviteID = json
                 const inviteLink = `${window.location.protocol}//${window.location.host}/invite/${inviteID}`
                 console.log(inviteLink)
-                navigator.clipboard.writeText(inviteLink)
+                await navigator.clipboard.writeText(inviteLink)
                 break
             case 31: // Server responded to the add channel request
                 console.log(`Adding new channel called [${json.Name}]`)
@@ -108,7 +129,7 @@ async function connectToWebsocket() {
                 memberListLoaded = true
                 break
             case 43: // Server sent user which user left a server
-                if (json.UserID == ownUserID) {
+                if (json.UserID === ownUserID) {
                     console.log(`Left server ID [${json.ServerID}], deleting it from list`)
                     deleteServer(json.ServerID)
                     selectServer("2000")
@@ -118,7 +139,7 @@ async function connectToWebsocket() {
                 }
                 break
             case 51: // Server sent that a user changed display name
-                if (userID == ownUserID) {
+                if (userID === ownUserID) {
                     console.log("New display name:", json.newName)
                 } else {
                     console.log(`User ID [${json.UserID}] changed their name to [${json.NewName}]`)
@@ -137,8 +158,7 @@ async function connectToWebsocket() {
                 console.log("Server sent unknown message type")
         }
     }
-    await waitUntilBoolIsTrue(() => websocketConnected)
-    return
+    await waitUntilBoolIsTrue(() => wsConnected)
 }
 
 class ReceivedChatMessage {
@@ -154,49 +174,46 @@ class ReceivedChatMessage {
     }
 }
 
-function preparePacket(type, bigIntIDs, struct) {
-    if (wsClient.readyState === WebSocket.OPEN) {
-        // convert the type value into a single byte value that will be the packet type
-        const typeByte = new Uint8Array([1])
-        typeByte[0] = type
+async function preparePacket(type, bigIntIDs, struct) {
+    await waitUntilBoolIsTrue(() => wsConnected)
 
-        let json = JSON.stringify(struct)
+    // convert the type value into a single byte value that will be the packet type
+    const typeByte = new Uint8Array([1])
+    typeByte[0] = type
 
-        // workaround to turn uint64 value in json from string to normal number value
-        // since javascript cant serialize BigInt
-        for (i = 0; i < bigIntIDs.length; i++) {
-            if (bigIntIDs[i] != 0) {
-                json = json.replace(`"${bigIntIDs[i]}"`, bigIntIDs[i])
-            }
+    let json = JSON.stringify(struct)
+
+    // workaround to turn uint64 value in json from string to normal number value
+    // since javascript cant serialize BigInt
+    for (i = 0; i < bigIntIDs.length; i++) {
+        if (bigIntIDs[i] !== 0) {
+            json = json.replace(`"${bigIntIDs[i]}"`, bigIntIDs[i])
         }
-
-        // serialize the struct into json then convert to byte array
-        let jsonBytes
-        if (struct != null) {
-            jsonBytes = new TextEncoder().encode(json)
-        } else {
-            jsonBytes = new Uint8Array([0])
-        }
-
-        // convert the end index uint32 value into 4 bytes
-        const endIndex = jsonBytes.length + 5
-        const buffer = new ArrayBuffer(4)
-        new DataView(buffer).setUint32(0, endIndex, true)
-        const endIndexBytes = new Uint8Array(buffer)
-
-        // merge them into a single packet
-        const packet = new Uint8Array(4 + 1 + jsonBytes.length)
-        packet.set(endIndexBytes, 0) // first 4 bytes will be the length
-        packet.set(typeByte, 4) // 5. byte will be the packet type
-        packet.set(jsonBytes, 5) // rest will be the json byte array
-
-        console.log("Prepared packet:", endIndex, packet[4], json)
-
-        wsClient.send(packet)
     }
-    else {
-        console.log("Websocket is not open")
+
+    // serialize the struct into json then convert to byte array
+    let jsonBytes
+    if (struct != null) {
+        jsonBytes = new TextEncoder().encode(json)
+    } else {
+        jsonBytes = new Uint8Array([0])
     }
+
+    // convert the end index uint32 value into 4 bytes
+    const endIndex = jsonBytes.length + 5
+    const buffer = new ArrayBuffer(4)
+    new DataView(buffer).setUint32(0, endIndex, true)
+    const endIndexBytes = new Uint8Array(buffer)
+
+    // merge them into a single packet
+    const packet = new Uint8Array(4 + 1 + jsonBytes.length)
+    packet.set(endIndexBytes, 0) // first 4 bytes will be the length
+    packet.set(typeByte, 4) // 5. byte will be the packet type
+    packet.set(jsonBytes, 5) // rest will be the json byte array
+
+    console.log("Prepared packet:", endIndex, packet[4], json)
+
+    wsClient.send(packet)
 }
 
 function sendChatMessage(message, channelID) { // type is 1

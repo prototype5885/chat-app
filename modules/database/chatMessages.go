@@ -92,7 +92,7 @@ func GetChatHistory(channelID uint64, fromMessageID uint64, older bool, userID u
 	}
 
 	if len(jsonResult) == 0 {
-		log.Trace("Channel ID [%d] does not have any messages", channelID)
+		log.Trace("Channel ID [%d] does not have any messages or user reached top of chat", channelID)
 		return nullJson
 	}
 

@@ -111,7 +111,7 @@ func saveHashesToFile() {
 func loadHashesFromFile() {
 	file, err := os.Open(jsHashesFilename)
 	if err != nil {
-		if strings.Contains(err.Error(), "no such file or directory") {
+		if strings.Contains(err.Error(), "no such file or directory") || strings.Contains(err.Error(), "The system cannot find the file specified.") {
 			log.Warn("%s doesn't exist yet", jsHashesFilename)
 			return
 		}

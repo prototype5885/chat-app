@@ -18,6 +18,8 @@ const ServerName = document.getElementById("server-name")
 const AttachmentInput = document.getElementById("attachment-input")
 const AttachmentContainer = document.getElementById("attachment-container")
 const AttachmentList = document.getElementById("attachment-list")
+const ChatLoadingIndicator = document.getElementById("chat-loading-indicator")
+const loading = document.getElementById("loading")
 
 var ownUserID // this will be the first thing server will send
 var receivedOwnUserID = false // don't continue loading until own user ID is received
@@ -26,7 +28,7 @@ var memberListLoaded = false // don't add chat history until server member list 
 var currentServerID
 var currentChannelID
 var lastChannelID
-var reachedBeginning = false
+var reachedBeginningOfChannel = false
 
 function waitUntilBoolIsTrue(checkFunction, interval = 10) {
     return new Promise((resolve) => {
@@ -39,6 +41,31 @@ function waitUntilBoolIsTrue(checkFunction, interval = 10) {
     })
 }
 
+function fadeOutLoading() {
+    setTimeout(() => {
+        loading.style.display = "none"
+    }, 250)
+
+    loading.style.pointerEvents = "none"
+    loading.style.opacity = "0%"
+}
+
+function fadeInLoading() {
+    loading.style.display = "block"
+    loading.style.opacity = "100%"
+    loading.style.pointerEvents = "auto"
+    loading.innerText = "Reconnecting..."
+}
+
+function refreshWebsocketContent() {
+    document.querySelectorAll('.server').forEach(server => {
+        server.remove();
+    })
+
+    requestServerList()
+    selectServer("2000")
+}
+
 function main() {
     // this runs after webpage was loaded
     document.addEventListener("DOMContentLoaded", async function () {
@@ -48,7 +75,7 @@ function main() {
 
         addServer("2000", 0, "Direct Messages", "hs.svg", "dm") // add the direct messages button
 
-        // add place holder servers depending on how many servers the client was in, will delete on websocket connection
+        // add placeholder servers depending on how many servers the client was in, will delete on websocket connection
         // purely visual
         const placeholderButtons = createPlaceHolderServers()
         serversSeparatorVisibility()
@@ -57,32 +84,21 @@ function main() {
         // this will continue when websocket connected
         await connectToWebsocket()
 
-        // waits until server sends user"s own ID
+        // waits until server sends user's own ID
         console.log("Waiting for server to send own user ID...")
         await waitUntilBoolIsTrue(() => receivedOwnUserID)
 
-        const loading = document.getElementById("loading")
-        const fadeOut = 0.25 //seconds
 
-        setTimeout(() => {
-            loading.remove() // Remove the element from the DOM
-        }, fadeOut * 1000)
-
-        loading.style.transition = `background-color ${fadeOut}s ease`
-        loading.style.backgroundColor = "#00000000"
-        loading.style.pointerEvents = "none"
+        // fadeOutLoading()
 
         // remove placeholder servers
         for (let i = 0; i < placeholderButtons.length; i++) {
             placeholderButtons[i].remove()
         }
 
-        requestServerList()
-
         registerHoverListeners() // add event listeners for hovering
 
-        console
-        selectServer("2000")
+        refreshWebsocketContent()
     })
 }
 
