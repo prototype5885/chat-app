@@ -10,12 +10,11 @@ import (
 	"strings"
 )
 
-const DynamicMergedJsGeneration = true
-
 var jsFilePaths []string = []string{
 	"main.js",
 	"notification.js",
 	"localStorage.js",
+	"comp/loading.js",
 	"comp/httpRequests.js",
 	"comp/contextMenu.js",
 	"comp/bubble.js",
@@ -38,10 +37,12 @@ var jsFiles = make(map[string][20]byte)
 
 const jsHashesFilename string = "jsHashes.bin"
 
+const DynamicMergedJsGeneration = true // so script.js regenerates when a script is changed
+
 func Init() {
-	if !DynamicMergedJsGeneration {
-		return
-	}
+	//if !DynamicMergedJsGeneration {
+	//	return
+	//}
 
 	_, err := os.Stat("./public/js/script.js")
 	if os.IsNotExist(err) {
@@ -54,9 +55,9 @@ func Init() {
 }
 
 func CheckForChanges() {
-	if !DynamicMergedJsGeneration {
-		return
-	}
+	//if !DynamicMergedJsGeneration {
+	//	return
+	//}
 
 	var changed bool = false
 	for i := 0; i < len(jsFilePaths); i++ {

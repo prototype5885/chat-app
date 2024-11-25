@@ -20,17 +20,19 @@ const ServerName = document.getElementById("server-name")
 const AttachmentInput = document.getElementById("attachment-input")
 const AttachmentContainer = document.getElementById("attachment-container")
 const AttachmentList = document.getElementById("attachment-list")
-const ChatLoadingIndicator = document.getElementById("chat-loading-indicator")
-const loading = document.getElementById("loading")
 
 var ownUserID // this will be the first thing server will send
 var receivedOwnUserID = false // don't continue loading until own user ID is received
+var receivedImageHostAddress = false
 var memberListLoaded = false // don't add chat history until server member list is received
 
 var currentServerID
 var currentChannelID
 var lastChannelID
 var reachedBeginningOfChannel = false
+
+// var imageHost = "http://localhost:8000/"
+var imageHost = ""
 
 function waitUntilBoolIsTrue(checkFunction, interval = 10) {
     return new Promise((resolve) => {
@@ -43,31 +45,6 @@ function waitUntilBoolIsTrue(checkFunction, interval = 10) {
     })
 }
 
-function fadeOutLoading() {
-    setTimeout(() => {
-        loading.style.display = "none"
-    }, 250)
-
-    loading.style.pointerEvents = "none"
-    loading.style.opacity = "0%"
-}
-
-function fadeInLoading() {
-    loading.style.display = "block"
-    loading.style.opacity = "100%"
-    loading.style.pointerEvents = "auto"
-    loading.innerText = "Reconnecting..."
-}
-
-function refreshWebsocketContent() {
-    document.querySelectorAll('.server').forEach(server => {
-        server.remove();
-    })
-
-    requestServerList()
-    selectServer("2000")
-}
-
 function main() {
     // this runs after webpage was loaded
     document.addEventListener("DOMContentLoaded", async function () {
@@ -75,7 +52,7 @@ function main() {
         initLocalStorage()
         initContextMenu()
 
-        addServer("2000", 0, "Direct Messages", "hs.svg", "dm") // add the direct messages button
+        addServer("2000", 0, "Direct Messages", "content/static/hs.svg", "dm") // add the direct messages button
 
         // add placeholder servers depending on how many servers the client was in, will delete on websocket connection
         // purely visual
@@ -90,8 +67,12 @@ function main() {
         console.log("Waiting for server to send own user ID...")
         await waitUntilBoolIsTrue(() => receivedOwnUserID)
 
+        // request http address of image hosting server
+        requestImageHostAddress()
 
-        // fadeOutLoading()
+        // wait until the address is received
+        console.log("Waiting for server to send image host address..")
+        await waitUntilBoolIsTrue(() => receivedImageHostAddress)
 
         // remove placeholder servers
         for (let i = 0; i < placeholderButtons.length; i++) {
@@ -287,6 +268,26 @@ function setServerCount(value) {
     } else {
         localStorage.setItem("serverCount", value)
     }
+}
+
+// comp/loading.js
+
+function fadeOutLoading() {
+    const loading = document.getElementById("loading")
+    setTimeout(() => {
+        loading.style.display = "none"
+    }, 250)
+
+    loading.style.pointerEvents = "none"
+    loading.style.opacity = "0%"
+}
+
+function fadeInLoading() {
+    const loading = document.getElementById("loading")
+    loading.style.display = "block"
+    loading.style.opacity = "100%"
+    loading.style.pointerEvents = "auto"
+    loading.querySelector("div").innerText = "Connection lost, reconnecting..."
 }
 
 // comp/httpRequests.js
@@ -549,7 +550,7 @@ function addServer(serverID, ownerID, serverName, picture, className) {
 
     // bubble on hover
     function onHoverIn() {
-        if (serverID != currentServerID) {
+        if (serverID !== currentServerID) {
             button.style.borderRadius = "35%"
             button.style.backgroundColor = "#5865F2"
             span.style.height = "24px"
@@ -597,7 +598,7 @@ function selectServer(serverID) {
         console.log("Previous server set in")
     }
 
-    if (serverID == currentServerID) {
+    if (serverID === currentServerID) {
         console.log("Selected server is already the current one")
         return
     }
@@ -618,13 +619,13 @@ function selectServer(serverID) {
     const owned = serverButton.getAttribute("owned")
 
     // hide add channel button if server isn't own
-    if (owned == "true") {
+    if (owned === "true") {
         AddChannelButton.style.display = "block"
     } else {
         AddChannelButton.style.display = "none"
     }
 
-    if (serverID == "2000") {
+    if (serverID === "2000") {
         hideMemberList()
     } else {
         showMemberList()
@@ -677,7 +678,7 @@ function addMember(userID, displayName, picture, status) {
     // create a <img> that shows profile pic on the left
     const img = document.createElement("img")
     img.className = "profile-pic"
-    img.src = picture
+    img.src = imageHost + "content/avatars/" + picture
     img.alt = "pfpic"
     img.width = 32
     img.height = 32
@@ -806,9 +807,9 @@ function toggleChannelsVisibility() {
 
     channels.forEach(channel => {
         // check if channel is visible
-        if (channel.style.display = "") {
+        if (channel.style.display === "") {
             // hide if the channel isn't the current selected one
-            if (channel.id != currentChannelID) {
+            if (channel.id !== currentChannelID) {
                 channel.style.display = "none"
             }
         } else {
@@ -823,6 +824,8 @@ function resetChannels() {
 }
 
 // comp/chatMessageList.js
+
+const ChatLoadingIndicator = document.getElementById("chat-loading-indicator")
 
 let waitingForHistory = false
 
@@ -1039,7 +1042,7 @@ class Window {
         this.window
         this.topBar
         this.topBarLeft
-        this.main
+        this.windowMain
         this.type = type
         this.lastTop
         this.lastLeft
@@ -1128,7 +1131,7 @@ class Window {
             let newPosX = e.clientX - this.offsetX
             let newPosY = e.clientY - this.offsetY
 
-            // clamn so it can leave the window
+            // clamp so it can leave the window
             newPosX = Math.max(0, Math.min(window.innerWidth - this.window.clientWidth, newPosX))
             newPosY = Math.max(0, Math.min(window.innerHeight - this.window.clientHeight, newPosY))
 
@@ -1158,7 +1161,7 @@ class Window {
 
         // set order 0 for selected window
         for (let i = 0; i < openWindows.length; i++) {
-            if (openWindows[i] == this) {
+            if (openWindows[i] === this) {
                 lastSelected.set(i, 0)
                 break
             }
@@ -1168,7 +1171,7 @@ class Window {
         // also look for highest value among them
         let highestValue = 0
         for (let i = 0; i < openWindows.length; i++) {
-            if (openWindows[i] != this) {
+            if (openWindows[i] !== this) {
                 const value = lastSelected.get(i) + 1
                 lastSelected.set(i, value)
                 if (value > highestValue) {
@@ -1181,7 +1184,7 @@ class Window {
         const orderedKeys = []
         for (let i = 0; i < highestValue + 1; i++) {
             for (const [key, value] of lastSelected.entries()) {
-                if (value == i) {
+                if (value === i) {
                     orderedKeys.push(key)
                 }
             }
@@ -1192,31 +1195,16 @@ class Window {
             lastSelected.set(orderedKeys[i], i)
         }
 
-
         // set the z index for each window
         for (const [key, value] of lastSelected.entries()) {
             if (openWindows[key] != null) {
                 openWindows[key].window.style.zIndex = (900 - value).toString()
-                if (openWindows[key] != this) {
+                if (openWindows[key] !== this) {
                     openWindows[key].makeInactive()
                 }
 
             }
         }
-    }
-
-    createSettingsWindowArea() {
-        const leftSide = document.createElement("div")
-        leftSide.className = "settings-left"
-        const rightSide = document.createElement("div")
-        rightSide.className = "settings-right"
-
-        this.main.appendChild(leftSide)
-        this.main.appendChild(rightSide)
-    }
-
-    addElementsLeftSide(elements) {
-
     }
 
     createWindow() {
@@ -1258,9 +1246,9 @@ class Window {
         topBarRight.appendChild(maximizeButton)
 
         // this is the main part under the top bar that holds content
-        this.main = document.createElement("div")
-        this.main.className = "window-main"
-        this.window.appendChild(this.main)
+        this.windowMain = document.createElement("div")
+        this.windowMain.className = "window-main"
+        this.window.appendChild(this.windowMain)
 
         registerClick(maximizeButton, () => { this.maximizeWindow() })
 
@@ -1281,22 +1269,134 @@ class Window {
         // this listener makes it possible to select active window
         this.window.addEventListener("mousedown", this.handleSelectWindow)
 
-        const leftSide = []
-
         switch (this.type) {
             case "user-settings":
                 this.topBarLeft.textContent = "User settings"
-                this.createSettingsWindowArea()
-                this.addElementsLeftSide(["wtf", "XDDDD"])
+                createSettingsLeftSide(this.windowMain, this.type)
                 break
             case "server-settings":
                 this.topBarLeft.textContent = "Server settings"
-                this.createSettingsWindowArea()
-                this.addElementsLeftSide(leftSide)
+                createSettingsLeftSide(this.windowMain, this.type)
                 break
         }
-
     }
+}
+
+function createSettingsLeftSide(windowMain, type) {
+    const leftSide = document.createElement("div")
+    leftSide.className = "settings-left"
+    const rightSide = document.createElement("div")
+    rightSide.className = "settings-right"
+
+    windowMain.appendChild(leftSide)
+    windowMain.appendChild(rightSide)
+
+    const leftSideContent = []
+
+    function addElementsLeftSide(elements) {
+        const settingsLeft = windowMain.querySelector(".settings-left")
+
+        const top = document.createElement("div")
+        top.className = "settings-left-top"
+
+        settingsLeft.appendChild(top)
+
+        const settingsList = document.createElement("div")
+        settingsList.className = "settings-list"
+
+        for (let i = 0; i < elements.length; i++) {
+            const button = document.createElement("button")
+            button.className = "left-side-button"
+
+            const textDiv = document.createElement("div")
+            button.textContent = elements[i].text
+            button.appendChild(textDiv)
+
+            const settingsRight = windowMain.querySelector(".settings-right")
+
+            registerClick(button, () => {
+                // reset selection of items on left
+                for (const b of settingsList.children) {
+                    if (b !== button) {
+                        b.removeAttribute("style")
+                    } else {
+                        b.style.backgroundColor = mainColor
+                    }
+                }
+
+                // reset the right side
+                settingsRight.textContent = ""
+
+                console.log("Selected my", elements[i].text)
+                const mainRight = createSettingsRightSideMyAccount(windowMain, elements[i].text, settingsRight)
+                switch (elements[i].text) {
+                    case "My Account":
+                        const accountSettings = document.createElement("div")
+                        accountSettings.className = "account-settings"
+                        mainRight.appendChild(accountSettings)
+
+                        // const wtf = document.createElement("input")
+                        // wtf.required = true
+                        // accountSettings.appendChild(wtf)
+
+                        accountSettings.innerHTML =
+                            `
+                                <label>Display name:</label>
+                                <br>
+                                <input required>
+                                <br>
+                                <label>Pronouns:</label>
+                                <br>
+                                <input required>
+                                <br>
+                                <label>XD:</label>
+                                <br>
+                                <input required>
+                                <br>
+                            `
+                        break
+                    case "Idk":
+
+                        break
+                }
+            })
+
+            settingsList.appendChild(button)
+        }
+
+        settingsLeft.appendChild(settingsList)
+    }
+
+    // add these elements to the left side
+    switch (type) {
+        case "user-settings":
+            leftSideContent.push({text: "My Account"})
+            leftSideContent.push({text: "Idk"})
+            leftSideContent.push({text: "1"})
+            leftSideContent.push({text: "2"})
+            leftSideContent.push({text: "3"})
+            addElementsLeftSide(leftSideContent)
+            break
+    }
+}
+
+function createSettingsRightSideMyAccount(windowMain, labelText, settingsRight) {
+    const topRight = document.createElement("div")
+    topRight.className = "settings-right-top"
+
+    const label = document.createElement("div")
+    label.className = "settings-right-label"
+    label.textContent = labelText
+    topRight.appendChild(label)
+
+    settingsRight.appendChild(topRight)
+
+    const mainRight = document.createElement("div")
+    mainRight.className = "settings-right-main"
+
+    settingsRight.appendChild(mainRight)
+
+    return mainRight
 }
 
 // comp/chatInput.js
@@ -1408,6 +1508,7 @@ function calculateAttachments() {
 // dynamicContent.js
 
 const mainColor = "#36393f"
+const hoverColor = "#313338"
 const bitDarkerColor = "#2B2D31"
 const darkColor = "#232428"
 const darkerColor = "#1E1F22"
@@ -1477,14 +1578,29 @@ function registerHover(element, callbackIn, callbackOut) {
 let wsClient
 let wsConnected
 
+function refreshWebsocketContent() {
+    document.querySelectorAll('.server').forEach(server => {
+        server.remove();
+    })
+
+    requestServerList()
+    selectServer("2000")
+    fadeOutLoading()
+}
+
 async function connectToWebsocket() {
     console.log("Connecting to websocket...")
     // check if protocol is http or https
-    if (location.protocol === "https:") {
-        wsClient = new WebSocket("wss://" + window.location.host + "/wss")
-    } else {
-        wsClient = new WebSocket("ws://" + window.location.host + "/ws")
-    }
+    // if (location.protocol === "https:") {
+    //     wsClient = new WebSocket("wss://" + window.location.host + "/wss")
+    // } else {
+    //     wsClient = new WebSocket("ws://" + window.location.host + "/ws")
+    // }
+
+    // check if protocol is http or https
+    const protocol = location.protocol === "https:" ? "wss://" : "ws://";
+    const endpoint = `${protocol}${window.location.host}/ws`;
+    wsClient = new WebSocket(endpoint);
 
     // make the websocket work with byte arrays
     wsClient.binaryType = "arraybuffer"
@@ -1498,7 +1614,6 @@ async function connectToWebsocket() {
             lastChannelID = 0
             refreshWebsocketContent()
         }
-        fadeOutLoading()
     }
 
     wsClient.onclose = async function (_event) {
@@ -1529,33 +1644,34 @@ async function connectToWebsocket() {
         // get the json string from the 6th byte to the end
         const packetJson = String.fromCharCode.apply(null, receivedBytes.slice(5, endIndex))
 
-        console.log("Received packet:", endIndex, packetType, packetJson)
+        // console.log("Received packet:", endIndex, packetType, packetJson)
+        console.log(`Received packet size: [${receivedBytes.length} bytes] index: [${endIndex}] packetType: [${packetType}] json: ${packetJson}`)
 
-        const json = JSON.parse(packetJson)
+        const msg = JSON.parse(packetJson)
         switch (packetType) {
             case 0: // Server sent rejection message
-                console.warn(json.Reason)
+                console.warn(msg.Reason)
                 break
             case 1: // Server sent a chat message
-                await chatMessageReceived(json)
+                await chatMessageReceived(msg)
                 break
             case 2: // Server sent the requested chat history
-                await chatHistoryReceived(json)
+                await chatHistoryReceived(msg)
                 break
             case 3: // Server sent which message was deleted
-                deleteChatMessage(json)
+                deleteChatMessage(msg)
                 break
             case 21: // Server responded to the add server request
                 console.log("Add server request response arrived")
-                addServer(json.ServerID, json.OwnerID, json.Name, json.Picture, "server")
-                selectServer(json.ServerID)
+                addServer(msg.ServerID, msg.OwnerID, msg.Name, imageHost + "content/avatars/" + msg.Picture, "server")
+                selectServer(msg.ServerID)
                 break
             case 22: // Server sent the requested server list
                 console.log("Requested server list arrived")
-                if (json != null) {
-                    for (let i = 0; i < json.length; i++) {
-                        console.log("Adding server ID", json[i].ServerID)
-                        addServer(json[i].ServerID, json[i].OwnerID, json[i].Name, json[i].Picture, "server")
+                if (msg != null) {
+                    for (let i = 0; i < msg.length; i++) {
+                        console.log("Adding server ID", msg[i].ServerID)
+                        addServer(msg[i].ServerID, msg[i].OwnerID, msg[i].Name, imageHost + "content/avatars/" + msg[i].Picture, "server")
                     }
                 } else {
                     console.log("Not being in any servers")
@@ -1563,8 +1679,8 @@ async function connectToWebsocket() {
                 lookForDeletedServersInLastChannels()
                 break
             case 23: // Server sent which server was deleted
-                console.log(`Server ID [${json.ServerID}] has beend deleted`)
-                const serverID = json.ServerID
+                console.log(`Server ID [${msg.ServerID}] has been deleted`)
+                const serverID = msg.ServerID
                 deleteServer(serverID)
                 removeServerFromLastChannels(serverID)
                 if (serverID === currentServerID) {
@@ -1573,62 +1689,70 @@ async function connectToWebsocket() {
                 break
             case 24: // Server sent the requested invite link to the chat server
                 console.log("Requested invite link to the chat server arrived, adding to clipboard")
-                const inviteID = json
-                const inviteLink = `${window.location.protocol}//${window.location.host}/invite/${inviteID}`
+                const inviteLink = `${window.location.protocol}//${window.location.host}/invite/${msg}`
                 console.log(inviteLink)
                 await navigator.clipboard.writeText(inviteLink)
                 break
             case 31: // Server responded to the add channel request
-                console.log(`Adding new channel called [${json.Name}]`)
-                addChannel(json.ChannelID, json.Name)
+                console.log(`Adding new channel called [${msg.Name}]`)
+                addChannel(msg.ChannelID, msg.Name)
                 break
             case 32: // Server sent the requested channel list
                 console.log("Requested channel list arrived")
-                if (json == null) {
+                if (msg == null) {
                     console.warn("No channels on server ID", currentServerID)
                     break
                 }
-                for (let i = 0; i < json.length; i++) {
-                    addChannel(json[i].ChannelID, json[i].Name)
+                for (let i = 0; i < msg.length; i++) {
+                    addChannel(msg[i].ChannelID, msg[i].Name)
                 }
-                selectLastChannels(json[0].ChannelID)
+                selectLastChannels(msg[0].ChannelID)
                 break
             case 42: // Server sent the requested member list
                 console.log("Requested member list arrived")
-                if (json == null) {
+                if (msg == null) {
                     console.warn("No members on server ID", currentServerID)
                     break
                 }
-                for (let i = 0; i < json.length; i++) {
-                    addMember(json[i].UserID, json[i].Name, json[i].Picture, json[i].Status)
+                for (let i = 0; i < msg.length; i++) {
+                    addMember(msg[i].UserID, msg[i].Name, msg[i].Picture, msg[i].Status)
                 }
                 memberListLoaded = true
                 break
             case 43: // Server sent user which user left a server
-                if (json.UserID === ownUserID) {
-                    console.log(`Left server ID [${json.ServerID}], deleting it from list`)
-                    deleteServer(json.ServerID)
+                if (msg.UserID === ownUserID) {
+                    console.log(`Left server ID [${msg.ServerID}], deleting it from list`)
+                    deleteServer(msg.ServerID)
                     selectServer("2000")
                 } else {
-                    console.log(`User ID [${json.UserID}] left server ID [${json.ServerID}]`)
-                    removeMember(json.UserID)
+                    console.log(`User ID [${msg.UserID}] left server ID [${msg.ServerID}]`)
+                    removeMember(msg.UserID)
                 }
                 break
             case 51: // Server sent that a user changed display name
                 if (userID === ownUserID) {
-                    console.log("New display name:", json.newName)
+                    console.log("New display name:", msg.newName)
                 } else {
-                    console.log(`User ID [${json.UserID}] changed their name to [${json.NewName}]`)
+                    console.log(`User ID [${msg.UserID}] changed their name to [${msg.NewName}]`)
                 }
                 changeDisplayNameInChatMessageList(userID, newDisplayName)
                 changeDisplayNameInMemberList(userID, newDisplayName)
                 break
 
-            case 241: // Server sent the client"s own user ID
-                ownUserID = json
+            case 241: // Server sent the client's own user ID
+                ownUserID = msg
                 console.log("Received own user ID:", ownUserID)
                 UserPanelName.textContent = ownUserID
                 receivedOwnUserID = true
+                break
+            case 242: // Server sent image host address
+                if (msg === "") {
+                    console.log("Received image host address, server did not set any external")
+                } else {
+                    console.log("Received image host address:", msg)
+                }
+                imageHost = msg
+                receivedImageHostAddress = true
                 break
             default:
                 console.log("Server sent unknown message type")
@@ -1782,5 +1906,10 @@ function requestChangeDisplayName(newName) {
     preparePacket(51, [], {
         NewName: newName
     })
+}
+
+function requestImageHostAddress() {
+    console.log("Requesting image host address")
+    preparePacket(242, [], {})
 }
 

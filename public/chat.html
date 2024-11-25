@@ -5,12 +5,14 @@
 <head>
     <meta name="viewport" content="width=device-width,height=device-height,user-scalable=no,initial-scale=1.0">
     <title>Discord Clone</title>
-    <link rel="stylesheet" href="css/global.css">
-    <link rel="stylesheet" href="css/chat.css">
+    <link rel="stylesheet" href="/css/global.css">
+    <link rel="stylesheet" href="/css/chat.css">
 </head>
 
 <body>
-    <div id="loading">Loading</div>
+    <div id="loading">
+        <div>Loading</div>
+    </div>
     <!-- <img id="imagePreview" alt="Image Preview" style="display: none; max-width: 300px; margin-top: 20px;"> -->
     <input type="file" id="attachment-input" style="display: none;" onchange="attachmentAdded()">
     <ol id="server-list">
@@ -41,7 +43,7 @@
         <div id="user-panel">
             <div>
                 <button id="user-panel-user-container">
-                    <img id="user-panel-pfp" src="default_profilepic.webp"></img>
+                    <img id="user-panel-pfp" src="content/avatars/default_profilepic.webp"></img>
                     <div id="user-panel-name-status">
                         <div id="user-panel-name">Name</div>
                         <div id="user-panel-status">Online</div>
@@ -90,7 +92,7 @@
         </div>
     </div>
     <audio id="notification-sound" src="sounds/discord-notification.mp3" preload="auto"></audio>
-    <script src="script.js"></script>
+    <script src="js/script.js"></script>
 </body>
 
 </html>

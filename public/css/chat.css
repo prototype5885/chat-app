@@ -11,6 +11,18 @@ body {
     cursor: pointer;
 }
 
+@keyframes rotate {
+    0% {
+        transform: rotate(-10deg);
+    }
+    50% {
+        transform: rotate(10deg);
+    }
+    100% {
+        transform: rotate(-10deg);
+    }
+}
+
 #loading {
     position: absolute;
     top: 0;
@@ -22,6 +34,10 @@ body {
     text-align: center;
     align-content: center;
     font-size: 96px;
+}
+
+#loading>div {
+    animation: rotate 5s infinite;
 }
 
 #bubble,
@@ -104,12 +120,62 @@ body {
 
 .settings-left {
     width: 35%;
-    background-color: red;
+    background-color: var(--bit-darker-color);
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    overflow-y: scroll;
 }
+
+.settings-left-top {
+    height: 64px;
+    margin-bottom: 8px;
+}
+
+.settings-list {
+    width: 200px;
+    display: flex;
+    flex-direction: column;
+    padding-right: 4px;
+    /*margin-top: 64px;*/
+}
+
+/*.settings-list>button {*/
+/*    color: white;*/
+/*}*/
 
 .settings-right {
     width: 65%;
-    background-color: blue;
+    background-color: var(--main-color);
+    overflow-y: scroll;
+}
+
+.settings-right-top {
+    height: 64px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    margin-left: 32px;
+}
+
+.settings-right-main {
+    margin: 16px;
+}
+
+
+.settings-right-label {
+    font-size: x-large;
+    color: white;
+}
+
+.account-settings {
+    /*height: 384px;*/
+    /*width: 640px;*/
+    /*background-color: var(--dark-color);*/
+    /*border-radius: 16px;*/
+    display: flex;
+    flex-direction: column;
+    padding: 16px;
 }
 
 /* server list column on the left side */
@@ -121,12 +187,9 @@ body {
     background-color: var(--darker-color);
     display: flex;
     flex-direction: column;
-    padding: 0;
-    padding-top: 8px;
+    padding: 8px 0 0;
     margin: 0;
 }
-
-
 
 /* all the server buttons on the left side */
 #server-list button {
@@ -158,9 +221,7 @@ body {
     flex: 0 0 auto;
     width: 32px;
     height: 2px;
-    margin: 0 auto;
-    margin-top: 2px;
-    margin-bottom: 2px;
+    margin: 2px auto;
     background-color: var(--separator-color);
 }
 
@@ -293,7 +354,8 @@ body {
     flex-direction: column;
 }
 
-#channel-list button {
+#channel-list button,
+.settings-list button{
     height: 32px;
     display: flex;
     align-items: center;
@@ -303,8 +365,9 @@ body {
     transition: font-size 0.2s ease, height 0.2s ease;
 }
 
-#channel-list button:hover {
-    background-color: #313338;
+#channel-list button:hover,
+.settings-list button:hover{
+    background-color: var(--hover-color);
     font-size: large;
 }
 
@@ -443,7 +506,7 @@ body {
     background-color: var(--main-color);
     margin-left: 16px;
     border-radius: 50%;
-    border: 1;
+    border: 1px;
     background-color: #4f545c;
     border-radius: 35%;
 }

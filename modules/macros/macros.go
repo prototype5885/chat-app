@@ -42,19 +42,19 @@ func RespondFailureReason(format string, v ...any) []byte {
 	return PreparePacket(0, json)
 }
 
-func PreparePacket(typeByte byte, jsonBytes []byte) []byte {
+func PreparePacket(typeByte byte, msgBytes []byte) []byte {
 	// convert the end index uint32 value into 4 bytes
-	var endIndex uint32 = uint32(5 + len(jsonBytes))
+	var endIndex uint32 = uint32(5 + len(msgBytes))
 	var endIndexBytes []byte = make([]byte, 4)
 	binary.LittleEndian.PutUint32(endIndexBytes, endIndex)
 
 	// merge them into a single packet
-	var packet []byte = make([]byte, 5+len(jsonBytes))
+	var packet []byte = make([]byte, 5+len(msgBytes))
 	copy(packet, endIndexBytes) // first 4 bytes will be the length
 	packet[4] = typeByte        // 5th byte will be the packet type
-	copy(packet[5:], jsonBytes) // rest will be the json byte array
+	copy(packet[5:], msgBytes)  // rest will be the json byte array
 
-	log.Trace("Prepared packet: endIndex [%d], type [%d], json [%s]", endIndex, packet[4], string(jsonBytes))
+	log.Trace("Prepared packet: endIndex [%d], type [%d], msg [%s]", endIndex, packet[4], string(msgBytes))
 
 	return packet
 }

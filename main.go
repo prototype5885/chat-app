@@ -36,36 +36,41 @@ func main() {
 	// reading config file
 
 	type ConfigFile struct {
-		LocalhostOnly    bool
-		Port             uint32
-		TLS              bool
-		LogConsole       bool
-		LogFile          bool
-		Sqlite           bool
-		DatabaseAddress  string
-		DatabasePort     uint32
-		DatabaseUsername string
-		DatabasePassword string
-		DatabaseName     string
+		LocalhostOnly              bool
+		Port                       uint32
+		TLS                        bool
+		LogConsole                 bool
+		LogFile                    bool
+		Sqlite                     bool
+		ImageServerAddressWithPort string
+		DatabaseAddress            string
+		DatabasePort               uint32
+		DatabaseUsername           string
+		DatabasePassword           string
+		DatabaseName               string
 	}
 
 	readConfigFile := func() ConfigFile {
+		fmt.Println("Reading config file...")
 		configFile := "config.json"
 		file, err := os.Open(configFile)
 		if err != nil {
-			log.FatalError(err.Error(), "Error opening config file")
+			fmt.Println(err.Error())
+			fmt.Println("Error opening config file")
 		}
 		defer func(file *os.File) {
 			err := file.Close()
 			if err != nil {
-				log.FatalError(err.Error(), "Error closing config file")
+				fmt.Println(err.Error())
+				fmt.Println("Error closing config file")
 			}
 		}(file)
 
 		var config ConfigFile
 		err = json.NewDecoder(file).Decode(&config)
 		if err != nil {
-			log.FatalError(err.Error(), "Error decoding config file")
+			fmt.Println(err.Error())
+			fmt.Println("Error decoding config file")
 		}
 		return config
 	}
@@ -88,6 +93,8 @@ func main() {
 
 	// websocket
 	websocket.Init()
+
+	websocket.ImageHost = config.ImageServerAddressWithPort
 
 	// handle http requests
 	http.HandleFunc("/", webRequests.MainHandler)

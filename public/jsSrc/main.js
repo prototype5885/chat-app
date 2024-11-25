@@ -18,17 +18,19 @@ const ServerName = document.getElementById("server-name")
 const AttachmentInput = document.getElementById("attachment-input")
 const AttachmentContainer = document.getElementById("attachment-container")
 const AttachmentList = document.getElementById("attachment-list")
-const ChatLoadingIndicator = document.getElementById("chat-loading-indicator")
-const loading = document.getElementById("loading")
 
 var ownUserID // this will be the first thing server will send
 var receivedOwnUserID = false // don't continue loading until own user ID is received
+var receivedImageHostAddress = false
 var memberListLoaded = false // don't add chat history until server member list is received
 
 var currentServerID
 var currentChannelID
 var lastChannelID
 var reachedBeginningOfChannel = false
+
+// var imageHost = "http://localhost:8000/"
+var imageHost = ""
 
 function waitUntilBoolIsTrue(checkFunction, interval = 10) {
     return new Promise((resolve) => {
@@ -41,31 +43,6 @@ function waitUntilBoolIsTrue(checkFunction, interval = 10) {
     })
 }
 
-function fadeOutLoading() {
-    setTimeout(() => {
-        loading.style.display = "none"
-    }, 250)
-
-    loading.style.pointerEvents = "none"
-    loading.style.opacity = "0%"
-}
-
-function fadeInLoading() {
-    loading.style.display = "block"
-    loading.style.opacity = "100%"
-    loading.style.pointerEvents = "auto"
-    loading.innerText = "Reconnecting..."
-}
-
-function refreshWebsocketContent() {
-    document.querySelectorAll('.server').forEach(server => {
-        server.remove();
-    })
-
-    requestServerList()
-    selectServer("2000")
-}
-
 function main() {
     // this runs after webpage was loaded
     document.addEventListener("DOMContentLoaded", async function () {
@@ -73,7 +50,7 @@ function main() {
         initLocalStorage()
         initContextMenu()
 
-        addServer("2000", 0, "Direct Messages", "hs.svg", "dm") // add the direct messages button
+        addServer("2000", 0, "Direct Messages", "content/static/hs.svg", "dm") // add the direct messages button
 
         // add placeholder servers depending on how many servers the client was in, will delete on websocket connection
         // purely visual
@@ -88,8 +65,12 @@ function main() {
         console.log("Waiting for server to send own user ID...")
         await waitUntilBoolIsTrue(() => receivedOwnUserID)
 
+        // request http address of image hosting server
+        requestImageHostAddress()
 
-        // fadeOutLoading()
+        // wait until the address is received
+        console.log("Waiting for server to send image host address..")
+        await waitUntilBoolIsTrue(() => receivedImageHostAddress)
 
         // remove placeholder servers
         for (let i = 0; i < placeholderButtons.length; i++) {

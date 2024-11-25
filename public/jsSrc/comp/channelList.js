@@ -48,9 +48,9 @@ function toggleChannelsVisibility() {
 
     channels.forEach(channel => {
         // check if channel is visible
-        if (channel.style.display = "") {
+        if (channel.style.display === "") {
             // hide if the channel isn't the current selected one
-            if (channel.id != currentChannelID) {
+            if (channel.id !== currentChannelID) {
                 channel.style.display = "none"
             }
         } else {

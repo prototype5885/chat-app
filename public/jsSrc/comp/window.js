@@ -11,7 +11,7 @@ class Window {
         this.window
         this.topBar
         this.topBarLeft
-        this.main
+        this.windowMain
         this.type = type
         this.lastTop
         this.lastLeft
@@ -100,7 +100,7 @@ class Window {
             let newPosX = e.clientX - this.offsetX
             let newPosY = e.clientY - this.offsetY
 
-            // clamn so it can leave the window
+            // clamp so it can leave the window
             newPosX = Math.max(0, Math.min(window.innerWidth - this.window.clientWidth, newPosX))
             newPosY = Math.max(0, Math.min(window.innerHeight - this.window.clientHeight, newPosY))
 
@@ -130,7 +130,7 @@ class Window {
 
         // set order 0 for selected window
         for (let i = 0; i < openWindows.length; i++) {
-            if (openWindows[i] == this) {
+            if (openWindows[i] === this) {
                 lastSelected.set(i, 0)
                 break
             }
@@ -140,7 +140,7 @@ class Window {
         // also look for highest value among them
         let highestValue = 0
         for (let i = 0; i < openWindows.length; i++) {
-            if (openWindows[i] != this) {
+            if (openWindows[i] !== this) {
                 const value = lastSelected.get(i) + 1
                 lastSelected.set(i, value)
                 if (value > highestValue) {
@@ -153,7 +153,7 @@ class Window {
         const orderedKeys = []
         for (let i = 0; i < highestValue + 1; i++) {
             for (const [key, value] of lastSelected.entries()) {
-                if (value == i) {
+                if (value === i) {
                     orderedKeys.push(key)
                 }
             }
@@ -164,31 +164,16 @@ class Window {
             lastSelected.set(orderedKeys[i], i)
         }
 
-
         // set the z index for each window
         for (const [key, value] of lastSelected.entries()) {
             if (openWindows[key] != null) {
                 openWindows[key].window.style.zIndex = (900 - value).toString()
-                if (openWindows[key] != this) {
+                if (openWindows[key] !== this) {
                     openWindows[key].makeInactive()
                 }
 
             }
         }
-    }
-
-    createSettingsWindowArea() {
-        const leftSide = document.createElement("div")
-        leftSide.className = "settings-left"
-        const rightSide = document.createElement("div")
-        rightSide.className = "settings-right"
-
-        this.main.appendChild(leftSide)
-        this.main.appendChild(rightSide)
-    }
-
-    addElementsLeftSide(elements) {
-
     }
 
     createWindow() {
@@ -230,9 +215,9 @@ class Window {
         topBarRight.appendChild(maximizeButton)
 
         // this is the main part under the top bar that holds content
-        this.main = document.createElement("div")
-        this.main.className = "window-main"
-        this.window.appendChild(this.main)
+        this.windowMain = document.createElement("div")
+        this.windowMain.className = "window-main"
+        this.window.appendChild(this.windowMain)
 
         registerClick(maximizeButton, () => { this.maximizeWindow() })
 
@@ -253,20 +238,132 @@ class Window {
         // this listener makes it possible to select active window
         this.window.addEventListener("mousedown", this.handleSelectWindow)
 
-        const leftSide = []
-
         switch (this.type) {
             case "user-settings":
                 this.topBarLeft.textContent = "User settings"
-                this.createSettingsWindowArea()
-                this.addElementsLeftSide(["wtf", "XDDDD"])
+                createSettingsLeftSide(this.windowMain, this.type)
                 break
             case "server-settings":
                 this.topBarLeft.textContent = "Server settings"
-                this.createSettingsWindowArea()
-                this.addElementsLeftSide(leftSide)
+                createSettingsLeftSide(this.windowMain, this.type)
                 break
         }
-
     }
+}
+
+function createSettingsLeftSide(windowMain, type) {
+    const leftSide = document.createElement("div")
+    leftSide.className = "settings-left"
+    const rightSide = document.createElement("div")
+    rightSide.className = "settings-right"
+
+    windowMain.appendChild(leftSide)
+    windowMain.appendChild(rightSide)
+
+    const leftSideContent = []
+
+    function addElementsLeftSide(elements) {
+        const settingsLeft = windowMain.querySelector(".settings-left")
+
+        const top = document.createElement("div")
+        top.className = "settings-left-top"
+
+        settingsLeft.appendChild(top)
+
+        const settingsList = document.createElement("div")
+        settingsList.className = "settings-list"
+
+        for (let i = 0; i < elements.length; i++) {
+            const button = document.createElement("button")
+            button.className = "left-side-button"
+
+            const textDiv = document.createElement("div")
+            button.textContent = elements[i].text
+            button.appendChild(textDiv)
+
+            const settingsRight = windowMain.querySelector(".settings-right")
+
+            registerClick(button, () => {
+                // reset selection of items on left
+                for (const b of settingsList.children) {
+                    if (b !== button) {
+                        b.removeAttribute("style")
+                    } else {
+                        b.style.backgroundColor = mainColor
+                    }
+                }
+
+                // reset the right side
+                settingsRight.textContent = ""
+
+                console.log("Selected my", elements[i].text)
+                const mainRight = createSettingsRightSideMyAccount(windowMain, elements[i].text, settingsRight)
+                switch (elements[i].text) {
+                    case "My Account":
+                        const accountSettings = document.createElement("div")
+                        accountSettings.className = "account-settings"
+                        mainRight.appendChild(accountSettings)
+
+                        // const wtf = document.createElement("input")
+                        // wtf.required = true
+                        // accountSettings.appendChild(wtf)
+
+                        accountSettings.innerHTML =
+                            `
+                                <label>Display name:</label>
+                                <br>
+                                <input required>
+                                <br>
+                                <label>Pronouns:</label>
+                                <br>
+                                <input required>
+                                <br>
+                                <label>XD:</label>
+                                <br>
+                                <input required>
+                                <br>
+                            `
+                        break
+                    case "Idk":
+
+                        break
+                }
+            })
+
+            settingsList.appendChild(button)
+        }
+
+        settingsLeft.appendChild(settingsList)
+    }
+
+    // add these elements to the left side
+    switch (type) {
+        case "user-settings":
+            leftSideContent.push({text: "My Account"})
+            leftSideContent.push({text: "Idk"})
+            leftSideContent.push({text: "1"})
+            leftSideContent.push({text: "2"})
+            leftSideContent.push({text: "3"})
+            addElementsLeftSide(leftSideContent)
+            break
+    }
+}
+
+function createSettingsRightSideMyAccount(windowMain, labelText, settingsRight) {
+    const topRight = document.createElement("div")
+    topRight.className = "settings-right-top"
+
+    const label = document.createElement("div")
+    label.className = "settings-right-label"
+    label.textContent = labelText
+    topRight.appendChild(label)
+
+    settingsRight.appendChild(topRight)
+
+    const mainRight = document.createElement("div")
+    mainRight.className = "settings-right-main"
+
+    settingsRight.appendChild(mainRight)
+
+    return mainRight
 }

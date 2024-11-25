@@ -5,6 +5,7 @@
   "LogConsole": true,
   "LogFile": false,
   "Sqlite": true,
+  "ImageServerAddressWithPort": "",
   "DatabaseAddress": "127.0.0.1",
   "DatabasePort": 3306,
   "DatabaseUsername": "mysql username",

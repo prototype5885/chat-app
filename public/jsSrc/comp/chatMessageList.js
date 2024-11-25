@@ -1,3 +1,5 @@
+const ChatLoadingIndicator = document.getElementById("chat-loading-indicator")
+
 let waitingForHistory = false
 
 // adds the new chat message into html

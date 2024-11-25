@@ -1,4 +1,5 @@
 const mainColor = "#36393f"
+const hoverColor = "#313338"
 const bitDarkerColor = "#2B2D31"
 const darkColor = "#232428"
 const darkerColor = "#1E1F22"

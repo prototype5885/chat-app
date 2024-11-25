@@ -39,7 +39,7 @@ function addServer(serverID, ownerID, serverName, picture, className) {
 
     // bubble on hover
     function onHoverIn() {
-        if (serverID != currentServerID) {
+        if (serverID !== currentServerID) {
             button.style.borderRadius = "35%"
             button.style.backgroundColor = "#5865F2"
             span.style.height = "24px"
@@ -87,7 +87,7 @@ function selectServer(serverID) {
         console.log("Previous server set in")
     }
 
-    if (serverID == currentServerID) {
+    if (serverID === currentServerID) {
         console.log("Selected server is already the current one")
         return
     }
@@ -108,13 +108,13 @@ function selectServer(serverID) {
     const owned = serverButton.getAttribute("owned")
 
     // hide add channel button if server isn't own
-    if (owned == "true") {
+    if (owned === "true") {
         AddChannelButton.style.display = "block"
     } else {
         AddChannelButton.style.display = "none"
     }
 
-    if (serverID == "2000") {
+    if (serverID === "2000") {
         hideMemberList()
     } else {
         showMemberList()

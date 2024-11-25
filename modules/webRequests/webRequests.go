@@ -8,37 +8,23 @@ import (
 )
 
 const publicFolder string = "./public"
-const picsFolder string = publicFolder + "/pics"
 
-const jsFolder string = publicFolder + "/js"
-const uiFolder string = publicFolder + "/ui"
-
-// on any requests
 func MainHandler(w http.ResponseWriter, r *http.Request) {
 	printReceivedRequest(r.URL.Path, r.Method)
 
 	if r.Method == "GET" {
 		var extension string = filepath.Ext(r.URL.Path)
+
 		// check if client is requesting a file
 		// continue if not
 		if extension != "" {
-			switch extension {
-			case ".webp", ".jpg", ".png":
-				http.ServeFile(w, r, picsFolder+r.URL.Path)
-			case ".svg":
-				http.ServeFile(w, r, uiFolder+r.URL.Path)
-			case ".css":
-				http.ServeFile(w, r, publicFolder+r.URL.Path)
-			case ".js":
-				// w.Header().Set("Content-Type", "application/javascript")
-				// _, err := io.WriteString(w, jsfilesmerger.MergeJsFiles())
-				// if err != nil {
-				// 	log.WarnError(err.Error(), "Error sending javascript string to client")
-				// }
+			// look for js file changes then update script.js if there is before sending
+			if extension == ".js" && jsfilesmerger.DynamicMergedJsGeneration {
 				jsfilesmerger.CheckForChanges()
-				http.ServeFile(w, r, jsFolder+r.URL.Path)
 			}
-			// don't continue if request was confirmed to be a file
+
+			log.Debug("Serving file: %s", r.URL.Path)
+			http.ServeFile(w, r, publicFolder+r.URL.Path)
 			return
 		}
 
@@ -46,13 +32,13 @@ func MainHandler(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/":
 			http.ServeFile(w, r, getHtmlFilePath("/index"))
-		case "/chat":
+		case "/chat.html":
 			chatHandler(w, r)
 		case "/wss", "/ws":
 			websocketHandler(w, r)
 		case "/invite":
 			inviteHandler(w, r)
-		case "/login-register":
+		case "/login-register.html":
 			loginRegisterHandler(w, r)
 		}
 

@@ -1,14 +1,29 @@
 let wsClient
 let wsConnected
 
+function refreshWebsocketContent() {
+    document.querySelectorAll('.server').forEach(server => {
+        server.remove();
+    })
+
+    requestServerList()
+    selectServer("2000")
+    fadeOutLoading()
+}
+
 async function connectToWebsocket() {
     console.log("Connecting to websocket...")
     // check if protocol is http or https
-    if (location.protocol === "https:") {
-        wsClient = new WebSocket("wss://" + window.location.host + "/wss")
-    } else {
-        wsClient = new WebSocket("ws://" + window.location.host + "/ws")
-    }
+    // if (location.protocol === "https:") {
+    //     wsClient = new WebSocket("wss://" + window.location.host + "/wss")
+    // } else {
+    //     wsClient = new WebSocket("ws://" + window.location.host + "/ws")
+    // }
+
+    // check if protocol is http or https
+    const protocol = location.protocol === "https:" ? "wss://" : "ws://";
+    const endpoint = `${protocol}${window.location.host}/ws`;
+    wsClient = new WebSocket(endpoint);
 
     // make the websocket work with byte arrays
     wsClient.binaryType = "arraybuffer"
@@ -22,7 +37,6 @@ async function connectToWebsocket() {
             lastChannelID = 0
             refreshWebsocketContent()
         }
-        fadeOutLoading()
     }
 
     wsClient.onclose = async function (_event) {
@@ -53,33 +67,34 @@ async function connectToWebsocket() {
         // get the json string from the 6th byte to the end
         const packetJson = String.fromCharCode.apply(null, receivedBytes.slice(5, endIndex))
 
-        console.log("Received packet:", endIndex, packetType, packetJson)
+        // console.log("Received packet:", endIndex, packetType, packetJson)
+        console.log(`Received packet size: [${receivedBytes.length} bytes] index: [${endIndex}] packetType: [${packetType}] json: ${packetJson}`)
 
-        const json = JSON.parse(packetJson)
+        const msg = JSON.parse(packetJson)
         switch (packetType) {
             case 0: // Server sent rejection message
-                console.warn(json.Reason)
+                console.warn(msg.Reason)
                 break
             case 1: // Server sent a chat message
-                await chatMessageReceived(json)
+                await chatMessageReceived(msg)
                 break
             case 2: // Server sent the requested chat history
-                await chatHistoryReceived(json)
+                await chatHistoryReceived(msg)
                 break
             case 3: // Server sent which message was deleted
-                deleteChatMessage(json)
+                deleteChatMessage(msg)
                 break
             case 21: // Server responded to the add server request
                 console.log("Add server request response arrived")
-                addServer(json.ServerID, json.OwnerID, json.Name, json.Picture, "server")
-                selectServer(json.ServerID)
+                addServer(msg.ServerID, msg.OwnerID, msg.Name, imageHost + "content/avatars/" + msg.Picture, "server")
+                selectServer(msg.ServerID)
                 break
             case 22: // Server sent the requested server list
                 console.log("Requested server list arrived")
-                if (json != null) {
-                    for (let i = 0; i < json.length; i++) {
-                        console.log("Adding server ID", json[i].ServerID)
-                        addServer(json[i].ServerID, json[i].OwnerID, json[i].Name, json[i].Picture, "server")
+                if (msg != null) {
+                    for (let i = 0; i < msg.length; i++) {
+                        console.log("Adding server ID", msg[i].ServerID)
+                        addServer(msg[i].ServerID, msg[i].OwnerID, msg[i].Name, imageHost + "content/avatars/" + msg[i].Picture, "server")
                     }
                 } else {
                     console.log("Not being in any servers")
@@ -87,8 +102,8 @@ async function connectToWebsocket() {
                 lookForDeletedServersInLastChannels()
                 break
             case 23: // Server sent which server was deleted
-                console.log(`Server ID [${json.ServerID}] has beend deleted`)
-                const serverID = json.ServerID
+                console.log(`Server ID [${msg.ServerID}] has been deleted`)
+                const serverID = msg.ServerID
                 deleteServer(serverID)
                 removeServerFromLastChannels(serverID)
                 if (serverID === currentServerID) {
@@ -97,62 +112,70 @@ async function connectToWebsocket() {
                 break
             case 24: // Server sent the requested invite link to the chat server
                 console.log("Requested invite link to the chat server arrived, adding to clipboard")
-                const inviteID = json
-                const inviteLink = `${window.location.protocol}//${window.location.host}/invite/${inviteID}`
+                const inviteLink = `${window.location.protocol}//${window.location.host}/invite/${msg}`
                 console.log(inviteLink)
                 await navigator.clipboard.writeText(inviteLink)
                 break
             case 31: // Server responded to the add channel request
-                console.log(`Adding new channel called [${json.Name}]`)
-                addChannel(json.ChannelID, json.Name)
+                console.log(`Adding new channel called [${msg.Name}]`)
+                addChannel(msg.ChannelID, msg.Name)
                 break
             case 32: // Server sent the requested channel list
                 console.log("Requested channel list arrived")
-                if (json == null) {
+                if (msg == null) {
                     console.warn("No channels on server ID", currentServerID)
                     break
                 }
-                for (let i = 0; i < json.length; i++) {
-                    addChannel(json[i].ChannelID, json[i].Name)
+                for (let i = 0; i < msg.length; i++) {
+                    addChannel(msg[i].ChannelID, msg[i].Name)
                 }
-                selectLastChannels(json[0].ChannelID)
+                selectLastChannels(msg[0].ChannelID)
                 break
             case 42: // Server sent the requested member list
                 console.log("Requested member list arrived")
-                if (json == null) {
+                if (msg == null) {
                     console.warn("No members on server ID", currentServerID)
                     break
                 }
-                for (let i = 0; i < json.length; i++) {
-                    addMember(json[i].UserID, json[i].Name, json[i].Picture, json[i].Status)
+                for (let i = 0; i < msg.length; i++) {
+                    addMember(msg[i].UserID, msg[i].Name, msg[i].Picture, msg[i].Status)
                 }
                 memberListLoaded = true
                 break
             case 43: // Server sent user which user left a server
-                if (json.UserID === ownUserID) {
-                    console.log(`Left server ID [${json.ServerID}], deleting it from list`)
-                    deleteServer(json.ServerID)
+                if (msg.UserID === ownUserID) {
+                    console.log(`Left server ID [${msg.ServerID}], deleting it from list`)
+                    deleteServer(msg.ServerID)
                     selectServer("2000")
                 } else {
-                    console.log(`User ID [${json.UserID}] left server ID [${json.ServerID}]`)
-                    removeMember(json.UserID)
+                    console.log(`User ID [${msg.UserID}] left server ID [${msg.ServerID}]`)
+                    removeMember(msg.UserID)
                 }
                 break
             case 51: // Server sent that a user changed display name
                 if (userID === ownUserID) {
-                    console.log("New display name:", json.newName)
+                    console.log("New display name:", msg.newName)
                 } else {
-                    console.log(`User ID [${json.UserID}] changed their name to [${json.NewName}]`)
+                    console.log(`User ID [${msg.UserID}] changed their name to [${msg.NewName}]`)
                 }
                 changeDisplayNameInChatMessageList(userID, newDisplayName)
                 changeDisplayNameInMemberList(userID, newDisplayName)
                 break
 
-            case 241: // Server sent the client"s own user ID
-                ownUserID = json
+            case 241: // Server sent the client's own user ID
+                ownUserID = msg
                 console.log("Received own user ID:", ownUserID)
                 UserPanelName.textContent = ownUserID
                 receivedOwnUserID = true
+                break
+            case 242: // Server sent image host address
+                if (msg === "") {
+                    console.log("Received image host address, server did not set any external")
+                } else {
+                    console.log("Received image host address:", msg)
+                }
+                imageHost = msg
+                receivedImageHostAddress = true
                 break
             default:
                 console.log("Server sent unknown message type")
@@ -306,4 +329,9 @@ function requestChangeDisplayName(newName) {
     preparePacket(51, [], {
         NewName: newName
     })
+}
+
+function requestImageHostAddress() {
+    console.log("Requesting image host address")
+    preparePacket(242, [], {})
 }

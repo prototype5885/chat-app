@@ -8,6 +8,12 @@ import (
 	"time"
 )
 
+type Snowflake struct {
+	Timestamp uint64
+	WorkerID  uint64
+	Increment uint64
+}
+
 const (
 	timestampLength uint64 = 42                                    // 42
 	timestampPos    uint64 = 64 - timestampLength                  // 20
@@ -59,11 +65,14 @@ func Generate() uint64 {
 	return timestamp<<timestampPos | workerID<<workerPos | lastIncrement
 }
 
-func Extract(snowflakeId uint64) (uint64, uint64, uint64) {
-	var timestamp uint64 = snowflakeId >> timestampPos
-	var workerID uint64 = (snowflakeId >> workerPos) & ((1 << workerLength) - 1)
-	var increment uint64 = snowflakeId & ((1 << incrementLength) - 1)
-	return timestamp, workerID, increment
+func Extract(snowflakeId uint64) Snowflake {
+	var snowflake Snowflake = Snowflake{
+		Timestamp: snowflakeId >> timestampPos,
+		WorkerID:  (snowflakeId >> workerPos) & ((1 << workerLength) - 1),
+		Increment: snowflakeId & ((1 << incrementLength) - 1),
+	}
+
+	return snowflake
 }
 
 func ExtractTimestamp(snowflakeId uint64) uint64 {
@@ -71,16 +80,16 @@ func ExtractTimestamp(snowflakeId uint64) uint64 {
 }
 
 func Print(snowflakeId uint64) {
-	timestamp, workerID, increment := Extract(snowflakeId)
+	snowflake := Extract(snowflakeId)
 	// var realTimestamp = timestamp + timestampOffset
 
 	fmt.Println("-----------------")
 	fmt.Println("Snowflake:", snowflakeId)
-	fmt.Println("Unix timestamp:", timestamp, "/", maxTimestamp)
-	fmt.Println("Date:", time.UnixMilli(int64(timestamp)))
-	fmt.Println("Years left:", (math.Pow(2.0, float64(timestampLength))-float64(timestamp))/1000/60/60/24/365)
+	fmt.Println("Unix timestamp:", snowflake.Timestamp, "/", maxTimestamp)
+	fmt.Println("Date:", time.UnixMilli(int64(snowflake.Timestamp)))
+	fmt.Println("Years left:", (math.Pow(2.0, float64(timestampLength))-float64(snowflake.Timestamp))/1000/60/60/24/365)
 	// fmt.Println("Real timestamp:", timestamp)
 	fmt.Println("Worker:", workerID, "/", maxWorkerValue)
-	fmt.Println("Increment:", increment, "/", maxIncrementValue)
+	fmt.Println("Increment:", snowflake.Increment, "/", maxIncrementValue)
 	fmt.Println("-----------------")
 }

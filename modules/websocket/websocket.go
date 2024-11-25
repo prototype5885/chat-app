@@ -30,6 +30,7 @@ const (
 	serverMemberList   byte = 42
 	deleteServerMember byte = 43
 	changedDisplayName byte = 51
+	imageHostAddress   byte = 242
 )
 
 const (
@@ -38,6 +39,8 @@ const (
 	pingPeriod     = 30 * time.Second // sends ping in x interval
 	maxMessageSize = 8192             // sever won't continue reading message if it's larger than x bytes
 )
+
+var ImageHost string
 
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:    4096,
@@ -277,6 +280,13 @@ func (c *Client) readMessages(wg *sync.WaitGroup) {
 			} else {
 				broadcastChan <- broadcastData
 			}
+		case imageHostAddress:
+			log.Debug("User ID [%d] is requesting address of image host server", c.userID)
+			jsohn, err := json.Marshal(ImageHost)
+			if err != nil {
+				log.FatalError(err.Error(), "Error serializing ImageHost [%s]", ImageHost)
+			}
+			c.writeChan <- macros.PreparePacket(242, jsohn)
 
 		default: // if unknown
 			log.Hack("User ID [%d] sent invalid packet type: [%d]", c.userID, packetType)
@@ -370,27 +380,3 @@ func broadCastChannel() {
 		}
 	}
 }
-
-// func Compress(dataToCompress []byte) []byte {
-// 	log.Debug("Size before compression: [%d]", len(dataToCompress))
-
-// 	var buffer bytes.Buffer
-// 	writer := gzip.NewWriter(&buffer)
-
-// 	writer.Write(dataToCompress)
-// 	writer.Close()
-
-// 	log.Debug("Size after compression: [%d]", len(buffer.Bytes()))
-
-// 	return buffer.Bytes()
-// }
-
-// func Decompress(compressedData []byte) []byte {
-// 	reader, _ := gzip.NewReader(bytes.NewReader(compressedData))
-
-// 	decompressed, _ := io.ReadAll(reader)
-
-// 	log.Debug("Size after decompression: [%d]", len(decompressed))
-
-// 	return decompressed
-// }

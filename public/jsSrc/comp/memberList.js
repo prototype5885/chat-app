@@ -7,7 +7,7 @@ function addMember(userID, displayName, picture, status) {
     // create a <img> that shows profile pic on the left
     const img = document.createElement("img")
     img.className = "profile-pic"
-    img.src = picture
+    img.src = imageHost + "content/avatars/" + picture
     img.alt = "pfpic"
     img.width = 32
     img.height = 32

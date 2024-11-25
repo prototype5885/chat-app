@@ -1,5 +1,6 @@
 :root {
     --main-color: #36393f;
+    --hover-color: #313338;
     --light-color: #42444b;
     --bit-darker-color: #2B2D31;
     --dark-color: #232428;
@@ -17,11 +18,9 @@ body {
     font-family: Roboto, Helvetica, Arial, sans-serif;
     color: var(--text-color);
     font-size: 14px;
+    /*background-color: var(--main-color);*/
 }
 
-body {
-    background-color: var(--main-color);
-}
 
 /* default settings for all buttons */
 button {
@@ -71,7 +70,7 @@ button:hover {
     background-color: #0056b3;
 }
 
-.text-input {
+input {
     border: 0;
     height: 32px;
     width: 256px;
