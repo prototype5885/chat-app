@@ -20,8 +20,10 @@ const AttachmentContainer = document.getElementById("attachment-container")
 const AttachmentList = document.getElementById("attachment-list")
 
 var ownUserID // this will be the first thing server will send
-var receivedOwnUserID = false // don't continue loading until own user ID is received
-var receivedImageHostAddress = false
+var ownDisplayName // and this too
+var ownProfilePic
+var receivedOwnUserData = false // don't continue loading until own user ID is received
+var receivedImageHostAddress = false // don't continue loading until host address of image server arrived
 var memberListLoaded = false // don't add chat history until server member list is received
 
 var currentServerID
@@ -43,6 +45,10 @@ function waitUntilBoolIsTrue(checkFunction, interval = 10) {
     })
 }
 
+function getAvatarFullPath(pic) {
+    return imageHost + "/content/avatars/" + pic
+}
+
 function main() {
     // this runs after webpage was loaded
     document.addEventListener("DOMContentLoaded", async function () {
@@ -61,9 +67,9 @@ function main() {
         // this will continue when websocket connected
         await connectToWebsocket()
 
-        // waits until server sends user's own ID
-        console.log("Waiting for server to send own user ID...")
-        await waitUntilBoolIsTrue(() => receivedOwnUserID)
+        // waits until server sends user's own ID and display name
+        console.log("Waiting for server to send own user ID and display name...")
+        await waitUntilBoolIsTrue(() => receivedOwnUserData)
 
         // request http address of image hosting server
         requestImageHostAddress()
@@ -71,6 +77,8 @@ function main() {
         // wait until the address is received
         console.log("Waiting for server to send image host address..")
         await waitUntilBoolIsTrue(() => receivedImageHostAddress)
+
+        changeUserPanelPic()
 
         // remove placeholder servers
         for (let i = 0; i < placeholderButtons.length; i++) {

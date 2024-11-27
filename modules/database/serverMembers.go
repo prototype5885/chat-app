@@ -2,7 +2,6 @@ package database
 
 import (
 	log "proto-chat/modules/logging"
-	"proto-chat/modules/structs"
 )
 
 type ServerMember struct {
@@ -28,41 +27,69 @@ func CreateServerMembersTable() {
 	}
 }
 
-func GetServerMembersList(serverID uint64) []structs.ServerMemberListResponse {
+func GetServerMembersList(serverID uint64, userID uint64) []byte {
 	log.Trace("Getting list of members of server ID [%d]...", serverID)
-	// const query string = "SELECT user_id FROM server_members WHERE server_id = ?"
+
+	//const query string = `
+	//	SELECT u.user_id, u.display_name, u.picture
+	//	FROM users u
+	//	JOIN server_members sm ON u.user_id = sm.user_id
+	//	WHERE sm.server_id = ?
+	//`
 
 	const query string = `
-		SELECT u.user_id, u.display_name, u.picture
-		FROM users u
-		JOIN server_members sm ON u.user_id = sm.user_id 
-		WHERE sm.server_id = ?
+		SELECT JSON_ARRAYAGG(JSON_OBJECT(
+			'UserID', CAST(user_id AS CHAR),
+			'Name', display_name,
+			'Pic', picture,
+		    'Status', status,
+		    'StatusText', status_text
+		)) AS json_result
+		FROM (
+			SELECT u.user_id, u.display_name, u.picture, u.status, u.status_text
+			FROM users u
+			JOIN server_members sm ON u.user_id = sm.user_id 
+			WHERE sm.server_id = ?
+		) AS members_chunk;
 	`
 
-	rows, err := db.Query(query, serverID)
+	var jsonResult []byte
+	err := db.QueryRow(query, serverID).Scan(&jsonResult)
 	if err != nil {
-		log.FatalError(err.Error(), "Error searching for members in server ID [%d]", serverID)
-	}
-	var userInfos []structs.ServerMemberListResponse
-
-	var counter int = 0
-	for rows.Next() {
-		counter++
-		var userInfo = structs.ServerMemberListResponse{Status: "custom status"}
-		err := rows.Scan(&userInfo.UserID, &userInfo.Name, &userInfo.Picture)
-		if err != nil {
-			log.FatalError(err.Error(), "Error scanning server member row into userID of server ID [%d]:", serverID)
-		}
-		userInfos = append(userInfos, userInfo)
+		log.FatalError(err.Error(), "Error getting server member list of server ID [%d] for user ID [%d]", serverID, userID)
 	}
 
-	if counter == 0 {
-		log.Debug("Server ID [%d] doesn't have any members", serverID)
-		return userInfos
+	if len(jsonResult) == 0 {
+		log.Warn("Server ID [%d] does not have any members", serverID)
+		return nullJson
 	}
 
-	log.Trace("Members of server ID [%d] were retrieved successfully", serverID)
-	return userInfos
+	return jsonResult
+
+	//rows, err := db.Query(query, serverID)
+	//if err != nil {
+	//	log.FatalError(err.Error(), "Error searching for members in server ID [%d]", serverID)
+	//}
+	//var userInfos []structs.ServerMemberListResponse
+	//
+	//var counter int = 0
+	//for rows.Next() {
+	//	counter++
+	//	var userInfo = structs.ServerMemberListResponse{Status: "custom status"}
+	//	err := rows.Scan(&userInfo.UserID, &userInfo.Name, &userInfo.Picture)
+	//	if err != nil {
+	//		log.FatalError(err.Error(), "Error scanning server member row into userID of server ID [%d]:", serverID)
+	//	}
+	//	userInfos = append(userInfos, userInfo)
+	//}
+	//
+	//if counter == 0 {
+	//	log.Debug("Server ID [%d] doesn't have any members", serverID)
+	//	return userInfos
+	//}
+	//
+	//log.Trace("Members of server ID [%d] were retrieved successfully", serverID)
+	//return userInfos
 }
 
 func ConfirmServerMembership(userID uint64, serverID uint64) bool {

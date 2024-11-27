@@ -16,6 +16,7 @@ var jsFilePaths []string = []string{
 	"localStorage.js",
 	"comp/loading.js",
 	"comp/httpRequests.js",
+	"comp/userPanel.js",
 	"comp/contextMenu.js",
 	"comp/bubble.js",
 	"comp/serverList.js",

@@ -97,7 +97,7 @@ func (c *Client) onChatMessageDeleteRequest(packetJson []byte, packetType byte) 
 	}
 
 	// get the channel ID where the message was deleted,
-	// so can broadcoast it to affected clients
+	// so can broadcoast it to affected Clients
 	var channelID uint64 = database.DeleteChatMessage(messageDeleteRequest.MessageID, c.userID)
 	if channelID == 0 {
 		return BroadcastData{}, macros.RespondFailureReason("Denied to delete chat message")

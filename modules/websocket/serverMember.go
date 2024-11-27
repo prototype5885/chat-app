@@ -23,12 +23,14 @@ func (c *Client) onServerMemberListRequest(packetJson []byte) []byte {
 	}
 	var serverID uint64 = userListRequest.ServerID
 
-	var userInfos []structs.ServerMemberListResponse = database.GetServerMembersList(serverID)
+	//var userInfos []structs.ServerMemberListResponse = database.GetServerMembersList(serverID)
 
-	jsonBytes, err := json.Marshal(userInfos)
-	if err != nil {
-		macros.ErrorSerializing(err.Error(), jsonType, c.userID)
-	}
+	//jsonBytes, err := json.Marshal(userInfos)
+	//if err != nil {
+	//	macros.ErrorSerializing(err.Error(), jsonType, c.userID)
+	//}
+
+	var jsonBytes = database.GetServerMembersList(serverID, c.userID)
 
 	return macros.PreparePacket(42, jsonBytes)
 }

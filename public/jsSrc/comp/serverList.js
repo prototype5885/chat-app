@@ -80,8 +80,6 @@ function addServer(serverID, ownerID, serverName, picture, className) {
 function selectServer(serverID) {
     console.log("Selected server ID", serverID, "Requesting list of channels...")
 
-    memberListLoaded = false
-
     const serverButton = document.getElementById(serverID)
     if (serverButton == null) {
         console.log("Previous server set in")
@@ -91,6 +89,8 @@ function selectServer(serverID) {
         console.log("Selected server is already the current one")
         return
     }
+
+    memberListLoaded = false
 
     // this will reset the previously selected server's visuals
     const previousServerButton = document.getElementById(currentServerID)

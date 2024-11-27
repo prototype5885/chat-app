@@ -47,7 +47,7 @@ function createContextMenu(actions, pageX, pageY) {
         if (action.color === "red") {
             li.className = "cm-red" // to make the text red from css
         }
-        // this will assing the function for each element
+        // this will assign the function for each element
         li.onclick = function () {
             action.func()
         }

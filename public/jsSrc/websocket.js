@@ -13,12 +13,6 @@ function refreshWebsocketContent() {
 
 async function connectToWebsocket() {
     console.log("Connecting to websocket...")
-    // check if protocol is http or https
-    // if (location.protocol === "https:") {
-    //     wsClient = new WebSocket("wss://" + window.location.host + "/wss")
-    // } else {
-    //     wsClient = new WebSocket("ws://" + window.location.host + "/ws")
-    // }
 
     // check if protocol is http or https
     const protocol = location.protocol === "https:" ? "wss://" : "ws://";
@@ -70,31 +64,31 @@ async function connectToWebsocket() {
         // console.log("Received packet:", endIndex, packetType, packetJson)
         console.log(`Received packet size: [${receivedBytes.length} bytes] index: [${endIndex}] packetType: [${packetType}] json: ${packetJson}`)
 
-        const msg = JSON.parse(packetJson)
+        const json = JSON.parse(packetJson)
         switch (packetType) {
             case 0: // Server sent rejection message
-                console.warn(msg.Reason)
+                console.warn(json.Reason)
                 break
             case 1: // Server sent a chat message
-                await chatMessageReceived(msg)
+                await chatMessageReceived(json)
                 break
             case 2: // Server sent the requested chat history
-                await chatHistoryReceived(msg)
+                await chatHistoryReceived(json)
                 break
             case 3: // Server sent which message was deleted
-                deleteChatMessage(msg)
+                deleteChatMessage(json)
                 break
             case 21: // Server responded to the add server request
                 console.log("Add server request response arrived")
-                addServer(msg.ServerID, msg.OwnerID, msg.Name, imageHost + "content/avatars/" + msg.Picture, "server")
-                selectServer(msg.ServerID)
+                addServer(json.ServerID, json.OwnerID, json.Name, imageHost + "content/avatars/" + json.Picture, "server")
+                selectServer(json.ServerID)
                 break
             case 22: // Server sent the requested server list
                 console.log("Requested server list arrived")
-                if (msg != null) {
-                    for (let i = 0; i < msg.length; i++) {
-                        console.log("Adding server ID", msg[i].ServerID)
-                        addServer(msg[i].ServerID, msg[i].OwnerID, msg[i].Name, imageHost + "content/avatars/" + msg[i].Picture, "server")
+                if (json != null) {
+                    for (let i = 0; i < json.length; i++) {
+                        console.log("Adding server ID", json[i].ServerID)
+                        addServer(json[i].ServerID, json[i].OwnerID, json[i].Name, imageHost + "content/avatars/" + json[i].Picture, "server")
                     }
                 } else {
                     console.log("Not being in any servers")
@@ -102,8 +96,8 @@ async function connectToWebsocket() {
                 lookForDeletedServersInLastChannels()
                 break
             case 23: // Server sent which server was deleted
-                console.log(`Server ID [${msg.ServerID}] has been deleted`)
-                const serverID = msg.ServerID
+                console.log(`Server ID [${json.ServerID}] has been deleted`)
+                const serverID = json.ServerID
                 deleteServer(serverID)
                 removeServerFromLastChannels(serverID)
                 if (serverID === currentServerID) {
@@ -112,69 +106,105 @@ async function connectToWebsocket() {
                 break
             case 24: // Server sent the requested invite link to the chat server
                 console.log("Requested invite link to the chat server arrived, adding to clipboard")
-                const inviteLink = `${window.location.protocol}//${window.location.host}/invite/${msg}`
+                const inviteLink = `${window.location.protocol}//${window.location.host}/invite/${json}`
                 console.log(inviteLink)
                 await navigator.clipboard.writeText(inviteLink)
                 break
             case 31: // Server responded to the add channel request
-                console.log(`Adding new channel called [${msg.Name}]`)
-                addChannel(msg.ChannelID, msg.Name)
+                console.log(`Adding new channel called [${json.Name}]`)
+                addChannel(json.ChannelID, json.Name)
                 break
             case 32: // Server sent the requested channel list
                 console.log("Requested channel list arrived")
-                if (msg == null) {
+                if (json == null) {
                     console.warn("No channels on server ID", currentServerID)
                     break
                 }
-                for (let i = 0; i < msg.length; i++) {
-                    addChannel(msg[i].ChannelID, msg[i].Name)
+                for (let i = 0; i < json.length; i++) {
+                    addChannel(json[i].ChannelID, json[i].Name)
                 }
-                selectLastChannels(msg[0].ChannelID)
+                selectLastChannels(json[0].ChannelID)
+                break
+            case 41: // A user connected to the server
+                console.log("A user connected to the server")
+                if (json.UserID !== ownUserID) {
+                    addMember(json.UserID, json.Name, json.Picture, json.Status)
+                }
                 break
             case 42: // Server sent the requested member list
                 console.log("Requested member list arrived")
-                if (msg == null) {
+                if (json == null) {
                     console.warn("No members on server ID", currentServerID)
                     break
                 }
-                for (let i = 0; i < msg.length; i++) {
-                    addMember(msg[i].UserID, msg[i].Name, msg[i].Picture, msg[i].Status)
+                for (let i = 0; i < json.length; i++) {
+                    addMember(json[i].UserID, json[i].Name, json[i].Pic, json[i].Status, json[i].StatusText)
                 }
                 memberListLoaded = true
                 break
             case 43: // Server sent user which user left a server
-                if (msg.UserID === ownUserID) {
-                    console.log(`Left server ID [${msg.ServerID}], deleting it from list`)
-                    deleteServer(msg.ServerID)
+                if (json.UserID === ownUserID) {
+                    console.log(`Left server ID [${json.ServerID}], deleting it from list`)
+                    deleteServer(json.ServerID)
                     selectServer("2000")
                 } else {
-                    console.log(`User ID [${msg.UserID}] left server ID [${msg.ServerID}]`)
-                    removeMember(msg.UserID)
+                    console.log(`User ID [${json.UserID}] left server ID [${json.ServerID}]`)
+                    removeMember(json.UserID)
                 }
                 break
             case 51: // Server sent that a user changed display name
-                if (userID === ownUserID) {
-                    console.log("New display name:", msg.newName)
+                if (json.UserID === ownUserID) {
+                    console.log("My new display name:", json.NewName)
+                    ownDisplayName = json.NewName
+                    changeUserPanelName()
                 } else {
-                    console.log(`User ID [${msg.UserID}] changed their name to [${msg.NewName}]`)
+                    console.log(`User ID [${json.UserID}] changed their name to [${json.NewName}]`)
                 }
-                changeDisplayNameInChatMessageList(userID, newDisplayName)
-                changeDisplayNameInMemberList(userID, newDisplayName)
+                changeDisplayNameInChatMessageList(json.UserID, json.NewName)
+                changeDisplayNameInMemberList(json.UserID, json.NewName)
                 break
-
-            case 241: // Server sent the client's own user ID
-                ownUserID = msg
-                console.log("Received own user ID:", ownUserID)
-                UserPanelName.textContent = ownUserID
-                receivedOwnUserID = true
+            case 52: // Server sent that a user changed profile pic
+                if (json.UserID === ownUserID) {
+                    console.log("My new profile pic:", json.Pic)
+                    ownProfilePic = json.Pic
+                    changeUserPanelPic()
+                } else {
+                    console.log(`User ID [${json.UserID}] changed profile pic to [${json.Pic}]`)
+                }
+                changeProfilePicInChatMessageList(json.UserID, json.Pic)
+                changeProfilePicInMemberList(json.UserID, json.Pic)
+                break
+            case 53: // Server sent that a user changed their status value
+                if (json.UserID === ownUserID) {
+                    console.log("My new status:", json.Status)
+                } else {
+                    console.log(`User ID [${json.UserID}] changed their status to [${json.Status}]`)
+                }
+                changeStatusValueInMemberList(json.UserID, json.Status)
+                break
+            case 54: // Server sent that a user changed their status text
+                if (json.UserID === ownUserID) {
+                    console.log("My new status text:", json.StatusText)
+                } else {
+                    console.log(`User ID [${json.UserID}] changed their status text to [${json.StatusText}]`)
+                }
+                changeStatusTextInMemberList(json.UserID, json.StatusText)
+                break
+            case 241: // Server sent the client's own user ID and display name
+                ownUserID = json.UserID
+                ownDisplayName = json.DisplayName
+                ownProfilePic = json.ProfilePic
+                changeUserPanelName()
+                receivedOwnUserData = true
+                console.log(`Received own user ID [${ownUserID}] and display name: [${ownDisplayName}]:`)
                 break
             case 242: // Server sent image host address
-                if (msg === "") {
+                if (json === "") {
                     console.log("Received image host address, server did not set any external")
                 } else {
-                    console.log("Received image host address:", msg)
+                    console.log("Received image host address:", json)
                 }
-                imageHost = msg
+                imageHost = json
                 receivedImageHostAddress = true
                 break
             default:
@@ -184,18 +214,18 @@ async function connectToWebsocket() {
     await waitUntilBoolIsTrue(() => wsConnected)
 }
 
-class ReceivedChatMessage {
-    constructor(messageID, userID, message) {
-        this.messageID = messageID;
-        this.userID = userID;
-        this.message = message;
-    }
-
-    static fromJSON(jsonString) {
-        const data = JSON.parse(jsonString);
-        return new ReceivedChatMessage(data.IDm, data.IDu, this.Msg);
-    }
-}
+// class ReceivedChatMessage {
+//     constructor(messageID, userID, message) {
+//         this.messageID = messageID;
+//         this.userID = userID;
+//         this.message = message;
+//     }
+//
+//     static fromJSON(jsonString) {
+//         const data = JSON.parse(jsonString);
+//         return new ReceivedChatMessage(data.IDm, data.IDu, this.Msg);
+//     }
+// }
 
 async function preparePacket(type, bigIntIDs, struct) {
     await waitUntilBoolIsTrue(() => wsConnected)
@@ -324,14 +354,22 @@ function requestLeaveServer(serverID) {
     })
 }
 
-function requestChangeDisplayName(newName) {
-    console.log("Requesting to change display name to:", newName)
+function requestUpdateAccountData(newDisplayName, newPronouns) {
+    console.log("Requesting to update account data")
     preparePacket(51, [], {
-        NewName: newName
+        DisplayName: newDisplayName,
+        Pronouns: newPronouns
     })
 }
 
 function requestImageHostAddress() {
     console.log("Requesting image host address")
     preparePacket(242, [], {})
+}
+
+function requestStatusChange(newStatus) {
+    console.log("Requesting to change status")
+    preparePacket(53, [], {
+        Status: newStatus
+    })
 }

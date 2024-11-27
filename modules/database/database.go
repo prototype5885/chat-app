@@ -61,7 +61,7 @@ func CreateTables() {
 	CreateServerMembersTable()
 	CreateChannelsTable()
 	CreateChatMessagesTable()
-	CreateProfilePicsTable()
+	//CreateProfilePicsTable()
 	CreateServerInvitesTable()
 }
 

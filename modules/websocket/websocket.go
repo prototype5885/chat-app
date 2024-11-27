@@ -29,7 +29,10 @@ const (
 	addServerMember    byte = 41
 	serverMemberList   byte = 42
 	deleteServerMember byte = 43
-	changedDisplayName byte = 51
+	updateUserData     byte = 51
+	updateProfilePic   byte = 52
+	updateStatus       byte = 53
+	updateStatusText   byte = 54
 	imageHostAddress   byte = 242
 )
 
@@ -56,23 +59,23 @@ type BroadcastData struct {
 }
 
 type Client struct {
-	displayName       string
-	wsConn            *websocket.Conn
-	sessionID         uint64
-	userID            uint64
-	currentChannelID  uint64
-	currentServerID   uint64
-	serverMemberships []uint64
-	status            string
-	writeChan         chan []byte
-	closeChan         chan bool
+	displayName      string
+	wsConn           *websocket.Conn
+	sessionID        uint64
+	userID           uint64
+	currentChannelID uint64
+	currentServerID  uint64
+	status           byte
+	statusText       string
+	writeChan        chan []byte
+	closeChan        chan bool
 }
 
 var broadcastChan = make(chan BroadcastData, 100)
 
-var mu sync.Mutex // used so only 1 goroutine can access the clients hashmap at one time
+var mu sync.Mutex // used so only 1 goroutine can access the Clients hashmap at one time
 
-var clients = make(map[uint64]*Client)
+var Clients = make(map[uint64]*Client)
 
 func Init() {
 	go broadCastChannel()
@@ -95,7 +98,7 @@ func AcceptWsClient(userID uint64, w http.ResponseWriter, r *http.Request) {
 	// it's so they cant block each other
 	// they communicate using channels
 
-	// session ID is used as key value for clients hashmap to make it possible
+	// session ID is used as key value for Clients hashmap to make it possible
 	// for a single user to connect to chat from multiple devices/browsers
 	var sessionID uint64 = snowflake.Generate()
 
@@ -105,14 +108,15 @@ func AcceptWsClient(userID uint64, w http.ResponseWriter, r *http.Request) {
 		sessionID:        sessionID,
 		userID:           userID,
 		currentChannelID: 0,
-		status:           "custom status",
+		status:           1,
+		statusText:       "custom status",
 		writeChan:        make(chan []byte, 10),
 		closeChan:        make(chan bool),
 	}
 
-	// add to clients hashmap
+	// add to Clients hashmap
 	mu.Lock()
-	clients[sessionID] = client
+	Clients[sessionID] = client
 	mu.Unlock()
 
 	// create 2 goroutines for reading and writing messages
@@ -124,17 +128,35 @@ func AcceptWsClient(userID uint64, w http.ResponseWriter, r *http.Request) {
 
 	log.Info("Session ID [%d] as user ID [%d] has connected to websocket", sessionID, userID)
 
-	// sends the client it's own user ID
-	jsonUserID, err := json.Marshal(strconv.FormatUint(userID, 10))
+	// sends the client its own user ID and display name
+	type UserData struct {
+		UserID      string
+		DisplayName string
+		ProfilePic  string
+	}
+
+	displayName, profilePic := database.GetUserData(userID)
+
+	var userData UserData = UserData{
+		UserID:      strconv.FormatUint(userID, 10),
+		DisplayName: displayName,
+		ProfilePic:  profilePic,
+	}
+
+	jsonUserID, err := json.Marshal(userData)
 	if err != nil {
 		macros.ErrorSerializing(err.Error(), "userID", client.userID)
 	}
 
 	client.writeChan <- macros.PreparePacket(241, jsonUserID)
 
+	setUserStatusText(client.userID, "Online")
+
 	// this will block here while both the reading and writing goroutine are running
 	// if one stops, the other should stop too
 	wg.Wait()
+
+	setUserStatusText(client.userID, "Offline")
 
 	// close websocket connection
 	// if err := wsConn.Close(); err != nil {
@@ -143,9 +165,9 @@ func AcceptWsClient(userID uint64, w http.ResponseWriter, r *http.Request) {
 
 	// lastly remove the client from hashmap
 	mu.Lock()
-	delete(clients, sessionID)
+	delete(Clients, sessionID)
 	mu.Unlock()
-	log.Info("Removed session ID [%d] as user ID [%d] from the connected clients", sessionID, userID)
+	log.Info("Removed session ID [%d] as user ID [%d] from the connected Clients", sessionID, userID)
 }
 
 func (c *Client) setCurrentChannelID(channelID uint64) {
@@ -189,7 +211,7 @@ func (c *Client) readMessages(wg *sync.WaitGroup) {
 		var endIndex uint32 = binary.LittleEndian.Uint32(receivedBytes[:4])
 		// log.Println("endIndex:", endIndex)
 
-		// check if the extracted endIndex is outside of the received array bounds to avoid exception
+		// check if the extracted endIndex is outside the received array bounds to avoid exception
 		// not supposed to happen in normal cases
 		if endIndex > uint32(len(receivedBytes)) {
 			log.Hack("User ID [%d] sent a byte array where the extracted endIndex was larger than the received byte array", c.userID)
@@ -272,21 +294,25 @@ func (c *Client) readMessages(wg *sync.WaitGroup) {
 				broadcastChan <- broadcastData
 				c.writeChan <- broadcastData.MessageBytes
 			}
-		case changedDisplayName: // user wants to change their display name
-			log.Debug("User ID [%d] is requesting to change their display name", c.userID)
-			broadcastData, failData := c.onChangeDisplayNameRequest(packetJson, packetType)
+		case updateUserData: // user wants to update their account data
+			log.Debug("User ID [%d] is requesting to update their account data", c.userID)
+			broadcastData, failData := c.onUpdateUserDataRequest(packetJson, packetType)
 			if failData != nil {
 				c.writeChan <- failData
 			} else {
 				broadcastChan <- broadcastData
 			}
+		case updateStatus: // user wants to update their status value
+			log.Debug("User ID [%d] is requesting to update their status value", c.userID)
+			c.onUpdateUserStatusValue(packetJson, packetType)
+
 		case imageHostAddress:
 			log.Debug("User ID [%d] is requesting address of image host server", c.userID)
-			jsohn, err := json.Marshal(ImageHost)
+			imageHostJson, err := json.Marshal(ImageHost)
 			if err != nil {
 				log.FatalError(err.Error(), "Error serializing ImageHost [%s]", ImageHost)
 			}
-			c.writeChan <- macros.PreparePacket(242, jsohn)
+			c.writeChan <- macros.PreparePacket(242, imageHostJson)
 
 		default: // if unknown
 			log.Hack("User ID [%d] sent invalid packet type: [%d]", c.userID, packetType)
@@ -342,33 +368,33 @@ func broadCastChannel() {
 		case broadcastData := <-broadcastChan:
 			switch broadcastData.Type {
 			case addChatMessage, deleteChatMessage: // chat messages
-				for _, client := range clients {
+				for _, client := range Clients {
 					if client.currentChannelID == broadcastData.AffectedChannel { // if client is in affected channel
 						broadcastLog(broadcastData.Type, client.userID)
 						client.writeChan <- broadcastData.MessageBytes
 					}
 				}
 			case addServer, deleteServer: // servers
-				for _, client := range clients {
+				for _, client := range Clients {
 					broadcastLog(broadcastData.Type, client.userID)
 					client.writeChan <- broadcastData.MessageBytes
 				}
 			case addChannel, deleteChannel: // channels
-				for _, client := range clients {
+				for _, client := range Clients {
 					if client.currentServerID == broadcastData.AffectedServers[0] { // if client is in affected server
 						broadcastLog(broadcastData.Type, client.userID)
 						client.writeChan <- broadcastData.MessageBytes
 					}
 				}
 			case addServerMember, deleteServerMember: // server members
-				for _, client := range clients {
+				for _, client := range Clients {
 					if client.currentServerID == broadcastData.AffectedServers[0] { // if client is in affected server
 						broadcastLog(broadcastData.Type, client.userID)
 						client.writeChan <- broadcastData.MessageBytes
 					}
 				}
-			case changedDisplayName: // changing display name
-				for _, client := range clients {
+			case updateUserData, updateProfilePic, updateStatus, updateStatusText: // user updating account stuff
+				for _, client := range Clients {
 					for i := 0; i < len(broadcastData.AffectedServers); i++ {
 						if client.currentServerID == broadcastData.AffectedServers[i] { // if client is in affected servers
 							broadcastLog(broadcastData.Type, client.userID)

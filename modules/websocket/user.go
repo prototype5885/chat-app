@@ -8,21 +8,22 @@ import (
 	"strconv"
 )
 
-func (c *Client) onChangeDisplayNameRequest(packetJson []byte, packetType byte) (BroadcastData, []byte) {
+func (c *Client) onUpdateUserDataRequest(packetJson []byte, packetType byte) (BroadcastData, []byte) {
 	const jsonType string = "change display name"
 
 	// deserialize request
-	type ChangeDisplayNameRequest struct {
-		NewName string
+	type UpdateUserDataRequest struct {
+		DisplayName string
+		Pronouns    string
 	}
-	var changeDisplayNameRequest = ChangeDisplayNameRequest{}
+	var updateUserDataRequest = UpdateUserDataRequest{}
 
-	if err := json.Unmarshal(packetJson, &changeDisplayNameRequest); err != nil {
+	if err := json.Unmarshal(packetJson, &updateUserDataRequest); err != nil {
 		return BroadcastData{}, macros.ErrorDeserializing(err.Error(), jsonType, c.userID)
 	}
 
 	// change name in database
-	success := database.ChangeDisplayName(c.userID, changeDisplayNameRequest.NewName)
+	success := database.UpdateUserRow(c.userID, updateUserDataRequest.DisplayName, 0, "display_name")
 	if !success {
 		return BroadcastData{}, macros.RespondFailureReason("Failed changing display name")
 	}
@@ -34,7 +35,7 @@ func (c *Client) onChangeDisplayNameRequest(packetJson []byte, packetType byte) 
 	}
 	var newDisplayName = NewDisplayName{
 		UserID:  strconv.FormatUint(c.userID, 10),
-		NewName: changeDisplayNameRequest.NewName,
+		NewName: updateUserDataRequest.DisplayName,
 	}
 
 	jsonBytes, err := json.Marshal(newDisplayName)
@@ -42,7 +43,7 @@ func (c *Client) onChangeDisplayNameRequest(packetJson []byte, packetType byte) 
 		macros.ErrorSerializing(err.Error(), jsonType, c.userID)
 	}
 
-	// get what servers are the user part of, so message will be broadcasted to members of these servers
+	// get what servers are the user part of, so message will broadcast to members of these servers
 	// this should make sure users who don't have visual on the user who changed display name won't get the message
 	serverIDsJson, notInAnyServers := database.GetJoinedServersList(c.userID)
 	if notInAnyServers {
@@ -53,7 +54,7 @@ func (c *Client) onChangeDisplayNameRequest(packetJson []byte, packetType byte) 
 	// deserialize the server ID list
 	var serverIDs []uint64
 	if err := json.Unmarshal(serverIDsJson, &serverIDs); err != nil {
-		log.FatalError(err.Error(), "Error deserializing userServers in onChangeDisplayNameRequest for user ID [%d]", c.userID)
+		log.FatalError(err.Error(), "Error deserializing userServers in onUpdateUserDataRequest for user ID [%d]", c.userID)
 	}
 
 	// prepare broadcast data that will be sent to affected users
@@ -64,4 +65,20 @@ func (c *Client) onChangeDisplayNameRequest(packetJson []byte, packetType byte) 
 	}
 
 	return broadcastData, nil
+}
+
+func (c *Client) onUpdateUserStatusValue(packetJson []byte, packetType byte) {
+	const jsonType string = "change status value"
+
+	// deserialize request
+	type UpdateUserStatusRequest struct {
+		Status byte
+	}
+	var updateUserStatusRequest = UpdateUserStatusRequest{}
+
+	if err := json.Unmarshal(packetJson, &updateUserStatusRequest); err != nil {
+		macros.ErrorDeserializing(err.Error(), jsonType, c.userID)
+		c.writeChan <- macros.ErrorDeserializing(err.Error(), jsonType, c.userID)
+	}
+	setUserStatus(c.userID, updateUserStatusRequest.Status)
 }

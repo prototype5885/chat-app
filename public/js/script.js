@@ -22,8 +22,10 @@ const AttachmentContainer = document.getElementById("attachment-container")
 const AttachmentList = document.getElementById("attachment-list")
 
 var ownUserID // this will be the first thing server will send
-var receivedOwnUserID = false // don't continue loading until own user ID is received
-var receivedImageHostAddress = false
+var ownDisplayName // and this too
+var ownProfilePic
+var receivedOwnUserData = false // don't continue loading until own user ID is received
+var receivedImageHostAddress = false // don't continue loading until host address of image server arrived
 var memberListLoaded = false // don't add chat history until server member list is received
 
 var currentServerID
@@ -45,6 +47,10 @@ function waitUntilBoolIsTrue(checkFunction, interval = 10) {
     })
 }
 
+function getAvatarFullPath(pic) {
+    return imageHost + "/content/avatars/" + pic
+}
+
 function main() {
     // this runs after webpage was loaded
     document.addEventListener("DOMContentLoaded", async function () {
@@ -63,9 +69,9 @@ function main() {
         // this will continue when websocket connected
         await connectToWebsocket()
 
-        // waits until server sends user's own ID
-        console.log("Waiting for server to send own user ID...")
-        await waitUntilBoolIsTrue(() => receivedOwnUserID)
+        // waits until server sends user's own ID and display name
+        console.log("Waiting for server to send own user ID and display name...")
+        await waitUntilBoolIsTrue(() => receivedOwnUserData)
 
         // request http address of image hosting server
         requestImageHostAddress()
@@ -73,6 +79,8 @@ function main() {
         // wait until the address is received
         console.log("Waiting for server to send image host address..")
         await waitUntilBoolIsTrue(() => receivedImageHostAddress)
+
+        changeUserPanelPic()
 
         // remove placeholder servers
         for (let i = 0; i < placeholderButtons.length; i++) {
@@ -312,6 +320,16 @@ async function sendPostRequest(url, struct) {
 //     const data = await response.text();
 // }
 
+// comp/userPanel.js
+
+function changeUserPanelName() {
+    UserPanelName.textContent = ownDisplayName
+}
+
+function changeUserPanelPic() {
+    document.getElementById("user-panel-pfp").src = getAvatarFullPath(ownProfilePic)
+}
+
 // comp/contextMenu.js
 
 var defaultRightClick = false
@@ -363,7 +381,7 @@ function createContextMenu(actions, pageX, pageY) {
         if (action.color === "red") {
             li.className = "cm-red" // to make the text red from css
         }
-        // this will assing the function for each element
+        // this will assign the function for each element
         li.onclick = function () {
             action.func()
         }
@@ -591,8 +609,6 @@ function addServer(serverID, ownerID, serverName, picture, className) {
 function selectServer(serverID) {
     console.log("Selected server ID", serverID, "Requesting list of channels...")
 
-    memberListLoaded = false
-
     const serverButton = document.getElementById(serverID)
     if (serverButton == null) {
         console.log("Previous server set in")
@@ -602,6 +618,8 @@ function selectServer(serverID) {
         console.log("Selected server is already the current one")
         return
     }
+
+    memberListLoaded = false
 
     // this will reset the previously selected server's visuals
     const previousServerButton = document.getElementById(currentServerID)
@@ -669,19 +687,30 @@ function serverWhiteThingSize(thing, newSize) {
 
 // comp/memberList.js
 
-function addMember(userID, displayName, picture, status) {
+function addMember(userID, displayName, picture, status, statusText) {
     // create a <li> that holds the user
     const li = document.createElement("li")
     li.className = "member"
     li.id = userID
 
+    const picContainer = document.createElement("div")
+    picContainer.className = "profile-pic-container"
+    picContainer.style.width = "32px"
+    picContainer.style.height = "32px"
+
     // create a <img> that shows profile pic on the left
     const img = document.createElement("img")
     img.className = "profile-pic"
-    img.src = imageHost + "content/avatars/" + picture
-    img.alt = "pfpic"
+    img.src = getAvatarFullPath(picture)
     img.width = 32
     img.height = 32
+
+    // create a <div> that will be a circle in the corner of profile pic to show online status
+    // const status = document.createElement("div")
+    // status.className = "user-status"
+
+    picContainer.appendChild(img)
+    // picContainer.appendChild(status)
 
     // create a nested <div> that will contain username and status
     const userDataDiv = document.createElement("div")
@@ -696,18 +725,20 @@ function addMember(userID, displayName, picture, status) {
     // now create a <div> under name that display statis
     const userStatusDiv = document.createElement("div")
     userStatusDiv.className = "user-status-text"
-    userStatusDiv.textContent = status
+    userStatusDiv.textContent = statusText
 
     // append both name/date <div> and msg <div> to msgDatDiv
     userDataDiv.appendChild(userNameDiv)
     userDataDiv.appendChild(userStatusDiv)
 
     // append both the profile pic and message data to the <li>
-    li.appendChild(img)
+    li.appendChild(picContainer)
     li.appendChild(userDataDiv)
 
     // and finally append the message to the message list
     MemberList.appendChild(li)
+
+    changeStatusValueInMemberList(userID, status)
 }
 
 function removeMember(userID) {
@@ -753,6 +784,49 @@ function resetMemberList() {
 function changeDisplayNameInMemberList(userID, newDisplayName) {
     const user = document.getElementById(userID)
     user.querySelector(".user-name").textContent = newDisplayName
+}
+
+function changeProfilePicInMemberList(userID, newPicture) {
+    const user = document.getElementById(userID)
+    user.querySelector(".profile-pic").src = getAvatarFullPath(newPicture)
+}
+
+function changeStatusValueInMemberList(userID, newStatus) {
+    const container = document.getElementById(userID).querySelector(".profile-pic-container")
+    const currentStatus = container.querySelector(".user-status")
+
+    if (currentStatus) {
+        currentStatus.remove()
+    }
+
+    const status = document.createElement("div")
+    status.className = "user-status"
+
+    switch (newStatus) {
+        case 1:
+            status.style.backgroundColor = "limegreen"
+            break
+        case 2:
+            const boolean = document.createElement("div")
+            boolean.className = "orange-status-boolean"
+            status.style.backgroundColor = "orange"
+            status.appendChild(boolean)
+            break
+        case 3:
+            status.style.backgroundColor = "red"
+            break
+        case 4:
+            break
+        default:
+            status.remove()
+            return
+    }
+    container.appendChild(status)
+}
+
+function changeStatusTextInMemberList(userID, newStatusText) {
+    const userStatusText = document.getElementById(userID).querySelector(".user-status-text")
+    userStatusText.textContent = newStatusText
 }
 
 // comp/channelList.js
@@ -1005,6 +1079,15 @@ function changeDisplayNameInChatMessageList(userID, newDisplayName) {
     })
 }
 
+function changeProfilePicInChatMessageList(userID, pic) {
+    const chatMessages = ChatMessagesList.querySelectorAll(".msg")
+    chatMessages.forEach((chatMessage) => {
+        if (chatMessage.getAttribute("user-id") === userID) {
+            chatMessage.querySelector(".msg-profile-pic").src = getAvatarFullPath(pic)
+        }
+    })
+}
+
 function scrolledOnChat(event) {
     console.log("Scrolled")
     if (!waitingForHistory && !reachedBeginningOfChannel && ChatMessagesList.scrollTop < 200) {
@@ -1213,7 +1296,7 @@ class Window {
         this.window.className = "window"
         this.window.setAttribute("type", this.type)
 
-        const size = 50
+        const size = 70
         const topLeft = 50 / (100 / (100 - size))
 
         this.window.style.top = `${topLeft}%`
@@ -1335,25 +1418,99 @@ function createSettingsLeftSide(windowMain, type) {
                         accountSettings.className = "account-settings"
                         mainRight.appendChild(accountSettings)
 
-                        // const wtf = document.createElement("input")
-                        // wtf.required = true
-                        // accountSettings.appendChild(wtf)
+                        const profilePicPath = "content/avatars/" + ownProfilePic
 
-                        accountSettings.innerHTML =
-                            `
+
+                        accountSettings.innerHTML = `
+                            <div>
                                 <label>Display name:</label>
                                 <br>
-                                <input required>
+                                <input class="change-display-name" maxlength="32" value="${ownDisplayName}">
                                 <br>
                                 <label>Pronouns:</label>
                                 <br>
-                                <input required>
+                                <div class="double-input">
+                                    <input class="change-pronoun-first" placeholder="they" maxlength="8">
+                                    <div>/</div>
+                                    <input class="change-pronoun-second" placeholder="them" maxlength="8">
+                                </div>
                                 <br>
-                                <label>XD:</label>
+    <!--                                <label>XD:</label>-->
+    <!--                                <br>-->
+    <!--                                <input>-->
+    <!--                                <br>-->
                                 <br>
-                                <input required>
+                                <button class="button update-account-data">Apply</button>
+                            </div>
+                            <div>
+                                <input type="file" name="image" class="pfp-uploader" accept="image/*" style="display: none">
+                                <button class="select-pfp" style="background-image: url(${profilePicPath})"></button>
                                 <br>
-                            `
+                                <button class="button send-pfp">Apply Picture</button>
+                            </div>`
+
+                        const applyButton = accountSettings.querySelector(".update-account-data")
+
+                        // applying username, pronouns, etc
+                        applyButton.addEventListener('click', function() {
+                            const newDisplayName = accountSettings.querySelector(".change-display-name").value
+
+                            const firstPronoun = accountSettings.querySelector(".change-pronoun-first").value
+                            const secondPronoun = accountSettings.querySelector(".change-pronoun-second").value
+                            const newPronouns = firstPronoun + "/" + secondPronoun
+
+                            if (newDisplayName === ownDisplayName) {
+                                console.warn("There is nothing to update")
+                                return
+                            }
+
+                            requestUpdateAccountData(newDisplayName, newPronouns)
+                        })
+
+                        // clicked on profile pic
+                        accountSettings.querySelector(".select-pfp").addEventListener("click", async (event) => {
+                           accountSettings.querySelector(".pfp-uploader").click()
+                        })
+
+                        // added a profile pic
+                        const profilePicUploader = accountSettings.querySelector(".pfp-uploader")
+                        profilePicUploader.addEventListener("change", async (event) => {
+                            console.log("pic added")
+                            const reader = new FileReader()
+                            reader.readAsDataURL(profilePicUploader.files[0])
+
+                            reader.onload = function (e) {
+                                const pfpPreview = accountSettings.querySelector(".select-pfp")
+                                pfpPreview.style.backgroundImage = `url(${e.target.result})`
+                            }
+
+                        })
+
+                        // upload the profile pic
+                        accountSettings.querySelector(".send-pfp").addEventListener("click", async (event) => {
+                            console.log("Uploading profile pic...")
+                            event.preventDefault()
+
+                            if (profilePicUploader.files.length === 0) {
+                                console.warn("No new profile pic was attached")
+                                return
+                            }
+
+                            const formData = new FormData()
+
+                            formData.append("pfp", profilePicUploader.files[0])
+
+                            const response = await fetch('/upload-pfp', {
+                                method: "POST",
+                                body: formData
+                            })
+
+                            if (response.ok) {
+                                console.log("Profile pic was uploaded successfully")
+                            } else {
+                                console.error("Profile pic upload failed")
+                            }
+                        })
                         break
                     case "Idk":
 
@@ -1378,6 +1535,8 @@ function createSettingsLeftSide(windowMain, type) {
             addElementsLeftSide(leftSideContent)
             break
     }
+
+    leftSide.querySelector(".settings-list").firstElementChild.click()
 }
 
 function createSettingsRightSideMyAccount(windowMain, labelText, settingsRight) {
@@ -1442,7 +1601,7 @@ function uploadAttachment() {
 function attachmentAdded() {
     for (i = 0; i < AttachmentInput.files.length; i++) {
         const reader = new FileReader()
-        reader.readAsDataURL(AttachmentInput.files[i]) // Read the file as a data URL
+        reader.readAsDataURL(AttachmentInput.files[i])
 
         reader.onload = function (e) {
             const attachmentContainer = document.createElement("div")
@@ -1469,7 +1628,6 @@ function attachmentAdded() {
             attachmentContainer.appendChild(attachmentPreview)
 
             if (text) {
-                // attachmentPreview.style.height = "224px"
                 const attachmentName = document.createElement("div")
                 attachmentName.className = "attachment-name"
                 attachmentName.textContent = "test.jpg"
@@ -1590,12 +1748,6 @@ function refreshWebsocketContent() {
 
 async function connectToWebsocket() {
     console.log("Connecting to websocket...")
-    // check if protocol is http or https
-    // if (location.protocol === "https:") {
-    //     wsClient = new WebSocket("wss://" + window.location.host + "/wss")
-    // } else {
-    //     wsClient = new WebSocket("ws://" + window.location.host + "/ws")
-    // }
 
     // check if protocol is http or https
     const protocol = location.protocol === "https:" ? "wss://" : "ws://";
@@ -1647,31 +1799,31 @@ async function connectToWebsocket() {
         // console.log("Received packet:", endIndex, packetType, packetJson)
         console.log(`Received packet size: [${receivedBytes.length} bytes] index: [${endIndex}] packetType: [${packetType}] json: ${packetJson}`)
 
-        const msg = JSON.parse(packetJson)
+        const json = JSON.parse(packetJson)
         switch (packetType) {
             case 0: // Server sent rejection message
-                console.warn(msg.Reason)
+                console.warn(json.Reason)
                 break
             case 1: // Server sent a chat message
-                await chatMessageReceived(msg)
+                await chatMessageReceived(json)
                 break
             case 2: // Server sent the requested chat history
-                await chatHistoryReceived(msg)
+                await chatHistoryReceived(json)
                 break
             case 3: // Server sent which message was deleted
-                deleteChatMessage(msg)
+                deleteChatMessage(json)
                 break
             case 21: // Server responded to the add server request
                 console.log("Add server request response arrived")
-                addServer(msg.ServerID, msg.OwnerID, msg.Name, imageHost + "content/avatars/" + msg.Picture, "server")
-                selectServer(msg.ServerID)
+                addServer(json.ServerID, json.OwnerID, json.Name, imageHost + "content/avatars/" + json.Picture, "server")
+                selectServer(json.ServerID)
                 break
             case 22: // Server sent the requested server list
                 console.log("Requested server list arrived")
-                if (msg != null) {
-                    for (let i = 0; i < msg.length; i++) {
-                        console.log("Adding server ID", msg[i].ServerID)
-                        addServer(msg[i].ServerID, msg[i].OwnerID, msg[i].Name, imageHost + "content/avatars/" + msg[i].Picture, "server")
+                if (json != null) {
+                    for (let i = 0; i < json.length; i++) {
+                        console.log("Adding server ID", json[i].ServerID)
+                        addServer(json[i].ServerID, json[i].OwnerID, json[i].Name, imageHost + "content/avatars/" + json[i].Picture, "server")
                     }
                 } else {
                     console.log("Not being in any servers")
@@ -1679,8 +1831,8 @@ async function connectToWebsocket() {
                 lookForDeletedServersInLastChannels()
                 break
             case 23: // Server sent which server was deleted
-                console.log(`Server ID [${msg.ServerID}] has been deleted`)
-                const serverID = msg.ServerID
+                console.log(`Server ID [${json.ServerID}] has been deleted`)
+                const serverID = json.ServerID
                 deleteServer(serverID)
                 removeServerFromLastChannels(serverID)
                 if (serverID === currentServerID) {
@@ -1689,69 +1841,105 @@ async function connectToWebsocket() {
                 break
             case 24: // Server sent the requested invite link to the chat server
                 console.log("Requested invite link to the chat server arrived, adding to clipboard")
-                const inviteLink = `${window.location.protocol}//${window.location.host}/invite/${msg}`
+                const inviteLink = `${window.location.protocol}//${window.location.host}/invite/${json}`
                 console.log(inviteLink)
                 await navigator.clipboard.writeText(inviteLink)
                 break
             case 31: // Server responded to the add channel request
-                console.log(`Adding new channel called [${msg.Name}]`)
-                addChannel(msg.ChannelID, msg.Name)
+                console.log(`Adding new channel called [${json.Name}]`)
+                addChannel(json.ChannelID, json.Name)
                 break
             case 32: // Server sent the requested channel list
                 console.log("Requested channel list arrived")
-                if (msg == null) {
+                if (json == null) {
                     console.warn("No channels on server ID", currentServerID)
                     break
                 }
-                for (let i = 0; i < msg.length; i++) {
-                    addChannel(msg[i].ChannelID, msg[i].Name)
+                for (let i = 0; i < json.length; i++) {
+                    addChannel(json[i].ChannelID, json[i].Name)
                 }
-                selectLastChannels(msg[0].ChannelID)
+                selectLastChannels(json[0].ChannelID)
+                break
+            case 41: // A user connected to the server
+                console.log("A user connected to the server")
+                if (json.UserID !== ownUserID) {
+                    addMember(json.UserID, json.Name, json.Picture, json.Status)
+                }
                 break
             case 42: // Server sent the requested member list
                 console.log("Requested member list arrived")
-                if (msg == null) {
+                if (json == null) {
                     console.warn("No members on server ID", currentServerID)
                     break
                 }
-                for (let i = 0; i < msg.length; i++) {
-                    addMember(msg[i].UserID, msg[i].Name, msg[i].Picture, msg[i].Status)
+                for (let i = 0; i < json.length; i++) {
+                    addMember(json[i].UserID, json[i].Name, json[i].Pic, json[i].Status, json[i].StatusText)
                 }
                 memberListLoaded = true
                 break
             case 43: // Server sent user which user left a server
-                if (msg.UserID === ownUserID) {
-                    console.log(`Left server ID [${msg.ServerID}], deleting it from list`)
-                    deleteServer(msg.ServerID)
+                if (json.UserID === ownUserID) {
+                    console.log(`Left server ID [${json.ServerID}], deleting it from list`)
+                    deleteServer(json.ServerID)
                     selectServer("2000")
                 } else {
-                    console.log(`User ID [${msg.UserID}] left server ID [${msg.ServerID}]`)
-                    removeMember(msg.UserID)
+                    console.log(`User ID [${json.UserID}] left server ID [${json.ServerID}]`)
+                    removeMember(json.UserID)
                 }
                 break
             case 51: // Server sent that a user changed display name
-                if (userID === ownUserID) {
-                    console.log("New display name:", msg.newName)
+                if (json.UserID === ownUserID) {
+                    console.log("My new display name:", json.NewName)
+                    ownDisplayName = json.NewName
+                    changeUserPanelName()
                 } else {
-                    console.log(`User ID [${msg.UserID}] changed their name to [${msg.NewName}]`)
+                    console.log(`User ID [${json.UserID}] changed their name to [${json.NewName}]`)
                 }
-                changeDisplayNameInChatMessageList(userID, newDisplayName)
-                changeDisplayNameInMemberList(userID, newDisplayName)
+                changeDisplayNameInChatMessageList(json.UserID, json.NewName)
+                changeDisplayNameInMemberList(json.UserID, json.NewName)
                 break
-
-            case 241: // Server sent the client's own user ID
-                ownUserID = msg
-                console.log("Received own user ID:", ownUserID)
-                UserPanelName.textContent = ownUserID
-                receivedOwnUserID = true
+            case 52: // Server sent that a user changed profile pic
+                if (json.UserID === ownUserID) {
+                    console.log("My new profile pic:", json.Pic)
+                    ownProfilePic = json.Pic
+                    changeUserPanelPic()
+                } else {
+                    console.log(`User ID [${json.UserID}] changed profile pic to [${json.Pic}]`)
+                }
+                changeProfilePicInChatMessageList(json.UserID, json.Pic)
+                changeProfilePicInMemberList(json.UserID, json.Pic)
+                break
+            case 53: // Server sent that a user changed their status value
+                if (json.UserID === ownUserID) {
+                    console.log("My new status:", json.Status)
+                } else {
+                    console.log(`User ID [${json.UserID}] changed their status to [${json.Status}]`)
+                }
+                changeStatusValueInMemberList(json.UserID, json.Status)
+                break
+            case 54: // Server sent that a user changed their status text
+                if (json.UserID === ownUserID) {
+                    console.log("My new status text:", json.StatusText)
+                } else {
+                    console.log(`User ID [${json.UserID}] changed their status text to [${json.StatusText}]`)
+                }
+                changeStatusTextInMemberList(json.UserID, json.StatusText)
+                break
+            case 241: // Server sent the client's own user ID and display name
+                ownUserID = json.UserID
+                ownDisplayName = json.DisplayName
+                ownProfilePic = json.ProfilePic
+                changeUserPanelName()
+                receivedOwnUserData = true
+                console.log(`Received own user ID [${ownUserID}] and display name: [${ownDisplayName}]:`)
                 break
             case 242: // Server sent image host address
-                if (msg === "") {
+                if (json === "") {
                     console.log("Received image host address, server did not set any external")
                 } else {
-                    console.log("Received image host address:", msg)
+                    console.log("Received image host address:", json)
                 }
-                imageHost = msg
+                imageHost = json
                 receivedImageHostAddress = true
                 break
             default:
@@ -1761,18 +1949,18 @@ async function connectToWebsocket() {
     await waitUntilBoolIsTrue(() => wsConnected)
 }
 
-class ReceivedChatMessage {
-    constructor(messageID, userID, message) {
-        this.messageID = messageID;
-        this.userID = userID;
-        this.message = message;
-    }
-
-    static fromJSON(jsonString) {
-        const data = JSON.parse(jsonString);
-        return new ReceivedChatMessage(data.IDm, data.IDu, this.Msg);
-    }
-}
+// class ReceivedChatMessage {
+//     constructor(messageID, userID, message) {
+//         this.messageID = messageID;
+//         this.userID = userID;
+//         this.message = message;
+//     }
+//
+//     static fromJSON(jsonString) {
+//         const data = JSON.parse(jsonString);
+//         return new ReceivedChatMessage(data.IDm, data.IDu, this.Msg);
+//     }
+// }
 
 async function preparePacket(type, bigIntIDs, struct) {
     await waitUntilBoolIsTrue(() => wsConnected)
@@ -1901,15 +2089,23 @@ function requestLeaveServer(serverID) {
     })
 }
 
-function requestChangeDisplayName(newName) {
-    console.log("Requesting to change display name to:", newName)
+function requestUpdateAccountData(newDisplayName, newPronouns) {
+    console.log("Requesting to update account data")
     preparePacket(51, [], {
-        NewName: newName
+        DisplayName: newDisplayName,
+        Pronouns: newPronouns
     })
 }
 
 function requestImageHostAddress() {
     console.log("Requesting image host address")
     preparePacket(242, [], {})
+}
+
+function requestStatusChange(newStatus) {
+    console.log("Requesting to change status")
+    preparePacket(53, [], {
+        Status: newStatus
+    })
 }
 

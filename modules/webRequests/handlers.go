@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"os"
 	"proto-chat/modules/database"
 	log "proto-chat/modules/logging"
 	"proto-chat/modules/websocket"
@@ -107,11 +108,12 @@ func loginRequestHandler(w http.ResponseWriter, r *http.Request) {
 
 func inviteHandler(w http.ResponseWriter, r *http.Request) {
 	printReceivedRequest(r.URL.Path, r.Method)
+	log.Debug("Received invite request")
 
 	var userID uint64 = checkIfTokenIsValid(w, r)
 	if userID == 0 { // if user has no valid token
 		respondText(w, "Not logged in")
-		log.Debug("Someone without authorized token clicked on an invite link")
+		log.Hack("Someone without authorized token clicked on an invite link")
 		return
 	} else {
 		parts := strings.Split(r.URL.Path, "/invite/")
@@ -142,6 +144,53 @@ func inviteHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func channelsHandler(w http.ResponseWriter, r *http.Request) {
+func uploadProfilePicHandler(w http.ResponseWriter, r *http.Request) {
+	userID := checkIfTokenIsValid(w, r)
+	if userID == 0 {
+		respondText(w, "Who are you?")
+		log.Hack("Someone is trying to upload a profile picture without token")
+		return
+	}
 
+	log.Debug("User ID [%d] wants to change their profile pic", userID)
+
+	err := r.ParseMultipartForm(100 << 10)
+	if err != nil {
+		log.WarnError(err.Error(), "Received profile picture from user ID [%d] is too big", userID)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	formFile, handler, err := r.FormFile("pfp")
+	if err != nil {
+		log.WarnError(err.Error(), "Error parsing multipart form 2")
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	defer formFile.Close()
+
+	var pfpPath = "./public/content/avatars/" + handler.Filename
+
+	pfp, err := os.Create(pfpPath)
+	if err != nil {
+		log.WarnError(err.Error(), "Error creating formFile of profile pic from user ID [%d]", userID)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer pfp.Close()
+
+	if _, err := io.Copy(pfp, formFile); err != nil {
+		log.WarnError(err.Error(), "Error copying profile pic to avatars folder from user ID [%d]", userID)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+
+	}
+
+	success := database.UpdateUserRow(userID, handler.Filename, 0, "picture")
+	if !success {
+		log.Warn("Failed updating profile picture of user ID [%d]", userID)
+		return
+	}
+
+	websocket.OnProfilePicChanged(userID, handler.Filename)
 }

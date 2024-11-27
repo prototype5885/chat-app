@@ -52,18 +52,18 @@ button:hover {
 }
 
 .button {
+    width: 128px;
     display: inline-block;
     padding: 10px 20px;
     font-size: 16px;
     color: #fff;
     background-color: #1E1F22;
     border: none;
-    border-radius: 4px;
+    border-radius: 8px;
     text-align: center;
     text-decoration: none;
     cursor: pointer;
     transition: background-color 0.3s;
-    border-radius: 0.5rem;
 }
 
 .button:hover {
@@ -78,6 +78,26 @@ input {
     background-color: #909aa3;
     border-radius: 0.5rem;
     box-shadow: 10px 10px 10px rgba(0, 0, 0, 0.35);
+}
+
+input::placeholder {
+    color: #555555;
+}
+
+.double-input {
+    display: flex;
+    width: 274px;
+    gap: 8px;
+    align-items: center;
+}
+
+.double-input>input {
+    flex-grow: 1;
+    min-width: 0;
+}
+
+.double-input>div { /* separator */
+    font-size: x-large;
 }
 
 .user-name:hover,

@@ -1,20 +1,24 @@
 user-panel in chat.css is not optimal
 the way database module sends data to websocket module, need to find out whats the best way to use structs
-in browser without cached disabled sometimes chat doesn't load
-    DONE // token isnt renewed when user joins with token
-token isnt deleted when it expires
-display and customize server and user picture and name
+    DONE // in browser without cached disabled sometimes chat doesn't load
+    DONE // token isn't renewed when user joins with token
+token isn't deleted when it expires
+display and customise server and user picture and name
     DONE // make it so people can join and leave servers
     DONE // display users in servers
 check if username is too short or long
 check if password is too short or long
-look for security hole in server invation process
-make it possible to set duration on server invation
-make it possible to set set server invation one time use only
+look for security hole in server invitation process
+make it possible to set duration on server invitation
+make it possible to set set server invitation one time use only
 writing goroutine does not tell to reading goroutine if it fails
     DONE // placeholder servers stopped working
-check if user is authorized to get channels/messages from a server
+    DONE // check if user is authorized to get channels/messages from a server
     DONE // make sure client cant send messages to channels where they are not authorized
     DONE // make sure client cant request chat history of channel where they are not authorized
-when new user joins a server, for others he wont show up in real time unless refreshed
+when new user joins a server, for others he wont show up in real time unless refreshed, because its http request only
 serverMember.go line 70 is not optimal
+    DONE // make it possible for user to customise profile pic
+require some kind of websocket session id to upload profile pic and attachments
+limit filesize when user sends file
+add more stuff to userChanges.go

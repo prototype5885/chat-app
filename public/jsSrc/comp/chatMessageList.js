@@ -178,6 +178,15 @@ function changeDisplayNameInChatMessageList(userID, newDisplayName) {
     })
 }
 
+function changeProfilePicInChatMessageList(userID, pic) {
+    const chatMessages = ChatMessagesList.querySelectorAll(".msg")
+    chatMessages.forEach((chatMessage) => {
+        if (chatMessage.getAttribute("user-id") === userID) {
+            chatMessage.querySelector(".msg-profile-pic").src = getAvatarFullPath(pic)
+        }
+    })
+}
+
 function scrolledOnChat(event) {
     console.log("Scrolled")
     if (!waitingForHistory && !reachedBeginningOfChannel && ChatMessagesList.scrollTop < 200) {

@@ -160,6 +160,8 @@ body {
 
 .settings-right-main {
     margin: 16px;
+    width: fit-content;
+    height: fit-content;
 }
 
 
@@ -169,13 +171,31 @@ body {
 }
 
 .account-settings {
-    /*height: 384px;*/
-    /*width: 640px;*/
-    /*background-color: var(--dark-color);*/
-    /*border-radius: 16px;*/
+    background-color: var(--bit-darker-color);
+    border-radius: 16px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+}
+
+.account-settings>div {
     display: flex;
     flex-direction: column;
+    align-items: center;
     padding: 16px;
+}
+
+.pronoun-input {
+    display: flex;
+    flex-direction: row;
+    width: 128px;
+}
+
+.select-pfp {
+    width: 128px;
+    height: 128px;
+    background-size: 128px 128px;
+    border-radius: 50%;
 }
 
 /* server list column on the left side */
@@ -413,9 +433,10 @@ body {
 }
 
 #user-panel-pfp {
-    background-color: yellow;
-    width: 36px;
-    height: 36px;
+    min-width: 36px;
+    max-width: 36px;
+    min-height: 36px;
+    max-height: 36px;
     border-radius: 50%;
     margin-right: 8px;
 }
@@ -560,6 +581,36 @@ body {
 .profile-pic,
 .msg-profile-pic {
     border-radius: 50%;
+}
+
+.profile-pic-container {
+    position: relative;
+    display: inline-block;
+}
+
+.profile-pic {
+    display: block;
+}
+
+.user-status {
+    position: absolute;
+    left: 20px;
+    top: 20px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: limegreen;
+    border: 2px solid var(--bit-darker-color);
+}
+
+.orange-status-boolean {
+    position: absolute;
+    /*left: 20px;*/
+    /*top: 20px;*/
+    border-radius: 50%;
+    width: 6px;
+    height: 6px;
+    background-color: var(--bit-darker-color);
 }
 
 .profile-pic:hover,

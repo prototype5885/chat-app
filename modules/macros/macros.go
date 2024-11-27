@@ -54,7 +54,7 @@ func PreparePacket(typeByte byte, msgBytes []byte) []byte {
 	packet[4] = typeByte        // 5th byte will be the packet type
 	copy(packet[5:], msgBytes)  // rest will be the json byte array
 
-	log.Trace("Prepared packet: endIndex [%d], type [%d], msg [%s]", endIndex, packet[4], string(msgBytes))
+	log.Trace("Prepared packet: endIndex [%d], type [%d], json [%s]", endIndex, packet[4], string(msgBytes))
 
 	return packet
 }

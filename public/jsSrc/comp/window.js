@@ -182,7 +182,7 @@ class Window {
         this.window.className = "window"
         this.window.setAttribute("type", this.type)
 
-        const size = 50
+        const size = 70
         const topLeft = 50 / (100 / (100 - size))
 
         this.window.style.top = `${topLeft}%`
@@ -304,25 +304,99 @@ function createSettingsLeftSide(windowMain, type) {
                         accountSettings.className = "account-settings"
                         mainRight.appendChild(accountSettings)
 
-                        // const wtf = document.createElement("input")
-                        // wtf.required = true
-                        // accountSettings.appendChild(wtf)
+                        const profilePicPath = "content/avatars/" + ownProfilePic
 
-                        accountSettings.innerHTML =
-                            `
+
+                        accountSettings.innerHTML = `
+                            <div>
                                 <label>Display name:</label>
                                 <br>
-                                <input required>
+                                <input class="change-display-name" maxlength="32" value="${ownDisplayName}">
                                 <br>
                                 <label>Pronouns:</label>
                                 <br>
-                                <input required>
+                                <div class="double-input">
+                                    <input class="change-pronoun-first" placeholder="they" maxlength="8">
+                                    <div>/</div>
+                                    <input class="change-pronoun-second" placeholder="them" maxlength="8">
+                                </div>
                                 <br>
-                                <label>XD:</label>
+    <!--                                <label>XD:</label>-->
+    <!--                                <br>-->
+    <!--                                <input>-->
+    <!--                                <br>-->
                                 <br>
-                                <input required>
+                                <button class="button update-account-data">Apply</button>
+                            </div>
+                            <div>
+                                <input type="file" name="image" class="pfp-uploader" accept="image/*" style="display: none">
+                                <button class="select-pfp" style="background-image: url(${profilePicPath})"></button>
                                 <br>
-                            `
+                                <button class="button send-pfp">Apply Picture</button>
+                            </div>`
+
+                        const applyButton = accountSettings.querySelector(".update-account-data")
+
+                        // applying username, pronouns, etc
+                        applyButton.addEventListener('click', function() {
+                            const newDisplayName = accountSettings.querySelector(".change-display-name").value
+
+                            const firstPronoun = accountSettings.querySelector(".change-pronoun-first").value
+                            const secondPronoun = accountSettings.querySelector(".change-pronoun-second").value
+                            const newPronouns = firstPronoun + "/" + secondPronoun
+
+                            if (newDisplayName === ownDisplayName) {
+                                console.warn("There is nothing to update")
+                                return
+                            }
+
+                            requestUpdateAccountData(newDisplayName, newPronouns)
+                        })
+
+                        // clicked on profile pic
+                        accountSettings.querySelector(".select-pfp").addEventListener("click", async (event) => {
+                           accountSettings.querySelector(".pfp-uploader").click()
+                        })
+
+                        // added a profile pic
+                        const profilePicUploader = accountSettings.querySelector(".pfp-uploader")
+                        profilePicUploader.addEventListener("change", async (event) => {
+                            console.log("pic added")
+                            const reader = new FileReader()
+                            reader.readAsDataURL(profilePicUploader.files[0])
+
+                            reader.onload = function (e) {
+                                const pfpPreview = accountSettings.querySelector(".select-pfp")
+                                pfpPreview.style.backgroundImage = `url(${e.target.result})`
+                            }
+
+                        })
+
+                        // upload the profile pic
+                        accountSettings.querySelector(".send-pfp").addEventListener("click", async (event) => {
+                            console.log("Uploading profile pic...")
+                            event.preventDefault()
+
+                            if (profilePicUploader.files.length === 0) {
+                                console.warn("No new profile pic was attached")
+                                return
+                            }
+
+                            const formData = new FormData()
+
+                            formData.append("pfp", profilePicUploader.files[0])
+
+                            const response = await fetch('/upload-pfp', {
+                                method: "POST",
+                                body: formData
+                            })
+
+                            if (response.ok) {
+                                console.log("Profile pic was uploaded successfully")
+                            } else {
+                                console.error("Profile pic upload failed")
+                            }
+                        })
                         break
                     case "Idk":
 
@@ -347,6 +421,8 @@ function createSettingsLeftSide(windowMain, type) {
             addElementsLeftSide(leftSideContent)
             break
     }
+
+    leftSide.querySelector(".settings-list").firstElementChild.click()
 }
 
 function createSettingsRightSideMyAccount(windowMain, labelText, settingsRight) {

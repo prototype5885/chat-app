@@ -39,7 +39,7 @@ function uploadAttachment() {
 function attachmentAdded() {
     for (i = 0; i < AttachmentInput.files.length; i++) {
         const reader = new FileReader()
-        reader.readAsDataURL(AttachmentInput.files[i]) // Read the file as a data URL
+        reader.readAsDataURL(AttachmentInput.files[i])
 
         reader.onload = function (e) {
             const attachmentContainer = document.createElement("div")
@@ -66,7 +66,6 @@ function attachmentAdded() {
             attachmentContainer.appendChild(attachmentPreview)
 
             if (text) {
-                // attachmentPreview.style.height = "224px"
                 const attachmentName = document.createElement("div")
                 attachmentName.className = "attachment-name"
                 attachmentName.textContent = "test.jpg"
