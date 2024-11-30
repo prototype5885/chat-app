@@ -439,6 +439,7 @@ body {
     max-height: 36px;
     border-radius: 50%;
     margin-right: 8px;
+    background-color: var(--main-color);
 }
 
 #user-panel-name-status {
@@ -448,7 +449,6 @@ body {
 
 #user-panel-name {
     font-size: 15px;
-
 }
 
 #user-panel-status {
@@ -456,11 +456,12 @@ body {
 }
 
 #user-panel-status,
-#user-panel-name {
+#user-panel-name,
+.user-name,
+.user-status-text {
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
-
 }
 
 /* buttons in user panel */
@@ -796,7 +797,6 @@ body {
     padding: 6px 16px;
     display: flex;
     flex-direction: row;
-
 }
 
 .user:hover {
@@ -819,12 +819,13 @@ body {
     vertical-align: baseline;
     font-size: 15px;
     pointer-events: none;
-
+    width: 160px;
 }
 
 .user-status-text {
     pointer-events: none;
     font-size: 12px;
+    width: 160px;
 }
 
 #right-click-menu {

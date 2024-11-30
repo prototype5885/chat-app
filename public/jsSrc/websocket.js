@@ -1,5 +1,6 @@
 let wsClient
 let wsConnected
+let reconnectAttempts = 0
 
 function refreshWebsocketContent() {
     document.querySelectorAll('.server').forEach(server => {
@@ -35,6 +36,14 @@ async function connectToWebsocket() {
 
     wsClient.onclose = async function (_event) {
         console.log("Connection lost to websocket")
+        if (reconnectAttempts > 10) {
+            console.log("Failed reconnecting to the server")
+            setLoadingText("Failed reconnecting")
+            return
+        }
+        console.log("Reconnection attempt:", reconnectAttempts)
+        reconnectAttempts++
+
         wsConnected = false
         fadeInLoading()
         await connectToWebsocket()
@@ -138,7 +147,7 @@ async function connectToWebsocket() {
                     break
                 }
                 for (let i = 0; i < json.length; i++) {
-                    addMember(json[i].UserID, json[i].Name, json[i].Pic, json[i].Status, json[i].StatusText)
+                    addMember(json[i].UserID, json[i].Online, json[i].Name, json[i].Pic, json[i].Status, json[i].StatusText)
                 }
                 memberListLoaded = true
                 break
@@ -192,6 +201,7 @@ async function connectToWebsocket() {
                 break
             case 241: // Server sent the client's own user ID and display name
                 ownUserID = json.UserID
+                // document.cookie = `sessionToken=${json.SessionToken}; path=/chat.html; secure; SameSite=Strict`
                 ownDisplayName = json.DisplayName
                 ownProfilePic = json.ProfilePic
                 changeUserPanelName()
@@ -354,12 +364,9 @@ function requestLeaveServer(serverID) {
     })
 }
 
-function requestUpdateAccountData(newDisplayName, newPronouns) {
+function requestUpdateUserData(updatedUserData) {
     console.log("Requesting to update account data")
-    preparePacket(51, [], {
-        DisplayName: newDisplayName,
-        Pronouns: newPronouns
-    })
+    preparePacket(51, [], updatedUserData)
 }
 
 function requestImageHostAddress() {

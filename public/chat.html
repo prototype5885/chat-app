@@ -3,10 +3,10 @@
 <html>
 
 <head>
-    <meta name="viewport" content="width=device-width,height=device-height,user-scalable=no,initial-scale=1.0">
+    <meta content="width=device-width,height=device-height,user-scalable=no,initial-scale=1.0" name="viewport">
     <title>Discord Clone</title>
-    <link rel="stylesheet" href="/css/global.css">
-    <link rel="stylesheet" href="/css/chat.css">
+    <link href="/css/global.css" rel="stylesheet">
+    <link href="/css/chat.css" rel="stylesheet">
 </head>
 
 <body>
@@ -14,7 +14,7 @@
         <div>Loading</div>
     </div>
     <!-- <img id="imagePreview" alt="Image Preview" style="display: none; max-width: 300px; margin-top: 20px;"> -->
-    <input type="file" id="attachment-input" style="display: none;" onchange="attachmentAdded()">
+    <input id="attachment-input" onchange="attachmentAdded()" style="display: none;" type="file">
     <ol id="server-list">
         <div class="servers-separator" id="first-servers-separator" style="display: none;"></div>
         <div class="servers-separator" id="second-servers-separator" style="display: none;"></div>
@@ -26,7 +26,7 @@
     <div id="second-column">
         <div id="above-friends-channels">
             <button id="server-name-button">
-                <div id="server-name">Server Name</div>
+                <div id="server-name"></div>
                 <div id="server-name-arrow">></div>
             </button>
         </div>
@@ -45,8 +45,8 @@
                 <button id="user-panel-user-container">
                     <img id="user-panel-pfp" src="">
                     <div id="user-panel-name-status">
-                        <div id="user-panel-name">Name</div>
-                        <div id="user-panel-status">Online</div>
+                        <div id="user-panel-name"></div>
+                        <div id="user-panel-status"></div>
                     </div>
                 </button>
                 <div id="user-panel-buttons">
@@ -73,15 +73,15 @@
                 <div id="attachment-container">
                     <div id="attachment-list"></div>
                 </div>
-                <div id="chat-input-form-container" action="">
+                <div action="" id="chat-input-form-container">
                     <div id="chat-input-form">
-                        <button id="attachment-button" class="chat-button" onclick="uploadAttachment()">
-                            <div id="attachment-button-icon" class="chat-button-icon"></div>
+                        <button class="chat-button" id="attachment-button" onclick="uploadAttachment()">
+                            <div class="chat-button-icon" id="attachment-button-icon"></div>
                         </button>
-                        <textarea id="chat-input" autocomplete="off" placeholder="Message ..."
-                            oninput="resizeChatInput()" onkeydown="sendChatEnter(event)"></textarea>
-                        <button id="send-button" class="chat-button" onclick="readChatInput()">
-                            <div id="send-button-icon" class="chat-button-icon">Send</div>
+                        <textarea autocomplete="off" id="chat-input" oninput="resizeChatInput()"
+                            onkeydown="sendChatEnter(event)" placeholder="Message ..."></textarea>
+                        <button class="chat-button" id="send-button" onclick="readChatInput()">
+                            <div class="chat-button-icon" id="send-button-icon">Send</div>
                         </button>
                     </div>
                 </div>
@@ -91,7 +91,7 @@
             </ol>
         </div>
     </div>
-    <audio id="notification-sound" src="sounds/discord-notification.mp3" preload="auto"></audio>
+    <audio id="notification-sound" preload="auto" src="sounds/discord-notification.mp3"></audio>
     <script src="js/script.js"></script>
 </body>
 

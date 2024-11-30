@@ -21,20 +21,22 @@ const AttachmentInput = document.getElementById("attachment-input")
 const AttachmentContainer = document.getElementById("attachment-container")
 const AttachmentList = document.getElementById("attachment-list")
 
-var ownUserID // this will be the first thing server will send
-var ownDisplayName // and this too
-var ownProfilePic
-var receivedOwnUserData = false // don't continue loading until own user ID is received
-var receivedImageHostAddress = false // don't continue loading until host address of image server arrived
-var memberListLoaded = false // don't add chat history until server member list is received
+let ownUserID // this will be the first thing server will send
+let ownDisplayName // and this too
+let ownProfilePic
+let ownPronouns
+let ownStatusText;
+let receivedOwnUserData = false // don't continue loading until own user ID is received
+let receivedImageHostAddress = false // don't continue loading until host address of image server arrived
+let memberListLoaded = false // don't add chat history until server member list is received
 
-var currentServerID
-var currentChannelID
-var lastChannelID
-var reachedBeginningOfChannel = false
+let currentServerID
+let currentChannelID
+let lastChannelID
+let reachedBeginningOfChannel = false
 
-// var imageHost = "http://localhost:8000/"
-var imageHost = ""
+// let imageHost = "http://localhost:8000/"
+let imageHost = ""
 
 function waitUntilBoolIsTrue(checkFunction, interval = 10) {
     return new Promise((resolve) => {
@@ -295,7 +297,12 @@ function fadeInLoading() {
     loading.style.display = "block"
     loading.style.opacity = "100%"
     loading.style.pointerEvents = "auto"
-    loading.querySelector("div").innerText = "Connection lost, reconnecting..."
+    setLoadingText("Connection lost, reconnecting...")
+}
+
+function setLoadingText(text) {
+    const loading = document.getElementById("loading")
+    loading.querySelector("div").innerText = text
 }
 
 // comp/httpRequests.js
@@ -687,7 +694,7 @@ function serverWhiteThingSize(thing, newSize) {
 
 // comp/memberList.js
 
-function addMember(userID, displayName, picture, status, statusText) {
+function addMember(userID, online, displayName, picture, status, statusText) {
     // create a <li> that holds the user
     const li = document.createElement("li")
     li.className = "member"
@@ -739,6 +746,12 @@ function addMember(userID, displayName, picture, status, statusText) {
     MemberList.appendChild(li)
 
     changeStatusValueInMemberList(userID, status)
+    console.log(online)
+    if (online) {
+        setMemberOnline(userID)
+    } else {
+        setMemberOffline(userID)
+    }
 }
 
 function removeMember(userID) {
@@ -825,8 +838,22 @@ function changeStatusValueInMemberList(userID, newStatus) {
 }
 
 function changeStatusTextInMemberList(userID, newStatusText) {
-    const userStatusText = document.getElementById(userID).querySelector(".user-status-text")
+    const userStatusText = findMember(userID).querySelector(".user-status-text")
     userStatusText.textContent = newStatusText
+}
+
+function findMember(userID) {
+    return document.getElementById(userID)
+}
+
+function setMemberOffline(userID) {
+    const member = findMember(userID)
+    member.style.filter = "grayscale(100%)"
+    member.style.opacity = "0.5"
+}
+
+function setMemberOnline(userID) {
+    findMember(userID).removeAttribute("style")
 }
 
 // comp/channelList.js
@@ -1089,7 +1116,6 @@ function changeProfilePicInChatMessageList(userID, pic) {
 }
 
 function scrolledOnChat(event) {
-    console.log("Scrolled")
     if (!waitingForHistory && !reachedBeginningOfChannel && ChatMessagesList.scrollTop < 200) {
         const chatMessage = ChatMessagesList.querySelector("li")
         if (chatMessage != null) {
@@ -1112,8 +1138,8 @@ function resetChatMessages() {
 
 // comp/window.js
 
-var openWindows = [] // this stores every open windows as hashmap by type value
-var lastSelected = new Map()
+let openWindows = [] // this stores every open windows as hashmap by type value
+let lastSelected = new Map()
 
 // this is called when something creates as new window
 function addWindow(type) {
@@ -1153,7 +1179,7 @@ class Window {
 
         // find and delete from array
         for (let i = 0; i < openWindows.length; i++) {
-            if (openWindows[i] == this) {
+            if (openWindows[i] === this) {
                 openWindows.splice(i, 1)
                 lastSelected.delete(i)
             }
@@ -1423,22 +1449,19 @@ function createSettingsLeftSide(windowMain, type) {
 
                         accountSettings.innerHTML = `
                             <div>
-                                <label>Display name:</label>
+                                <label class="input-label">Display name:</label>
+                                <input class="change-display-name" maxlength="64" value="${ownDisplayName}">
                                 <br>
-                                <input class="change-display-name" maxlength="32" value="${ownDisplayName}">
-                                <br>
-                                <label>Pronouns:</label>
-                                <br>
+                                <label class="input-label">Pronouns:</label>
                                 <div class="double-input">
                                     <input class="change-pronoun-first" placeholder="they" maxlength="8">
                                     <div>/</div>
                                     <input class="change-pronoun-second" placeholder="them" maxlength="8">
                                 </div>
                                 <br>
-    <!--                                <label>XD:</label>-->
-    <!--                                <br>-->
-    <!--                                <input>-->
-    <!--                                <br>-->
+                                    <label class="input-label">Status:</label>
+                                    <input class="change-status" placeholder="Was passiert?">
+                                    <br>
                                 <br>
                                 <button class="button update-account-data">Apply</button>
                             </div>
@@ -1459,12 +1482,20 @@ function createSettingsLeftSide(windowMain, type) {
                             const secondPronoun = accountSettings.querySelector(".change-pronoun-second").value
                             const newPronouns = firstPronoun + "/" + secondPronoun
 
-                            if (newDisplayName === ownDisplayName) {
-                                console.warn("There is nothing to update")
+                            const newStatusText = accountSettings.querySelector(".change-status").value
+
+                            if (newDisplayName === ownDisplayName && newPronouns === ownPronouns && newStatusText === ownStatusText) {
+                                console.warn("No user settings was changed")
                                 return
                             }
 
-                            requestUpdateAccountData(newDisplayName, newPronouns)
+                            const updatedUserData = {
+                                DisplayName: newDisplayName,
+                                Pronouns: newPronouns,
+                                StatusText: newStatusText
+                            }
+
+                            requestUpdateUserData(updatedUserData)
                         })
 
                         // clicked on profile pic
@@ -1735,6 +1766,7 @@ function registerHover(element, callbackIn, callbackOut) {
 
 let wsClient
 let wsConnected
+let reconnectAttempts = 0
 
 function refreshWebsocketContent() {
     document.querySelectorAll('.server').forEach(server => {
@@ -1770,6 +1802,14 @@ async function connectToWebsocket() {
 
     wsClient.onclose = async function (_event) {
         console.log("Connection lost to websocket")
+        if (reconnectAttempts > 10) {
+            console.log("Failed reconnecting to the server")
+            setLoadingText("Failed reconnecting")
+            return
+        }
+        console.log("Reconnection attempt:", reconnectAttempts)
+        reconnectAttempts++
+
         wsConnected = false
         fadeInLoading()
         await connectToWebsocket()
@@ -1873,7 +1913,7 @@ async function connectToWebsocket() {
                     break
                 }
                 for (let i = 0; i < json.length; i++) {
-                    addMember(json[i].UserID, json[i].Name, json[i].Pic, json[i].Status, json[i].StatusText)
+                    addMember(json[i].UserID, json[i].Online, json[i].Name, json[i].Pic, json[i].Status, json[i].StatusText)
                 }
                 memberListLoaded = true
                 break
@@ -1927,6 +1967,7 @@ async function connectToWebsocket() {
                 break
             case 241: // Server sent the client's own user ID and display name
                 ownUserID = json.UserID
+                // document.cookie = `sessionToken=${json.SessionToken}; path=/chat.html; secure; SameSite=Strict`
                 ownDisplayName = json.DisplayName
                 ownProfilePic = json.ProfilePic
                 changeUserPanelName()
@@ -2089,12 +2130,9 @@ function requestLeaveServer(serverID) {
     })
 }
 
-function requestUpdateAccountData(newDisplayName, newPronouns) {
+function requestUpdateUserData(updatedUserData) {
     console.log("Requesting to update account data")
-    preparePacket(51, [], {
-        DisplayName: newDisplayName,
-        Pronouns: newPronouns
-    })
+    preparePacket(51, [], updatedUserData)
 }
 
 function requestImageHostAddress() {
@@ -2108,4 +2146,5 @@ function requestStatusChange(newStatus) {
         Status: newStatus
     })
 }
+
 

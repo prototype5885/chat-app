@@ -18,7 +18,7 @@ func MainHandler(w http.ResponseWriter, r *http.Request) {
 
 		// check if client is requesting a file
 		// continue if not
-		if extension != "" {
+		if extension != "" && extension != ".html" {
 			//userID := checkIfTokenIsValid(w, r)
 			//if userID == 0 {
 			//	respondText(w, "Not authorized")
@@ -39,18 +39,23 @@ func MainHandler(w http.ResponseWriter, r *http.Request) {
 		// if a normal http request
 		switch r.URL.Path {
 		case "/":
-			http.ServeFile(w, r, getHtmlFilePath("/index"))
+			http.ServeFile(w, r, getHtmlFilePath("/index.html"))
+			return
 		case "/chat.html":
 			chatHandler(w, r)
+			return
 		case "/wss", "/ws":
 			websocketHandler(w, r)
+			return
 		case "/login-register.html":
 			loginRegisterHandler(w, r)
+			return
 		}
 
 		// if accepting invite
 		if strings.HasPrefix(r.URL.Path, "/invite") {
 			inviteHandler(w, r)
+			return
 		}
 
 		// http.FileServer(http.Dir(publicFolder)).ServeHTTP(w, r) // serve static files

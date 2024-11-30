@@ -8,14 +8,14 @@ import (
 	"strconv"
 )
 
-func (c *Client) onUpdateUserDataRequest(packetJson []byte, packetType byte) (BroadcastData, []byte) {
+func (c *Client) onUpdateUserDataRequest(packetJson []byte) (BroadcastData, []byte) {
 	const jsonType string = "change display name"
 
-	// deserialize request
 	type UpdateUserDataRequest struct {
 		DisplayName string
 		Pronouns    string
 	}
+
 	var updateUserDataRequest = UpdateUserDataRequest{}
 
 	if err := json.Unmarshal(packetJson, &updateUserDataRequest); err != nil {
@@ -23,16 +23,15 @@ func (c *Client) onUpdateUserDataRequest(packetJson []byte, packetType byte) (Br
 	}
 
 	// change name in database
-	success := database.UpdateUserRow(c.userID, updateUserDataRequest.DisplayName, 0, "display_name")
-	if !success {
+	if !setUserDisplayName(c.userID, updateUserDataRequest.DisplayName) {
 		return BroadcastData{}, macros.RespondFailureReason("Failed changing display name")
 	}
 
-	// serialize response
 	type NewDisplayName struct {
 		UserID  string
 		NewName string
 	}
+
 	var newDisplayName = NewDisplayName{
 		UserID:  strconv.FormatUint(c.userID, 10),
 		NewName: updateUserDataRequest.DisplayName,
@@ -48,7 +47,7 @@ func (c *Client) onUpdateUserDataRequest(packetJson []byte, packetType byte) (Br
 	serverIDsJson, notInAnyServers := database.GetJoinedServersList(c.userID)
 	if notInAnyServers {
 		log.Debug("User ID [%d] is not in any servers", c.userID)
-		return BroadcastData{}, macros.PreparePacket(packetType, jsonBytes)
+		return BroadcastData{}, macros.PreparePacket(updateUserData, jsonBytes)
 	}
 
 	// deserialize the server ID list
@@ -59,21 +58,21 @@ func (c *Client) onUpdateUserDataRequest(packetJson []byte, packetType byte) (Br
 
 	// prepare broadcast data that will be sent to affected users
 	var broadcastData = BroadcastData{
-		MessageBytes:    macros.PreparePacket(packetType, jsonBytes),
-		Type:            packetType,
+		MessageBytes:    macros.PreparePacket(updateUserData, jsonBytes),
+		Type:            updateUserData,
 		AffectedServers: serverIDs,
 	}
 
 	return broadcastData, nil
 }
 
-func (c *Client) onUpdateUserStatusValue(packetJson []byte, packetType byte) {
+func (c *Client) onUpdateUserStatusValue(packetJson []byte) {
 	const jsonType string = "change status value"
 
-	// deserialize request
 	type UpdateUserStatusRequest struct {
 		Status byte
 	}
+
 	var updateUserStatusRequest = UpdateUserStatusRequest{}
 
 	if err := json.Unmarshal(packetJson, &updateUserStatusRequest); err != nil {
@@ -81,4 +80,14 @@ func (c *Client) onUpdateUserStatusValue(packetJson []byte, packetType byte) {
 		c.writeChan <- macros.ErrorDeserializing(err.Error(), jsonType, c.userID)
 	}
 	setUserStatus(c.userID, updateUserStatusRequest.Status)
+}
+
+func (c *Client) changeOnlineStatus(bool) {
+	const jsonType string = "change online status value"
+
+	type UpdateOnlineStatusRequest struct {
+		Status byte
+	}
+
+	var updateUserStatusRequest = UpdateUserStatusRequest{}
 }

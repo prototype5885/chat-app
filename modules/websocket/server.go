@@ -6,7 +6,6 @@ import (
 	log "proto-chat/modules/logging"
 	"proto-chat/modules/macros"
 	"proto-chat/modules/snowflake"
-	"proto-chat/modules/structs"
 	"strconv"
 )
 
@@ -80,7 +79,12 @@ func (c *Client) onServerDeleteRequest(jsonBytes []byte, packetType byte) Broadc
 		}
 	}
 
-	var serverDeletionResponse = structs.ServerDeletionResponse{
+	type ServerDeletionResponse struct {
+		ServerID string
+		UserID   string
+	}
+
+	var serverDeletionResponse = ServerDeletionResponse{
 		ServerID: strconv.FormatUint(serverDeleteRequest.ServerID, 10),
 		UserID:   strconv.FormatUint(c.userID, 10),
 	}

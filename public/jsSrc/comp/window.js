@@ -1,5 +1,5 @@
-var openWindows = [] // this stores every open windows as hashmap by type value
-var lastSelected = new Map()
+let openWindows = [] // this stores every open windows as hashmap by type value
+let lastSelected = new Map()
 
 // this is called when something creates as new window
 function addWindow(type) {
@@ -39,7 +39,7 @@ class Window {
 
         // find and delete from array
         for (let i = 0; i < openWindows.length; i++) {
-            if (openWindows[i] == this) {
+            if (openWindows[i] === this) {
                 openWindows.splice(i, 1)
                 lastSelected.delete(i)
             }
@@ -309,22 +309,19 @@ function createSettingsLeftSide(windowMain, type) {
 
                         accountSettings.innerHTML = `
                             <div>
-                                <label>Display name:</label>
+                                <label class="input-label">Display name:</label>
+                                <input class="change-display-name" maxlength="64" value="${ownDisplayName}">
                                 <br>
-                                <input class="change-display-name" maxlength="32" value="${ownDisplayName}">
-                                <br>
-                                <label>Pronouns:</label>
-                                <br>
+                                <label class="input-label">Pronouns:</label>
                                 <div class="double-input">
                                     <input class="change-pronoun-first" placeholder="they" maxlength="8">
                                     <div>/</div>
                                     <input class="change-pronoun-second" placeholder="them" maxlength="8">
                                 </div>
                                 <br>
-    <!--                                <label>XD:</label>-->
-    <!--                                <br>-->
-    <!--                                <input>-->
-    <!--                                <br>-->
+                                    <label class="input-label">Status:</label>
+                                    <input class="change-status" placeholder="Was passiert?">
+                                    <br>
                                 <br>
                                 <button class="button update-account-data">Apply</button>
                             </div>
@@ -345,12 +342,20 @@ function createSettingsLeftSide(windowMain, type) {
                             const secondPronoun = accountSettings.querySelector(".change-pronoun-second").value
                             const newPronouns = firstPronoun + "/" + secondPronoun
 
-                            if (newDisplayName === ownDisplayName) {
-                                console.warn("There is nothing to update")
+                            const newStatusText = accountSettings.querySelector(".change-status").value
+
+                            if (newDisplayName === ownDisplayName && newPronouns === ownPronouns && newStatusText === ownStatusText) {
+                                console.warn("No user settings was changed")
                                 return
                             }
 
-                            requestUpdateAccountData(newDisplayName, newPronouns)
+                            const updatedUserData = {
+                                DisplayName: newDisplayName,
+                                Pronouns: newPronouns,
+                                StatusText: newStatusText
+                            }
+
+                            requestUpdateUserData(updatedUserData)
                         })
 
                         // clicked on profile pic

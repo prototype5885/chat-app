@@ -36,15 +36,6 @@ func CreateChatMessagesTable() {
 }
 
 func AddChatMessage(userID uint64, channelID uint64, message string) bool {
-	var serverID uint64 = GetServerOfChannel(channelID)
-	if serverID == 0 {
-		return false
-	}
-
-	if !ConfirmServerMembership(userID, serverID) {
-		return false
-	}
-
 	var snowflakeID uint64 = snowflake.Generate()
 
 	Insert(ChatMessage{
@@ -60,16 +51,6 @@ func AddChatMessage(userID uint64, channelID uint64, message string) bool {
 func GetChatHistory(channelID uint64, fromMessageID uint64, older bool, userID uint64) []byte {
 	log.Debug("Getting chat message history of channel ID [%d] from database...", channelID)
 
-	var serverID uint64 = GetServerOfChannel(channelID)
-	if serverID == 0 {
-		return nil
-	}
-
-	if !ConfirmServerMembership(userID, serverID) {
-		// log.Hack("Can't add chat message from user ID [%d] into channel ID [%d] because user isn't in server ID [%d]", userID, channelID, serverID)
-		return nil
-	}
-
 	const query string = `
 		SELECT JSON_ARRAYAGG(JSON_OBJECT(
 			'IDm', CAST(message_id AS CHAR),
@@ -81,7 +62,7 @@ func GetChatHistory(channelID uint64, fromMessageID uint64, older bool, userID u
 			FROM messages
 			WHERE channel_id = ? AND (message_id < ? OR ? = 0)
 			ORDER BY timestamp DESC
-			LIMIT 30
+			LIMIT 50
 		) AS messages_chunk;
 	`
 

@@ -4,10 +4,10 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
     <title>Login/Register</title>
-    <link rel="stylesheet" href="/css/global.css" type="text/css">
-    <link rel="stylesheet" href="/css/login-register.css" type="text/css">
+    <link href="/css/global.css" rel="stylesheet" type="text/css">
+    <link href="/css/login-register.css" rel="stylesheet" type="text/css">
 </head>
 
 <body>
@@ -19,32 +19,29 @@
                 <br>
             </div>
             <div>
-                <label>Username:</label>
-                <br>
-                <input type="text" id="username-input" autocomplete="username" required>
+                <label class="input-label">Username:</label>
+                <input autocomplete="username" id="username-input" required type="text">
             </div>
             <br>
             <div id="first-password">
-                <label>Password:</label>
-                <br>
-                <input type="password" id="first-password-input" autocomplete="new-password" required>
+                <label class="input-label">Password:</label>
+                <input autocomplete="new-password" id="first-password-input" required type="password">
             </div>
             <br>
             <div id="second-password">
-                <label>Password again:</label>
-                <br>
-                <input type="password" id="second-password-input" autocomplete="new-password">
+                <label class="input-label">Password again:</label>
+                <input autocomplete="new-password" id="second-password-input" type="password">
             </div>
             <br>
             <div id="invitation-code">
-                <label>Invitation code:</label>
-                <br>
-                <input type="text" id="invitation-code-input" class="text-input">
+                <label class="input-label">Invitation code:</label>
+                <input class="text-input" id="invitation-code-input" type="text">
             </div>
             <br>
-            <button type="submit" class="button" id="submit-button"></button>
+            <button class="button" id="submit-button" type="submit"></button>
         </form>
-        <button id="login-or-register" class="button"></button>
+        <br>
+        <button class="button" id="login-or-register"></button>
 
     </div>
     <script>
@@ -59,8 +56,8 @@
         // set prewritten strings
         const loginText = 'Login'
         const registerText = 'Register'
-        const accountText = 'Account?'
-        const noAccountText = 'No account?'
+        const accountText = 'To login'
+        const noAccountText = 'To register'
 
         // sets names in script initially
         button.textContent = noAccountText
@@ -117,11 +114,6 @@
             })
             const result = await response.json()
 
-            // const result = await sendPostRequest(dataToSend)
-
-            // console.log('Success:', result.Success)
-            // console.log('Message:', result.Message)
-
             errorMessage.textContent = result.Message
             if (result.Success) {
                 errorMessage.style.color = '#adff2f'
@@ -137,5 +129,4 @@
         })
     </script>
 </body>
-
 </html>

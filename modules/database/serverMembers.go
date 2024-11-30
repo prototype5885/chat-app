@@ -9,6 +9,15 @@ type ServerMember struct {
 	UserID   uint64
 }
 
+type MemberInfo struct {
+	UserID     string
+	Name       string
+	Online     bool
+	Pic        string
+	Status     byte
+	StatusText string
+}
+
 const (
 	insertServerMemberQuery = "INSERT INTO server_members (server_id, user_id) VALUES (?, ?)"
 	deleteServerMemberQuery = "DELETE FROM server_members WHERE server_id = ? AND user_id = ?"
@@ -27,69 +36,66 @@ func CreateServerMembersTable() {
 	}
 }
 
-func GetServerMembersList(serverID uint64, userID uint64) []byte {
-	log.Trace("Getting list of members of server ID [%d]...", serverID)
+func GetServerMembersList(serverID uint64, userID uint64) []MemberInfo {
+	log.Trace("Getting list of members of server ID [%d] for user ID [%d]...", serverID, userID)
 
 	//const query string = `
-	//	SELECT u.user_id, u.display_name, u.picture
-	//	FROM users u
-	//	JOIN server_members sm ON u.user_id = sm.user_id
-	//	WHERE sm.server_id = ?
+	//	SELECT JSON_ARRAYAGG(JSON_OBJECT(
+	//		'UserID', CAST(user_id AS CHAR),
+	//		'Name', display_name,
+	//		'Pic', picture,
+	//	    'Status', status,
+	//	    'StatusText', status_text
+	//	)) AS json_result
+	//	FROM (
+	//		SELECT u.user_id, u.display_name, u.picture, u.status, u.status_text
+	//		FROM users u
+	//		JOIN server_members sm ON u.user_id = sm.user_id
+	//		WHERE sm.server_id = ?
+	//	) AS members_chunk;
 	//`
-
-	const query string = `
-		SELECT JSON_ARRAYAGG(JSON_OBJECT(
-			'UserID', CAST(user_id AS CHAR),
-			'Name', display_name,
-			'Pic', picture,
-		    'Status', status,
-		    'StatusText', status_text
-		)) AS json_result
-		FROM (
-			SELECT u.user_id, u.display_name, u.picture, u.status, u.status_text
-			FROM users u
-			JOIN server_members sm ON u.user_id = sm.user_id 
-			WHERE sm.server_id = ?
-		) AS members_chunk;
-	`
-
-	var jsonResult []byte
-	err := db.QueryRow(query, serverID).Scan(&jsonResult)
-	if err != nil {
-		log.FatalError(err.Error(), "Error getting server member list of server ID [%d] for user ID [%d]", serverID, userID)
-	}
-
-	if len(jsonResult) == 0 {
-		log.Warn("Server ID [%d] does not have any members", serverID)
-		return nullJson
-	}
-
-	return jsonResult
-
-	//rows, err := db.Query(query, serverID)
+	//
+	//var jsonResult []byte
+	//err := db.QueryRow(query, serverID).Scan(&jsonResult)
 	//if err != nil {
-	//	log.FatalError(err.Error(), "Error searching for members in server ID [%d]", serverID)
-	//}
-	//var userInfos []structs.ServerMemberListResponse
-	//
-	//var counter int = 0
-	//for rows.Next() {
-	//	counter++
-	//	var userInfo = structs.ServerMemberListResponse{Status: "custom status"}
-	//	err := rows.Scan(&userInfo.UserID, &userInfo.Name, &userInfo.Picture)
-	//	if err != nil {
-	//		log.FatalError(err.Error(), "Error scanning server member row into userID of server ID [%d]:", serverID)
-	//	}
-	//	userInfos = append(userInfos, userInfo)
+	//	log.FatalError(err.Error(), "Error getting server member list of server ID [%d] for user ID [%d]", serverID, userID)
 	//}
 	//
-	//if counter == 0 {
-	//	log.Debug("Server ID [%d] doesn't have any members", serverID)
-	//	return userInfos
+	//if len(jsonResult) == 0 {
+	//	log.Warn("Server ID [%d] does not have any members", serverID)
+	//	return nullJson
 	//}
 	//
-	//log.Trace("Members of server ID [%d] were retrieved successfully", serverID)
-	//return userInfos
+	//return jsonResult
+
+	const query = "SELECT u.user_id, u.display_name, u.picture, u.status, u.status_text FROM users u JOIN server_members sm ON u.user_id = sm.user_id WHERE sm.server_id = ?"
+
+	rows, err := db.Query(query, serverID)
+	if err != nil {
+		log.FatalError(err.Error(), "Error searching for members in server ID [%d] for user ID [%d]", serverID, userID)
+	}
+
+	var memberInfos []MemberInfo
+
+	var counter int = 0
+	for rows.Next() {
+		counter++
+		var memberInfo MemberInfo
+		err := rows.Scan(&memberInfo.UserID, &memberInfo.Name, &memberInfo.Pic, &memberInfo.Status, &memberInfo.StatusText)
+		if err != nil {
+			log.FatalError(err.Error(), "Error scanning server member row of server ID [%d] for user ID [%d]", serverID, userID)
+		}
+
+		memberInfos = append(memberInfos, memberInfo)
+	}
+
+	if counter == 0 {
+		log.Warn("Server ID [%d] doesn't have any members", serverID)
+		return nil
+	}
+
+	log.Trace("Members of server ID [%d] for user ID [%d] were retrieved successfully", serverID, userID)
+	return memberInfos
 }
 
 func ConfirmServerMembership(userID uint64, serverID uint64) bool {

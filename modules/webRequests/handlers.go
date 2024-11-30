@@ -14,7 +14,6 @@ import (
 
 // on /wss or /ws
 func websocketHandler(w http.ResponseWriter, r *http.Request) {
-	printReceivedRequest(r.URL.Path, r.Method)
 	log.Info("Someone is connecting to websocket...")
 
 	// check if the user trying to connect to websocket has token
@@ -32,13 +31,11 @@ func websocketHandler(w http.ResponseWriter, r *http.Request) {
 
 // on /login-register GET request
 func loginRegisterHandler(w http.ResponseWriter, r *http.Request) {
-	printReceivedRequest(r.URL.Path, r.Method)
-
 	// check if user requesting login/registration already has a token
 	userID := checkIfTokenIsValid(w, r)
-	if userID != 0 { // if user is trying to login but has a token
-		log.Debug("User is trying to access /login-register but already has authorized token, redirecting to /chat...")
-		redirect(w, r, "/chat")
+	if userID != 0 { // if user is trying to log in but has a token
+		log.Debug("User is trying to access /login-register but already has authorized token, redirecting to /chat.html...")
+		redirect(w, r, "/chat.html")
 		return
 	}
 
@@ -48,23 +45,20 @@ func loginRegisterHandler(w http.ResponseWriter, r *http.Request) {
 
 // on /chat GET request
 func chatHandler(w http.ResponseWriter, r *http.Request) {
-	printReceivedRequest(r.URL.Path, r.Method)
 
 	// check if user requesting login/registration already has a token
 	userID := checkIfTokenIsValid(w, r)
 	if userID == 0 { // if user tries to use the chat but has no token
 		log.Debug("Someone is trying to access /chat without authorized token, redirecting to / ...")
 		redirect(w, r, "/")
-		return
+	} else {
+		// serve static files
+		http.ServeFile(w, r, getHtmlFilePath(r.URL.Path))
 	}
-
-	// serve static files
-	http.ServeFile(w, r, getHtmlFilePath(r.URL.Path))
 }
 
 // on /login or /register POST requests
 func loginRequestHandler(w http.ResponseWriter, r *http.Request) {
-	printReceivedRequest(r.URL.Path, r.Method)
 
 	// reading POST request body as bytes
 	bodyBytes, err := io.ReadAll(r.Body)
@@ -107,7 +101,6 @@ func loginRequestHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func inviteHandler(w http.ResponseWriter, r *http.Request) {
-	printReceivedRequest(r.URL.Path, r.Method)
 	log.Debug("Received invite request")
 
 	var userID uint64 = checkIfTokenIsValid(w, r)
@@ -131,7 +124,7 @@ func inviteHandler(w http.ResponseWriter, r *http.Request) {
 				if database.Insert(database.ServerMember{ServerID: serverID, UserID: userID}) {
 					respondText(w, "Successfully joined server ID [%d]", serverID)
 					log.Debug("User ID [%d] successfully joined server ID [%d]", userID, serverID)
-					redirect(w, r, "/chat")
+					redirect(w, r, "/chat.html")
 					return
 				} else {
 					respondText(w, "Failed joining server")

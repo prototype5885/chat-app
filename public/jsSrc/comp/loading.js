@@ -13,5 +13,10 @@ function fadeInLoading() {
     loading.style.display = "block"
     loading.style.opacity = "100%"
     loading.style.pointerEvents = "auto"
-    loading.querySelector("div").innerText = "Connection lost, reconnecting..."
+    setLoadingText("Connection lost, reconnecting...")
+}
+
+function setLoadingText(text) {
+    const loading = document.getElementById("loading")
+    loading.querySelector("div").innerText = text
 }

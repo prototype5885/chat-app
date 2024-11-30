@@ -188,7 +188,6 @@ function changeProfilePicInChatMessageList(userID, pic) {
 }
 
 function scrolledOnChat(event) {
-    console.log("Scrolled")
     if (!waitingForHistory && !reachedBeginningOfChannel && ChatMessagesList.scrollTop < 200) {
         const chatMessage = ChatMessagesList.querySelector("li")
         if (chatMessage != null) {

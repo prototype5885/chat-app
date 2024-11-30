@@ -36,8 +36,7 @@ func redirect(w http.ResponseWriter, r *http.Request, target string) {
 }
 
 func getHtmlFilePath(name string) string {
-	var htmlFilePath string = fmt.Sprintf("%s%s.html", publicFolder, name)
-	log.Debug(htmlFilePath)
+	var htmlFilePath string = fmt.Sprintf("%s%s", publicFolder, name)
 	return htmlFilePath
 }
 
@@ -277,6 +276,7 @@ func checkIfTokenIsValid(w http.ResponseWriter, r *http.Request) uint64 {
 
 		// renew the token
 		if userID != 0 {
+			log.Trace("Renewing cookie for user ID [%d]", userID)
 			var newExpiration uint64 = newTokenExpiration()
 			database.RenewTokenExpiration(newExpiration, tokenBytes)
 			var cookie = http.Cookie{
@@ -290,7 +290,6 @@ func checkIfTokenIsValid(w http.ResponseWriter, r *http.Request) uint64 {
 			}
 			http.SetCookie(w, &cookie)
 		}
-
 		// check if token exists in the database
 		return userID
 	}

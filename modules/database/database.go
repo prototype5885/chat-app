@@ -67,13 +67,6 @@ func CreateTables() {
 
 func Insert(structo any) bool {
 	start := time.Now().UnixMicro()
-	// makeQuestionMarks := func(valuesCount int) string {
-	// 	questionMarks := make([]string, valuesCount)
-	// 	for i := 0; i < valuesCount; i++ {
-	// 		questionMarks[i] = "?"
-	// 	}
-	// 	return strings.Join(questionMarks, ", ")
-	// }
 
 	var typeName string
 	var tableName string

@@ -3,9 +3,8 @@ package websocket
 import (
 	"encoding/json"
 	"proto-chat/modules/database"
-	"proto-chat/modules/structs"
+	log "proto-chat/modules/logging"
 	"strconv"
-
 	// log "proto-chat/modules/logging"
 	"proto-chat/modules/macros"
 )
@@ -16,26 +15,63 @@ func (c *Client) onServerMemberListRequest(packetJson []byte) []byte {
 	type UserListRequest struct {
 		ServerID uint64
 	}
+
 	var userListRequest UserListRequest
 
 	if err := json.Unmarshal(packetJson, &userListRequest); err != nil {
 		macros.ErrorDeserializing(err.Error(), jsonType, c.userID)
 	}
-	var serverID uint64 = userListRequest.ServerID
 
-	//var userInfos []structs.ServerMemberListResponse = database.GetServerMembersList(serverID)
+	var memberInfos = database.GetServerMembersList(userListRequest.ServerID, c.userID)
 
-	//jsonBytes, err := json.Marshal(userInfos)
-	//if err != nil {
-	//	macros.ErrorSerializing(err.Error(), jsonType, c.userID)
-	//}
+	//responseBytes := database.GetServerMembersList(userListRequest.ServerID, c.userID)
 
-	var jsonBytes = database.GetServerMembersList(serverID, c.userID)
+	for i := range memberInfos {
+		// parse user ID string into uint64
+		foundUserID, err := strconv.ParseUint(memberInfos[i].UserID, 10, 64)
+		if err != nil {
+			log.FatalError(err.Error(), "Error parsing user ID string [%s] as uint64", memberInfos[i].UserID)
+		}
 
-	return macros.PreparePacket(42, jsonBytes)
+		// check if this user is online currently
+		memberInfos[i].Online = checkIfUserIsOnline(foundUserID)
+	}
+
+	responseBytes, err := json.Marshal(memberInfos)
+	if err != nil {
+		macros.ErrorSerializing(err.Error(), "server member list", c.userID)
+	}
+
+	return macros.PreparePacket(42, responseBytes)
 }
 
-func (c *Client) onLeaveServerRequest(packetJson []byte, packetType byte) (BroadcastData, []byte) {
+func (c *Client) onMemberOnlineStatusesRequest(packetJson []byte) []byte {
+	const jsonType string = "member statuses"
+	type OnlineStatusRequest struct {
+		ServerID uint64
+	}
+
+	var onlineStatusRequest OnlineStatusRequest
+
+	if err := json.Unmarshal(packetJson, &onlineStatusRequest); err != nil {
+		macros.ErrorDeserializing(err.Error(), jsonType, c.userID)
+	}
+
+	var onlineMembers = make([]uint64, 0, len(Clients))
+
+	for i, client := range Clients {
+		onlineMembers[i] = client.userID
+	}
+
+	responseBytes, err := json.Marshal(onlineMembers)
+	if err != nil {
+		macros.ErrorSerializing(err.Error(), jsonType, c.userID)
+	}
+
+	return responseBytes
+}
+
+func (c *Client) onLeaveServerRequest(packetJson []byte) (BroadcastData, []byte) {
 	const jsonType string = "server member deletion"
 
 	type LeaveServerRequest struct {
@@ -59,7 +95,12 @@ func (c *Client) onLeaveServerRequest(packetJson []byte, packetType byte) (Broad
 		return BroadcastData{}, macros.RespondFailureReason("Couldn't leave server")
 	}
 
-	var serverMemberDeletionResponse = structs.ServerMemberDeletionResponse{
+	type ServerMemberDeletionResponse struct {
+		ServerID string
+		UserID   string
+	}
+
+	var serverMemberDeletionResponse = ServerMemberDeletionResponse{
 		ServerID: strconv.FormatUint(leaveServerRequest.ServerID, 10),
 		UserID:   strconv.FormatUint(c.userID, 10),
 	}
@@ -69,13 +110,13 @@ func (c *Client) onLeaveServerRequest(packetJson []byte, packetType byte) (Broad
 		macros.ErrorSerializing(err.Error(), jsonType, c.userID)
 	}
 
-	// to make sure client wont receive messages after leaving
+	// to make sure client won't receive messages after leaving
 	c.currentServerID = 200
 	c.currentChannelID = 0
 
 	return BroadcastData{
-		MessageBytes:    macros.PreparePacket(packetType, responseBytes),
+		MessageBytes:    macros.PreparePacket(deleteServerMember, responseBytes),
 		AffectedServers: []uint64{leaveServerRequest.ServerID},
-		Type:            packetType,
+		Type:            deleteServerMember,
 	}, nil
 }

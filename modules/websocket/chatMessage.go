@@ -2,6 +2,7 @@ package websocket
 
 import (
 	"encoding/json"
+	"fmt"
 	"proto-chat/modules/database"
 	"proto-chat/modules/macros"
 	"proto-chat/modules/snowflake"
@@ -23,11 +24,22 @@ func (c *Client) onChatMessageRequest(packetJson []byte, packetType byte) (Broad
 		return BroadcastData{}, macros.ErrorDeserializing(err.Error(), jsonType, c.userID)
 	}
 
+	var rejectMessage = fmt.Sprintf("Denied sending chat message to channel ID [%d]", chatMessageRequest.ChannelID)
+
+	// check if user is member of the server which the channel belongs to
+	var serverID uint64 = database.GetServerOfChannel(chatMessageRequest.ChannelID)
+	if serverID == 0 {
+		return BroadcastData{}, macros.RespondFailureReason(rejectMessage)
+	}
+	if !database.ConfirmServerMembership(c.userID, serverID) {
+		return BroadcastData{}, macros.RespondFailureReason(rejectMessage)
+	}
+
 	var messageID = snowflake.Generate()
 
 	success := database.AddChatMessage(c.userID, chatMessageRequest.ChannelID, chatMessageRequest.Message)
 	if !success {
-		return BroadcastData{}, macros.RespondFailureReason("Denied adding chat message to channel ID [%d]", chatMessageRequest.ChannelID)
+		return BroadcastData{}, macros.RespondFailureReason(rejectMessage)
 	}
 
 	type ChatMessageResponse struct {
@@ -58,16 +70,25 @@ func (c *Client) onChatMessageRequest(packetJson []byte, packetType byte) (Broad
 func (c *Client) onChatHistoryRequest(packetJson []byte, packetType byte) []byte {
 	const jsonType string = "chat history"
 
-	type Req struct {
+	type ChatHistoryRequest struct {
 		ChannelID     uint64
 		FromMessageID uint64
 		Older         bool
 	}
 
-	var req Req
+	var req ChatHistoryRequest
 
 	if err := json.Unmarshal(packetJson, &req); err != nil {
 		return macros.ErrorDeserializing(err.Error(), jsonType, c.userID)
+	}
+
+	// check if user is member of server channel is part of
+	var serverID uint64 = database.GetServerOfChannel(req.ChannelID)
+	if serverID == 0 {
+		return nil
+	}
+	if !database.ConfirmServerMembership(c.userID, serverID) {
+		return nil
 	}
 
 	var jsonBytes []byte = database.GetChatHistory(req.ChannelID, req.FromMessageID, req.Older, c.userID)
@@ -84,10 +105,10 @@ func (c *Client) onChatHistoryRequest(packetJson []byte, packetType byte) []byte
 func (c *Client) onChatMessageDeleteRequest(packetJson []byte, packetType byte) (BroadcastData, []byte) {
 	const jsonType string = "chat message deletion"
 
-	// deserialize json into this
 	type MessageToDelete struct {
 		MessageID uint64
 	}
+
 	var messageDeleteRequest = MessageToDelete{}
 
 	if err := json.Unmarshal(packetJson, &messageDeleteRequest); err != nil {

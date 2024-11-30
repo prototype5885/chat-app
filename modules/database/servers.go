@@ -44,7 +44,7 @@ func GetServerList(userID uint64) []byte {
 			'ServerID', CAST(s.server_id AS CHAR),
 			'OwnerID', CAST(s.owner_id AS CHAR),
 			'Name', s.name,
-			'Picture', s.picture
+			'Pic', s.picture
 		)) AS json_result
 		FROM servers s
 		JOIN server_members m ON s.server_id = m.server_id 

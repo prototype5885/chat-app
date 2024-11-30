@@ -19,20 +19,22 @@ const AttachmentInput = document.getElementById("attachment-input")
 const AttachmentContainer = document.getElementById("attachment-container")
 const AttachmentList = document.getElementById("attachment-list")
 
-var ownUserID // this will be the first thing server will send
-var ownDisplayName // and this too
-var ownProfilePic
-var receivedOwnUserData = false // don't continue loading until own user ID is received
-var receivedImageHostAddress = false // don't continue loading until host address of image server arrived
-var memberListLoaded = false // don't add chat history until server member list is received
+let ownUserID // this will be the first thing server will send
+let ownDisplayName // and this too
+let ownProfilePic
+let ownPronouns
+let ownStatusText;
+let receivedOwnUserData = false // don't continue loading until own user ID is received
+let receivedImageHostAddress = false // don't continue loading until host address of image server arrived
+let memberListLoaded = false // don't add chat history until server member list is received
 
-var currentServerID
-var currentChannelID
-var lastChannelID
-var reachedBeginningOfChannel = false
+let currentServerID
+let currentChannelID
+let lastChannelID
+let reachedBeginningOfChannel = false
 
-// var imageHost = "http://localhost:8000/"
-var imageHost = ""
+// let imageHost = "http://localhost:8000/"
+let imageHost = ""
 
 function waitUntilBoolIsTrue(checkFunction, interval = 10) {
     return new Promise((resolve) => {

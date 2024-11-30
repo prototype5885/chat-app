@@ -1,4 +1,4 @@
-function addMember(userID, displayName, picture, status, statusText) {
+function addMember(userID, online, displayName, picture, status, statusText) {
     // create a <li> that holds the user
     const li = document.createElement("li")
     li.className = "member"
@@ -50,6 +50,12 @@ function addMember(userID, displayName, picture, status, statusText) {
     MemberList.appendChild(li)
 
     changeStatusValueInMemberList(userID, status)
+    console.log(online)
+    if (online) {
+        setMemberOnline(userID)
+    } else {
+        setMemberOffline(userID)
+    }
 }
 
 function removeMember(userID) {
@@ -136,6 +142,20 @@ function changeStatusValueInMemberList(userID, newStatus) {
 }
 
 function changeStatusTextInMemberList(userID, newStatusText) {
-    const userStatusText = document.getElementById(userID).querySelector(".user-status-text")
+    const userStatusText = findMember(userID).querySelector(".user-status-text")
     userStatusText.textContent = newStatusText
+}
+
+function findMember(userID) {
+    return document.getElementById(userID)
+}
+
+function setMemberOffline(userID) {
+    const member = findMember(userID)
+    member.style.filter = "grayscale(100%)"
+    member.style.opacity = "0.5"
+}
+
+function setMemberOnline(userID) {
+    findMember(userID).removeAttribute("style")
 }

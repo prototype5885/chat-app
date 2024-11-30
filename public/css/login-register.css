@@ -32,3 +32,14 @@ body {
     display: flex;
     justify-content: center;
 }
+
+#login-register-form {
+    display: flex;
+    justify-content: center;
+    flex-direction: column;
+}
+
+#login-register-form>div {
+    display: flex;
+    flex-direction: column;
+}

@@ -9,12 +9,6 @@ import (
 	"strconv"
 )
 
-// type Channel struct {
-// 	ChannelID uint64
-// 	ServerID  uint64
-// 	Name      string
-// }
-
 // when client is requesting to add a new channel, type 31
 func (c *Client) onAddChannelRequest(packetJson []byte, packetType byte) (BroadcastData, []byte) {
 	const jsonType string = "add channel"
@@ -80,6 +74,7 @@ func (c *Client) onChannelListRequest(packetJson []byte) []byte {
 	type ChannelListRequest struct {
 		ServerID uint64
 	}
+
 	var channelListRequest ChannelListRequest
 
 	if err := json.Unmarshal(packetJson, &channelListRequest); err != nil {
