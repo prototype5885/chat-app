@@ -39,6 +39,7 @@ function selectChannel(channelID) {
     resetChatMessages()
     updateLastChannels()
     requestChatHistory(channelID, 0)
+    setLoadingChatMessagesIndicator(true)
     ChannelNameTop.textContent = channelButton.querySelector("div").textContent
     // window.history.pushState(currentChannelID, currentChannelID, `/channel/${currentServerID}/${currentChannelID}`)
 }

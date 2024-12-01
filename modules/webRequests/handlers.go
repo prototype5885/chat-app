@@ -149,7 +149,7 @@ func uploadProfilePicHandler(w http.ResponseWriter, r *http.Request) {
 
 	err := r.ParseMultipartForm(100 << 10)
 	if err != nil {
-		log.WarnError(err.Error(), "Received profile picture from user ID [%d] is too big", userID)
+		log.WarnError(err.Error(), "Received profile picture from user ID [%d] is too big in size", userID)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -186,4 +186,48 @@ func uploadProfilePicHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	websocket.OnProfilePicChanged(userID, handler.Filename)
+}
+
+func uploadAttachmentHandler(w http.ResponseWriter, r *http.Request) {
+	userID := checkIfTokenIsValid(w, r)
+	if userID == 0 {
+		respondText(w, "Who are you?")
+		log.Hack("Someone is trying to upload an attachment without token")
+		return
+	}
+
+	log.Debug("User ID [%d] is uploading an attachment", userID)
+
+	err := r.ParseMultipartForm(100 << 10)
+	if err != nil {
+		log.WarnError(err.Error(), "Received attachment from user ID [%d] is too big in size", userID)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	formFile, handler, err := r.FormFile("attachment")
+	if err != nil {
+		log.WarnError(err.Error(), "Error parsing multipart form 2")
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	defer formFile.Close()
+
+	//var extension string = filepath.Ext(handler.Filename)
+
+	var pfpPath = "./public/content/attachments/" + handler.Filename
+
+	pfp, err := os.Create(pfpPath)
+	if err != nil {
+		log.WarnError(err.Error(), "Error creating formFile of attachment from user ID [%d]", userID)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer pfp.Close()
+
+	if _, err := io.Copy(pfp, formFile); err != nil {
+		log.WarnError(err.Error(), "Error copying attachment to attachments folder from user ID [%d]", userID)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 }

@@ -1,9 +1,10 @@
 const ChatLoadingIndicator = document.getElementById("chat-loading-indicator")
 
 let waitingForHistory = false
+let amountOfMessagesLoaded = 0
 
 // adds the new chat message into html
-function addChatMessage(messageID, userID, message, after) {
+function addChatMessage(messageID, userID, message, attachment, after) {
     // extract the message date from messageID
     const msgDate = new Date(Number((BigInt(messageID) >> BigInt(22)))).toLocaleString()
 
@@ -61,6 +62,23 @@ function addChatMessage(messageID, userID, message, after) {
     msgNameAndDateDiv.appendChild(msgNameDiv)
     msgNameAndDateDiv.appendChild(msgDateDiv)
 
+    msgDataDiv.appendChild(msgNameAndDateDiv)
+
+    if (attachment.length > 0) {
+        const path = `/content/attachments/${attachment[0]}`
+        const extension = attachment[0].split('.').pop().toLowerCase()
+        if (extension === "mp4") {
+            const videoHtml = `
+                <video controls class="attachment-video">
+                    <source src="${path}" type="video/mp4">
+                </video>`
+            msgDataDiv.innerHTML += videoHtml
+        } else {
+            const imgHtml = `<img src="${path}" class="attachment-pic">`
+            msgDataDiv.innerHTML += imgHtml
+        }
+    }
+
     // now create a <div> under name and date that displays the message
     const msgTextDiv = document.createElement("div")
     msgTextDiv.className = "msg-text"
@@ -71,7 +89,6 @@ function addChatMessage(messageID, userID, message, after) {
     })
 
     // append both name/date <div> and msg <div> to msgDatDiv
-    msgDataDiv.appendChild(msgNameAndDateDiv)
     msgDataDiv.appendChild(msgTextDiv)
 
     // append both the profile pic and message data to the <li>
@@ -99,9 +116,9 @@ async function chatMessageReceived(json) {
     }
 
     console.log(`New chat message ID [${json.IDm}] received`)
-    addChatMessage(json.IDm, json.IDu, json.Msg, true)
+    addChatMessage(json.IDm, json.IDu, json.Msg, json.Att, true)
 
-    if (getScrollDistanceFromBottom(ChatMessagesList) < 200 || json.IDu == ownUserID) {
+    if (getScrollDistanceFromBottom(ChatMessagesList) < 200 || json.IDu === ownUserID) {
         ChatMessagesList.scrollTo({
             top: ChatMessagesList.scrollHeight,
             behavior: "smooth"
@@ -131,7 +148,8 @@ async function chatHistoryReceived(json) {
         // loop through the json and add each messages one by one
         for (let i = 0; i < json.length; i++) {
             // false here means these messages will be inserted before existing ones
-            addChatMessage(json[i].IDm, json[i].IDu, json[i].Msg, false)
+            const attachments = JSON.parse(json[i].Att)
+            addChatMessage(json[i].IDm, json[i].IDu, json[i].Msg, attachments, false)
         }
         // only auto scroll down when entering channel, and not when
         // server sends rest of history while scrolling up manually
@@ -148,7 +166,7 @@ async function chatHistoryReceived(json) {
         }
     } else {
         // run if server sent json that doesn't contain any more messages
-        if (currentChannelID == lastChannelID) {
+        if (currentChannelID === lastChannelID) {
             // this can only run if already in channel
             console.warn("Reached the beginning of the chat, don't request more")
             // will become false upon entering an other channel
@@ -159,14 +177,13 @@ async function chatHistoryReceived(json) {
         }
     }
     waitingForHistory = false
-    ChatLoadingIndicator.style.display = "none"
-    ChatMessagesList.style.overflowY = ""
+    setLoadingChatMessagesIndicator(false)
     amountOfMessagesChanged()
 }
 
 function amountOfMessagesChanged() {
-    const count = ChatMessagesList.querySelectorAll("li").length
-    console.log("Amount of messages loaded:", count)
+    amountOfMessagesLoaded = ChatMessagesList.querySelectorAll("li").length
+    console.log("Amount of messages loaded:", amountOfMessagesLoaded)
 }
 
 function changeDisplayNameInChatMessageList(userID, newDisplayName) {
@@ -188,13 +205,12 @@ function changeProfilePicInChatMessageList(userID, pic) {
 }
 
 function scrolledOnChat(event) {
-    if (!waitingForHistory && !reachedBeginningOfChannel && ChatMessagesList.scrollTop < 200) {
+    if (!waitingForHistory && !reachedBeginningOfChannel && ChatMessagesList.scrollTop < 200 && amountOfMessagesLoaded >= 50 ) {
         const chatMessage = ChatMessagesList.querySelector("li")
         if (chatMessage != null) {
             requestChatHistory(currentChannelID, chatMessage.id)
             waitingForHistory = true
-            ChatLoadingIndicator.style.display = "flex"
-            ChatMessagesList.style.overflowY = "hidden"
+            setLoadingChatMessagesIndicator(true)
         }
     }
 }
@@ -204,6 +220,16 @@ function resetChatMessages() {
     ChatMessagesList.innerHTML = ""
 
     // this makes sure there will be a little gap between chat input box
-    // and the chat messages when user is viewing the latest message
+    // and the chat messages when user is viewing the latest message at the bottom
     ChatMessagesList.appendChild(document.createElement("div"))
+}
+
+function setLoadingChatMessagesIndicator(loading) {
+    if (loading) {
+        ChatLoadingIndicator.style.display = "flex"
+        ChatMessagesList.style.overflowY = "hidden"
+    } else {
+        ChatLoadingIndicator.style.display = "none"
+        ChatMessagesList.style.overflowY = ""
+    }
 }

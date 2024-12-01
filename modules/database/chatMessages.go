@@ -2,20 +2,23 @@ package database
 
 import (
 	"database/sql"
+	"encoding/json"
 	log "proto-chat/modules/logging"
+	"proto-chat/modules/macros"
 	"proto-chat/modules/snowflake"
 )
 
 type ChatMessage struct {
-	MessageID uint64
-	ChannelID uint64
-	UserID    uint64
-	Timestamp uint64
-	Message   string
+	MessageID   uint64
+	ChannelID   uint64
+	UserID      uint64
+	Timestamp   uint64
+	Message     string
+	Attachments []byte
 }
 
 const (
-	insertChatMessageQuery = "INSERT INTO messages (message_id, channel_id, user_id, timestamp, message) VALUES (?, ?, ?, ?, ?)"
+	insertChatMessageQuery = "INSERT INTO messages (message_id, channel_id, user_id, timestamp, message, attachments) VALUES (?, ?, ?, ?, ?, ?)"
 	deleteChatMessageQuery = "DELETE FROM messages WHERE message_id = ? AND user_id = ?"
 )
 
@@ -26,6 +29,7 @@ func CreateChatMessagesTable() {
 		user_id BIGINT UNSIGNED NOT NULL,
 		timestamp BIGINT UNSIGNED NOT NULL,
 		message TEXT NOT NULL,
+		attachments BLOB,
 		INDEX timestamp (timestamp),
 		FOREIGN KEY (channel_id) REFERENCES channels(channel_id) ON DELETE CASCADE,
 		FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
@@ -35,15 +39,21 @@ func CreateChatMessagesTable() {
 	}
 }
 
-func AddChatMessage(userID uint64, channelID uint64, message string) bool {
+func AddChatMessage(userID uint64, channelID uint64, message string, attachments []string) bool {
 	var snowflakeID uint64 = snowflake.Generate()
 
+	attachmentsJsonBytes, err := json.Marshal(attachments)
+	if err != nil {
+		macros.ErrorSerializing(err.Error(), "attachments list", userID)
+	}
+
 	Insert(ChatMessage{
-		MessageID: snowflakeID,
-		ChannelID: channelID,
-		UserID:    userID,
-		Timestamp: snowflake.ExtractTimestamp(snowflakeID),
-		Message:   message,
+		MessageID:   snowflakeID,
+		ChannelID:   channelID,
+		UserID:      userID,
+		Timestamp:   snowflake.ExtractTimestamp(snowflakeID),
+		Message:     message,
+		Attachments: attachmentsJsonBytes,
 	})
 	return true
 }
@@ -55,10 +65,11 @@ func GetChatHistory(channelID uint64, fromMessageID uint64, older bool, userID u
 		SELECT JSON_ARRAYAGG(JSON_OBJECT(
 			'IDm', CAST(message_id AS CHAR),
 			'IDu', CAST(user_id AS CHAR),
-			'Msg', message
+			'Msg', message,
+		    'Att', attachments
 		)) AS json_result
 		FROM (
-			SELECT message_id, user_id, message
+			SELECT message_id, user_id, message, attachments
 			FROM messages
 			WHERE channel_id = ? AND (message_id < ? OR ? = 0)
 			ORDER BY timestamp DESC

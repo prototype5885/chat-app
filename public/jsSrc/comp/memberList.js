@@ -27,13 +27,13 @@ function addMember(userID, online, displayName, picture, status, statusText) {
     const userDataDiv = document.createElement("div")
     userDataDiv.className = "user-data"
 
-    // create <div> that will hold the user"s message
+    // create <div> that will hold the user's message
     const userNameDiv = document.createElement("div")
     userNameDiv.className = "user-name"
     userNameDiv.textContent = displayName
     userNameDiv.style.color = grayTextColor
 
-    // now create a <div> under name that display statis
+    // now create a <div> under name that display status text
     const userStatusDiv = document.createElement("div")
     userStatusDiv.className = "user-status-text"
     userStatusDiv.textContent = statusText
@@ -50,12 +50,7 @@ function addMember(userID, online, displayName, picture, status, statusText) {
     MemberList.appendChild(li)
 
     changeStatusValueInMemberList(userID, status)
-    console.log(online)
-    if (online) {
-        setMemberOnline(userID)
-    } else {
-        setMemberOffline(userID)
-    }
+    setMemberOnline(userID, online)
 }
 
 function removeMember(userID) {
@@ -141,21 +136,25 @@ function changeStatusValueInMemberList(userID, newStatus) {
     container.appendChild(status)
 }
 
-function changeStatusTextInMemberList(userID, newStatusText) {
-    const userStatusText = findMember(userID).querySelector(".user-status-text")
-    userStatusText.textContent = newStatusText
-}
 
 function findMember(userID) {
     return document.getElementById(userID)
 }
 
-function setMemberOffline(userID) {
-    const member = findMember(userID)
-    member.style.filter = "grayscale(100%)"
-    member.style.opacity = "0.5"
+function setMemberOnlineStatusText(userID, newStatusText) {
+    const userStatusText = findMember(userID).querySelector(".user-status-text")
+    userStatusText.textContent = newStatusText
 }
 
-function setMemberOnline(userID) {
-    findMember(userID).removeAttribute("style")
+function setMemberOnline(userID, online) {
+    const userStatus = document.getElementById(userID).querySelector(".profile-pic-container").querySelector(".user-status")
+    if (online) {
+        findMember(userID).removeAttribute("style")
+        userStatus.style.display = "block"
+    } else {
+        const member = findMember(userID)
+        member.style.filter = "grayscale(100%)"
+        member.style.opacity = "0.5"
+        userStatus.style.display = "none"
+    }
 }

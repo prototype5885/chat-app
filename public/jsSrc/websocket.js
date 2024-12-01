@@ -165,7 +165,7 @@ async function connectToWebsocket() {
                 if (json.UserID === ownUserID) {
                     console.log("My new display name:", json.NewName)
                     ownDisplayName = json.NewName
-                    changeUserPanelName()
+                    setUserPanelName()
                 } else {
                     console.log(`User ID [${json.UserID}] changed their name to [${json.NewName}]`)
                 }
@@ -176,7 +176,7 @@ async function connectToWebsocket() {
                 if (json.UserID === ownUserID) {
                     console.log("My new profile pic:", json.Pic)
                     ownProfilePic = json.Pic
-                    changeUserPanelPic()
+                    setUserPanelPic()
                 } else {
                     console.log(`User ID [${json.UserID}] changed profile pic to [${json.Pic}]`)
                 }
@@ -194,17 +194,25 @@ async function connectToWebsocket() {
             case 54: // Server sent that a user changed their status text
                 if (json.UserID === ownUserID) {
                     console.log("My new status text:", json.StatusText)
+                    setUserPanelStatusText(json.StatusText)
                 } else {
                     console.log(`User ID [${json.UserID}] changed their status text to [${json.StatusText}]`)
                 }
-                changeStatusTextInMemberList(json.UserID, json.StatusText)
+                setMemberOnlineStatusText(json.UserID, json.StatusText)
+                break
+            case 55: // Server sent that someone went on or offline
+                if (json.UserID === ownUserID) {
+
+                } else {
+                    setMemberOnline(json.UserID, json.Online)
+                }
                 break
             case 241: // Server sent the client's own user ID and display name
                 ownUserID = json.UserID
                 // document.cookie = `sessionToken=${json.SessionToken}; path=/chat.html; secure; SameSite=Strict`
                 ownDisplayName = json.DisplayName
                 ownProfilePic = json.ProfilePic
-                changeUserPanelName()
+                setUserPanelName()
                 receivedOwnUserData = true
                 console.log(`Received own user ID [${ownUserID}] and display name: [${ownDisplayName}]:`)
                 break
@@ -279,11 +287,12 @@ async function preparePacket(type, bigIntIDs, struct) {
     wsClient.send(packet)
 }
 
-function sendChatMessage(message, channelID) { // type is 1
+function sendChatMessage(message, channelID, attachments) { // type is 1
     console.log("Sending a chat message")
     preparePacket(1, [channelID], {
         ChannelID: channelID,
-        Message: message
+        Message: message,
+        Attachments: attachments
     })
 }
 function requestChatHistory(channelID, lastMessageID) {

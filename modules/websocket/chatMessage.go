@@ -14,8 +14,9 @@ func (c *Client) onChatMessageRequest(packetJson []byte, packetType byte) (Broad
 	const jsonType string = "add chat message"
 
 	type ClientChatMsg struct {
-		ChannelID uint64
-		Message   string
+		ChannelID   uint64
+		Message     string
+		Attachments []string
 	}
 
 	var chatMessageRequest ClientChatMsg
@@ -37,21 +38,25 @@ func (c *Client) onChatMessageRequest(packetJson []byte, packetType byte) (Broad
 
 	var messageID = snowflake.Generate()
 
-	success := database.AddChatMessage(c.userID, chatMessageRequest.ChannelID, chatMessageRequest.Message)
+	success := database.AddChatMessage(c.userID, chatMessageRequest.ChannelID, chatMessageRequest.Message, chatMessageRequest.Attachments)
 	if !success {
 		return BroadcastData{}, macros.RespondFailureReason(rejectMessage)
 	}
 
 	type ChatMessageResponse struct {
-		IDm string // message ID
-		IDu string // user ID
-		Msg string // message
+		IDm string   // message ID
+		IDu string   // user ID
+		Msg string   // message
+		Att []string // attachment list
 	}
+
+	fmt.Println(len(chatMessageRequest.Attachments))
 
 	var serverChatMsg = ChatMessageResponse{
 		IDm: strconv.FormatUint(messageID, 10),
 		IDu: strconv.FormatUint(c.userID, 10),
 		Msg: chatMessageRequest.Message,
+		Att: chatMessageRequest.Attachments,
 	}
 
 	jsonBytes, err := json.Marshal(serverChatMsg)

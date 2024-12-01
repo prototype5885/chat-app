@@ -1,3 +1,5 @@
+let listOfAttachments = []
+
 // dynamically resize the chat input textarea to fit the text content
 // runs whenever the chat input textarea content changes
 function resizeChatInput() {
@@ -6,17 +8,26 @@ function resizeChatInput() {
 }
 
 // send the text message on enter
-function sendChatEnter(event) {
+async function sendChatEnter(event) {
     if (event.key === "Enter" && !event.shiftKey) {
         event.preventDefault()
+        listOfAttachments = []
+        if (AttachmentInput.files.length !== 0) {
+            for (let i = 0; i < AttachmentInput.files.length; i++) {
+                listOfAttachments.push(AttachmentInput.files[i].name)
+            }
+            await sendAttachment()
+        }
         readChatInput()
+        AttachmentInput.value = ""
     }
 }
 
 // read the text message for sending
 function readChatInput() {
-    if (ChatInput.value) {
-        sendChatMessage(ChatInput.value, currentChannelID)
+    if (ChatInput.value || listOfAttachments.length !== 0) {
+        console.log("list:", listOfAttachments)
+        sendChatMessage(ChatInput.value, currentChannelID, listOfAttachments)
         ChatInput.value = ""
         resizeChatInput()
     }
@@ -24,16 +35,26 @@ function readChatInput() {
 
 function uploadAttachment() {
     AttachmentInput.click()
+}
 
+async function sendAttachment() {
+    const formData = new FormData()
 
-    // const response = await fetch(url, {
-    //     method: 'POST',
-    //     headers: {
-    //         'Content-Type': 'application/json'
-    //     },
-    //     body: JSON.stringify(dataToSend)
-    // })
-    // const result = await response.json()
+    formData.append("attachment", AttachmentInput.files[0])
+
+    const response = await fetch('/upload-attachment', {
+        method: "POST",
+        body: formData
+    })
+
+    if (!response.ok) {
+        console.error("Attachment upload failed")
+        return
+    }
+
+    console.log("Attachment was uploaded successfully")
+    AttachmentList.innerHTML = ""
+    calculateAttachments()
 }
 
 function attachmentAdded() {
@@ -74,26 +95,18 @@ function attachmentAdded() {
             calculateAttachments()
         }
     }
-
-    // }
-    // } else if (AttachmentInput.files.length == 0) {
-    //     AttachmentPreviewContainer.style.display = "none"
-    //     ChatInputForm.style.borderTopLeftRadius = "12px"
-    //     ChatInputForm.style.borderTopRightRadius = "12px"
-    //     ChatInputForm.style.borderTopStyle = "none"
-    // }
 }
 
 function calculateAttachments() {
     const count = AttachmentList.children.length
-    console.log("attachments:", count)
+    console.log("Attachments count:", count)
 
-    if (count > 0 && AttachmentContainer.style.display != "block") {
+    if (count > 0 && AttachmentContainer.style.display !== "block") {
         AttachmentContainer.style.display = "block"
         ChatInputForm.style.borderTopLeftRadius = "0px"
         ChatInputForm.style.borderTopRightRadius = "0px"
         ChatInputForm.style.borderTopStyle = "solid"
-    } else if (count == 0 && AttachmentContainer.style.display == "block") {
+    } else if (count === 0 && AttachmentContainer.style.display === "block") {
         AttachmentContainer.style.display = "none"
         ChatInputForm.style.borderTopLeftRadius = "12px"
         ChatInputForm.style.borderTopRightRadius = "12px"

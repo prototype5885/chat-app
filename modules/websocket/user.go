@@ -53,7 +53,7 @@ func (c *Client) onUpdateUserDataRequest(packetJson []byte) (BroadcastData, []by
 	// deserialize the server ID list
 	var serverIDs []uint64
 	if err := json.Unmarshal(serverIDsJson, &serverIDs); err != nil {
-		log.FatalError(err.Error(), "Error deserializing userServers in onUpdateUserDataRequest for user ID [%d]", c.userID)
+		macros.ErrorDeserializing(err.Error(), jsonType, c.userID)
 	}
 
 	// prepare broadcast data that will be sent to affected users
@@ -80,14 +80,4 @@ func (c *Client) onUpdateUserStatusValue(packetJson []byte) {
 		c.writeChan <- macros.ErrorDeserializing(err.Error(), jsonType, c.userID)
 	}
 	setUserStatus(c.userID, updateUserStatusRequest.Status)
-}
-
-func (c *Client) changeOnlineStatus(bool) {
-	const jsonType string = "change online status value"
-
-	type UpdateOnlineStatusRequest struct {
-		Status byte
-	}
-
-	var updateUserStatusRequest = UpdateUserStatusRequest{}
 }

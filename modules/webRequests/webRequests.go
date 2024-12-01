@@ -58,15 +58,14 @@ func MainHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// http.FileServer(http.Dir(publicFolder)).ServeHTTP(w, r) // serve static files
 	} else if r.Method == "POST" {
 		switch r.URL.Path {
 		case "/login", "/register":
 			loginRequestHandler(w, r)
 		case "/upload-pfp":
 			uploadProfilePicHandler(w, r)
-			//case "/channel":
-			//	log.Debug("Channel changed POST request")
+		case "/upload-attachment":
+			uploadAttachmentHandler(w, r)
 		}
 	}
 }

@@ -44,7 +44,7 @@ func setUserStatus(userID uint64, statusValue byte) {
 	// deserialize the server ID list
 	var serverIDs []uint64
 	if err := json.Unmarshal(serverIDsJson, &serverIDs); err != nil {
-		log.FatalError(err.Error(), "Error deserializing userServers in onUpdateUserStatusValue for user ID [%d]", userID)
+		macros.ErrorDeserializing(err.Error(), jsonType, userID)
 	}
 
 	// prepare broadcast data that will be sent to affected users
@@ -147,8 +147,8 @@ func setUserOnline(userID uint64, online bool) {
 
 	// prepare broadcast data that will be sent to affected users
 	var broadcastData = BroadcastData{
-		MessageBytes:    macros.PreparePacket(updateStatusText, jsonBytes),
-		Type:            updateStatusText,
+		MessageBytes:    macros.PreparePacket(updateOnline, jsonBytes),
+		Type:            updateOnline,
 		AffectedServers: serverIDs,
 	}
 

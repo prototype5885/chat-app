@@ -6,7 +6,6 @@ const serverSeparators = ServerList.querySelectorAll(".servers-separator")
 const ChannelList = document.getElementById("channel-list")
 const MemberList = document.getElementById("member-list")
 const ChatMessagesList = document.getElementById("chat-message-list")
-const UserPanelName = document.getElementById("user-panel-name")
 const AddServerButton = document.getElementById("add-server-button")
 const UserSettingsButton = document.getElementById("user-settings-button")
 const ToggleMicrophoneButton = document.getElementById("toggle-microphone-button")
@@ -82,7 +81,7 @@ function main() {
         console.log("Waiting for server to send image host address..")
         await waitUntilBoolIsTrue(() => receivedImageHostAddress)
 
-        changeUserPanelPic()
+        setUserPanelPic()
 
         // remove placeholder servers
         for (let i = 0; i < placeholderButtons.length; i++) {
@@ -329,12 +328,16 @@ async function sendPostRequest(url, struct) {
 
 // comp/userPanel.js
 
-function changeUserPanelName() {
-    UserPanelName.textContent = ownDisplayName
+function setUserPanelName() {
+    document.getElementById("user-panel-name").textContent = ownDisplayName
 }
 
-function changeUserPanelPic() {
+function setUserPanelPic() {
     document.getElementById("user-panel-pfp").src = getAvatarFullPath(ownProfilePic)
+}
+
+function setUserPanelStatusText(statusText) {
+    document.getElementById("user-panel-status-text").textContent = statusText
 }
 
 // comp/contextMenu.js
@@ -723,13 +726,13 @@ function addMember(userID, online, displayName, picture, status, statusText) {
     const userDataDiv = document.createElement("div")
     userDataDiv.className = "user-data"
 
-    // create <div> that will hold the user"s message
+    // create <div> that will hold the user's message
     const userNameDiv = document.createElement("div")
     userNameDiv.className = "user-name"
     userNameDiv.textContent = displayName
     userNameDiv.style.color = grayTextColor
 
-    // now create a <div> under name that display statis
+    // now create a <div> under name that display status text
     const userStatusDiv = document.createElement("div")
     userStatusDiv.className = "user-status-text"
     userStatusDiv.textContent = statusText
@@ -746,12 +749,7 @@ function addMember(userID, online, displayName, picture, status, statusText) {
     MemberList.appendChild(li)
 
     changeStatusValueInMemberList(userID, status)
-    console.log(online)
-    if (online) {
-        setMemberOnline(userID)
-    } else {
-        setMemberOffline(userID)
-    }
+    setMemberOnline(userID, online)
 }
 
 function removeMember(userID) {
@@ -837,23 +835,27 @@ function changeStatusValueInMemberList(userID, newStatus) {
     container.appendChild(status)
 }
 
-function changeStatusTextInMemberList(userID, newStatusText) {
-    const userStatusText = findMember(userID).querySelector(".user-status-text")
-    userStatusText.textContent = newStatusText
-}
 
 function findMember(userID) {
     return document.getElementById(userID)
 }
 
-function setMemberOffline(userID) {
-    const member = findMember(userID)
-    member.style.filter = "grayscale(100%)"
-    member.style.opacity = "0.5"
+function setMemberOnlineStatusText(userID, newStatusText) {
+    const userStatusText = findMember(userID).querySelector(".user-status-text")
+    userStatusText.textContent = newStatusText
 }
 
-function setMemberOnline(userID) {
-    findMember(userID).removeAttribute("style")
+function setMemberOnline(userID, online) {
+    const userStatus = document.getElementById(userID).querySelector(".profile-pic-container").querySelector(".user-status")
+    if (online) {
+        findMember(userID).removeAttribute("style")
+        userStatus.style.display = "block"
+    } else {
+        const member = findMember(userID)
+        member.style.filter = "grayscale(100%)"
+        member.style.opacity = "0.5"
+        userStatus.style.display = "none"
+    }
 }
 
 // comp/channelList.js
@@ -899,6 +901,7 @@ function selectChannel(channelID) {
     resetChatMessages()
     updateLastChannels()
     requestChatHistory(channelID, 0)
+    setLoadingChatMessagesIndicator(true)
     ChannelNameTop.textContent = channelButton.querySelector("div").textContent
     // window.history.pushState(currentChannelID, currentChannelID, `/channel/${currentServerID}/${currentChannelID}`)
 }
@@ -929,9 +932,10 @@ function resetChannels() {
 const ChatLoadingIndicator = document.getElementById("chat-loading-indicator")
 
 let waitingForHistory = false
+let amountOfMessagesLoaded = 0
 
 // adds the new chat message into html
-function addChatMessage(messageID, userID, message, after) {
+function addChatMessage(messageID, userID, message, attachment, after) {
     // extract the message date from messageID
     const msgDate = new Date(Number((BigInt(messageID) >> BigInt(22)))).toLocaleString()
 
@@ -989,6 +993,23 @@ function addChatMessage(messageID, userID, message, after) {
     msgNameAndDateDiv.appendChild(msgNameDiv)
     msgNameAndDateDiv.appendChild(msgDateDiv)
 
+    msgDataDiv.appendChild(msgNameAndDateDiv)
+
+    if (attachment.length > 0) {
+        const path = `/content/attachments/${attachment[0]}`
+        const extension = attachment[0].split('.').pop().toLowerCase()
+        if (extension === "mp4") {
+            const videoHtml = `
+                <video controls class="attachment-video">
+                    <source src="${path}" type="video/mp4">
+                </video>`
+            msgDataDiv.innerHTML += videoHtml
+        } else {
+            const imgHtml = `<img src="${path}" class="attachment-pic">`
+            msgDataDiv.innerHTML += imgHtml
+        }
+    }
+
     // now create a <div> under name and date that displays the message
     const msgTextDiv = document.createElement("div")
     msgTextDiv.className = "msg-text"
@@ -999,7 +1020,6 @@ function addChatMessage(messageID, userID, message, after) {
     })
 
     // append both name/date <div> and msg <div> to msgDatDiv
-    msgDataDiv.appendChild(msgNameAndDateDiv)
     msgDataDiv.appendChild(msgTextDiv)
 
     // append both the profile pic and message data to the <li>
@@ -1027,9 +1047,9 @@ async function chatMessageReceived(json) {
     }
 
     console.log(`New chat message ID [${json.IDm}] received`)
-    addChatMessage(json.IDm, json.IDu, json.Msg, true)
+    addChatMessage(json.IDm, json.IDu, json.Msg, json.Att, true)
 
-    if (getScrollDistanceFromBottom(ChatMessagesList) < 200 || json.IDu == ownUserID) {
+    if (getScrollDistanceFromBottom(ChatMessagesList) < 200 || json.IDu === ownUserID) {
         ChatMessagesList.scrollTo({
             top: ChatMessagesList.scrollHeight,
             behavior: "smooth"
@@ -1059,7 +1079,8 @@ async function chatHistoryReceived(json) {
         // loop through the json and add each messages one by one
         for (let i = 0; i < json.length; i++) {
             // false here means these messages will be inserted before existing ones
-            addChatMessage(json[i].IDm, json[i].IDu, json[i].Msg, false)
+            const attachments = JSON.parse(json[i].Att)
+            addChatMessage(json[i].IDm, json[i].IDu, json[i].Msg, attachments, false)
         }
         // only auto scroll down when entering channel, and not when
         // server sends rest of history while scrolling up manually
@@ -1076,7 +1097,7 @@ async function chatHistoryReceived(json) {
         }
     } else {
         // run if server sent json that doesn't contain any more messages
-        if (currentChannelID == lastChannelID) {
+        if (currentChannelID === lastChannelID) {
             // this can only run if already in channel
             console.warn("Reached the beginning of the chat, don't request more")
             // will become false upon entering an other channel
@@ -1087,14 +1108,13 @@ async function chatHistoryReceived(json) {
         }
     }
     waitingForHistory = false
-    ChatLoadingIndicator.style.display = "none"
-    ChatMessagesList.style.overflowY = ""
+    setLoadingChatMessagesIndicator(false)
     amountOfMessagesChanged()
 }
 
 function amountOfMessagesChanged() {
-    const count = ChatMessagesList.querySelectorAll("li").length
-    console.log("Amount of messages loaded:", count)
+    amountOfMessagesLoaded = ChatMessagesList.querySelectorAll("li").length
+    console.log("Amount of messages loaded:", amountOfMessagesLoaded)
 }
 
 function changeDisplayNameInChatMessageList(userID, newDisplayName) {
@@ -1116,13 +1136,12 @@ function changeProfilePicInChatMessageList(userID, pic) {
 }
 
 function scrolledOnChat(event) {
-    if (!waitingForHistory && !reachedBeginningOfChannel && ChatMessagesList.scrollTop < 200) {
+    if (!waitingForHistory && !reachedBeginningOfChannel && ChatMessagesList.scrollTop < 200 && amountOfMessagesLoaded >= 50 ) {
         const chatMessage = ChatMessagesList.querySelector("li")
         if (chatMessage != null) {
             requestChatHistory(currentChannelID, chatMessage.id)
             waitingForHistory = true
-            ChatLoadingIndicator.style.display = "flex"
-            ChatMessagesList.style.overflowY = "hidden"
+            setLoadingChatMessagesIndicator(true)
         }
     }
 }
@@ -1132,8 +1151,18 @@ function resetChatMessages() {
     ChatMessagesList.innerHTML = ""
 
     // this makes sure there will be a little gap between chat input box
-    // and the chat messages when user is viewing the latest message
+    // and the chat messages when user is viewing the latest message at the bottom
     ChatMessagesList.appendChild(document.createElement("div"))
+}
+
+function setLoadingChatMessagesIndicator(loading) {
+    if (loading) {
+        ChatLoadingIndicator.style.display = "flex"
+        ChatMessagesList.style.overflowY = "hidden"
+    } else {
+        ChatLoadingIndicator.style.display = "none"
+        ChatMessagesList.style.overflowY = ""
+    }
 }
 
 // comp/window.js
@@ -1591,6 +1620,8 @@ function createSettingsRightSideMyAccount(windowMain, labelText, settingsRight) 
 
 // comp/chatInput.js
 
+let listOfAttachments = []
+
 // dynamically resize the chat input textarea to fit the text content
 // runs whenever the chat input textarea content changes
 function resizeChatInput() {
@@ -1599,17 +1630,26 @@ function resizeChatInput() {
 }
 
 // send the text message on enter
-function sendChatEnter(event) {
+async function sendChatEnter(event) {
     if (event.key === "Enter" && !event.shiftKey) {
         event.preventDefault()
+        listOfAttachments = []
+        if (AttachmentInput.files.length !== 0) {
+            for (let i = 0; i < AttachmentInput.files.length; i++) {
+                listOfAttachments.push(AttachmentInput.files[i].name)
+            }
+            await sendAttachment()
+        }
         readChatInput()
+        AttachmentInput.value = ""
     }
 }
 
 // read the text message for sending
 function readChatInput() {
-    if (ChatInput.value) {
-        sendChatMessage(ChatInput.value, currentChannelID)
+    if (ChatInput.value || listOfAttachments.length !== 0) {
+        console.log("list:", listOfAttachments)
+        sendChatMessage(ChatInput.value, currentChannelID, listOfAttachments)
         ChatInput.value = ""
         resizeChatInput()
     }
@@ -1617,16 +1657,26 @@ function readChatInput() {
 
 function uploadAttachment() {
     AttachmentInput.click()
+}
 
+async function sendAttachment() {
+    const formData = new FormData()
 
-    // const response = await fetch(url, {
-    //     method: 'POST',
-    //     headers: {
-    //         'Content-Type': 'application/json'
-    //     },
-    //     body: JSON.stringify(dataToSend)
-    // })
-    // const result = await response.json()
+    formData.append("attachment", AttachmentInput.files[0])
+
+    const response = await fetch('/upload-attachment', {
+        method: "POST",
+        body: formData
+    })
+
+    if (!response.ok) {
+        console.error("Attachment upload failed")
+        return
+    }
+
+    console.log("Attachment was uploaded successfully")
+    AttachmentList.innerHTML = ""
+    calculateAttachments()
 }
 
 function attachmentAdded() {
@@ -1667,26 +1717,18 @@ function attachmentAdded() {
             calculateAttachments()
         }
     }
-
-    // }
-    // } else if (AttachmentInput.files.length == 0) {
-    //     AttachmentPreviewContainer.style.display = "none"
-    //     ChatInputForm.style.borderTopLeftRadius = "12px"
-    //     ChatInputForm.style.borderTopRightRadius = "12px"
-    //     ChatInputForm.style.borderTopStyle = "none"
-    // }
 }
 
 function calculateAttachments() {
     const count = AttachmentList.children.length
-    console.log("attachments:", count)
+    console.log("Attachments count:", count)
 
-    if (count > 0 && AttachmentContainer.style.display != "block") {
+    if (count > 0 && AttachmentContainer.style.display !== "block") {
         AttachmentContainer.style.display = "block"
         ChatInputForm.style.borderTopLeftRadius = "0px"
         ChatInputForm.style.borderTopRightRadius = "0px"
         ChatInputForm.style.borderTopStyle = "solid"
-    } else if (count == 0 && AttachmentContainer.style.display == "block") {
+    } else if (count === 0 && AttachmentContainer.style.display === "block") {
         AttachmentContainer.style.display = "none"
         ChatInputForm.style.borderTopLeftRadius = "12px"
         ChatInputForm.style.borderTopRightRadius = "12px"
@@ -1931,7 +1973,7 @@ async function connectToWebsocket() {
                 if (json.UserID === ownUserID) {
                     console.log("My new display name:", json.NewName)
                     ownDisplayName = json.NewName
-                    changeUserPanelName()
+                    setUserPanelName()
                 } else {
                     console.log(`User ID [${json.UserID}] changed their name to [${json.NewName}]`)
                 }
@@ -1942,7 +1984,7 @@ async function connectToWebsocket() {
                 if (json.UserID === ownUserID) {
                     console.log("My new profile pic:", json.Pic)
                     ownProfilePic = json.Pic
-                    changeUserPanelPic()
+                    setUserPanelPic()
                 } else {
                     console.log(`User ID [${json.UserID}] changed profile pic to [${json.Pic}]`)
                 }
@@ -1960,17 +2002,25 @@ async function connectToWebsocket() {
             case 54: // Server sent that a user changed their status text
                 if (json.UserID === ownUserID) {
                     console.log("My new status text:", json.StatusText)
+                    setUserPanelStatusText(json.StatusText)
                 } else {
                     console.log(`User ID [${json.UserID}] changed their status text to [${json.StatusText}]`)
                 }
-                changeStatusTextInMemberList(json.UserID, json.StatusText)
+                setMemberOnlineStatusText(json.UserID, json.StatusText)
+                break
+            case 55: // Server sent that someone went on or offline
+                if (json.UserID === ownUserID) {
+
+                } else {
+                    setMemberOnline(json.UserID, json.Online)
+                }
                 break
             case 241: // Server sent the client's own user ID and display name
                 ownUserID = json.UserID
                 // document.cookie = `sessionToken=${json.SessionToken}; path=/chat.html; secure; SameSite=Strict`
                 ownDisplayName = json.DisplayName
                 ownProfilePic = json.ProfilePic
-                changeUserPanelName()
+                setUserPanelName()
                 receivedOwnUserData = true
                 console.log(`Received own user ID [${ownUserID}] and display name: [${ownDisplayName}]:`)
                 break
@@ -2045,11 +2095,12 @@ async function preparePacket(type, bigIntIDs, struct) {
     wsClient.send(packet)
 }
 
-function sendChatMessage(message, channelID) { // type is 1
+function sendChatMessage(message, channelID, attachments) { // type is 1
     console.log("Sending a chat message")
     preparePacket(1, [channelID], {
         ChannelID: channelID,
-        Message: message
+        Message: message,
+        Attachments: attachments
     })
 }
 function requestChatHistory(channelID, lastMessageID) {

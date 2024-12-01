@@ -45,31 +45,31 @@ func (c *Client) onServerMemberListRequest(packetJson []byte) []byte {
 	return macros.PreparePacket(42, responseBytes)
 }
 
-func (c *Client) onMemberOnlineStatusesRequest(packetJson []byte) []byte {
-	const jsonType string = "member statuses"
-	type OnlineStatusRequest struct {
-		ServerID uint64
-	}
-
-	var onlineStatusRequest OnlineStatusRequest
-
-	if err := json.Unmarshal(packetJson, &onlineStatusRequest); err != nil {
-		macros.ErrorDeserializing(err.Error(), jsonType, c.userID)
-	}
-
-	var onlineMembers = make([]uint64, 0, len(Clients))
-
-	for i, client := range Clients {
-		onlineMembers[i] = client.userID
-	}
-
-	responseBytes, err := json.Marshal(onlineMembers)
-	if err != nil {
-		macros.ErrorSerializing(err.Error(), jsonType, c.userID)
-	}
-
-	return responseBytes
-}
+//func (c *Client) onMemberOnlineStatusesRequest(packetJson []byte) []byte {
+//	const jsonType string = "member statuses"
+//	type OnlineStatusRequest struct {
+//		ServerID uint64
+//	}
+//
+//	var onlineStatusRequest OnlineStatusRequest
+//
+//	if err := json.Unmarshal(packetJson, &onlineStatusRequest); err != nil {
+//		macros.ErrorDeserializing(err.Error(), jsonType, c.userID)
+//	}
+//
+//	var onlineMembers = make([]uint64, 0, len(Clients))
+//
+//	for i, client := range Clients {
+//		onlineMembers[i] = client.userID
+//	}
+//
+//	responseBytes, err := json.Marshal(onlineMembers)
+//	if err != nil {
+//		macros.ErrorSerializing(err.Error(), jsonType, c.userID)
+//	}
+//
+//	return responseBytes
+//}
 
 func (c *Client) onLeaveServerRequest(packetJson []byte) (BroadcastData, []byte) {
 	const jsonType string = "server member deletion"

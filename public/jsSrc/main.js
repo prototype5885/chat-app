@@ -4,7 +4,6 @@ const serverSeparators = ServerList.querySelectorAll(".servers-separator")
 const ChannelList = document.getElementById("channel-list")
 const MemberList = document.getElementById("member-list")
 const ChatMessagesList = document.getElementById("chat-message-list")
-const UserPanelName = document.getElementById("user-panel-name")
 const AddServerButton = document.getElementById("add-server-button")
 const UserSettingsButton = document.getElementById("user-settings-button")
 const ToggleMicrophoneButton = document.getElementById("toggle-microphone-button")
@@ -80,7 +79,7 @@ function main() {
         console.log("Waiting for server to send image host address..")
         await waitUntilBoolIsTrue(() => receivedImageHostAddress)
 
-        changeUserPanelPic()
+        setUserPanelPic()
 
         // remove placeholder servers
         for (let i = 0; i < placeholderButtons.length; i++) {

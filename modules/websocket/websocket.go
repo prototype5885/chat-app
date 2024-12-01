@@ -35,7 +35,7 @@ const (
 	updateProfilePic   byte = 52
 	updateStatus       byte = 53
 	updateStatusText   byte = 54
-	onlineStatuses     byte = 55
+	updateOnline       byte = 55
 	imageHostAddress   byte = 242
 )
 
@@ -167,13 +167,15 @@ func AcceptWsClient(userID uint64, w http.ResponseWriter, r *http.Request) {
 
 	client.writeChan <- macros.PreparePacket(241, jsonUserID)
 
-	setUserStatusText(client.userID, "Online")
+	//setUserStatusText(client.userID, "Online")
+	setUserOnline(client.userID, true)
 
 	// this will block here while both the reading and writing goroutine are running
 	// if one stops, the other should stop too
 	wg.Wait()
 
-	setUserStatusText(client.userID, "Offline")
+	//setUserStatusText(client.userID, "Offline")
+	setUserOnline(client.userID, false)
 
 	// close websocket connection
 	// if err := wsConn.Close(); err != nil {
@@ -324,9 +326,9 @@ func (c *Client) readMessages(wg *sync.WaitGroup) {
 			c.onUpdateUserStatusValue(packetJson)
 		case updateStatusText:
 			log.Debug("User ID [%d] is requesting to update their status text", c.userID)
-		case onlineStatuses:
-			log.Debug("User ID [%d] is requesting online statuses of server members", c.userID)
-			c.writeChan <- c.onMemberOnlineStatusesRequest(packetJson)
+		//case onlineStatuses:
+		//	log.Debug("User ID [%d] is requesting online statuses of server members", c.userID)
+		//	c.writeChan <- c.onMemberOnlineStatusesRequest(packetJson)
 		case imageHostAddress:
 			log.Debug("User ID [%d] is requesting address of image host server", c.userID)
 			imageHostJson, err := json.Marshal(ImageHost)
@@ -395,22 +397,22 @@ func broadCastChannel() {
 						client.writeChan <- broadcastData.MessageBytes
 					}
 				}
-			case addServer: // servers
+			//case addServer: // servers
+			//	for _, client := range Clients {
+			//		broadcastLog(broadcastData.Type, client.userID)
+			//		client.writeChan <- broadcastData.MessageBytes
+			//	}
+			case addChannel, deleteChannel, addServerMember, deleteServerMember, updateOnline:
 				for _, client := range Clients {
-					broadcastLog(broadcastData.Type, client.userID)
-					client.writeChan <- broadcastData.MessageBytes
-				}
-			case addChannel, deleteChannel, addServerMember, deleteServerMember, deleteServer:
-				for _, client := range Clients {
-					if client.currentServerID == broadcastData.AffectedServers[0] { // if client is in affected server
+					if client.currentServerID == broadcastData.AffectedServers[0] { // if client is currently in that server
 						broadcastLog(broadcastData.Type, client.userID)
 						client.writeChan <- broadcastData.MessageBytes
 					}
 				}
-			case updateUserData, updateProfilePic, updateStatus, updateStatusText: // user updating account stuff
+			case updateUserData, updateProfilePic, updateStatus, updateStatusText, deleteServer: // user updating account stuff
 				for _, client := range Clients {
 					for i := 0; i < len(broadcastData.AffectedServers); i++ {
-						if client.currentServerID == broadcastData.AffectedServers[i] { // if client is in affected servers
+						if client.currentServerID == broadcastData.AffectedServers[i] { // if client is member of any affected server
 							broadcastLog(broadcastData.Type, client.userID)
 							client.writeChan <- broadcastData.MessageBytes
 						}
