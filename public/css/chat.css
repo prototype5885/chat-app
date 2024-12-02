@@ -482,8 +482,41 @@ body {
     border-radius: 6px;
 }
 
+.rotate-svg {
+    transition: transform 0.3s ease; /* Smooth transition for the initial hover */
+}
+
+.rotate-svg:hover {
+    animation: rotateAnimation 2s linear infinite; /* Apply continuous rotation on hover */
+}
+
 #user-settings-button {
-    background-color: blueviolet;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#user-settings-button img {
+    width: 24px;
+    height: 24px;
+    animation: rotateImg 5s linear infinite;
+}
+
+#user-settings-button:hover img {
+    animation-play-state: running;
+}
+
+#user-settings-button:not(:hover) img {
+    animation-play-state: paused;
+}
+
+@keyframes rotateImg {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
 }
 
 #toggle-microphone-button {
@@ -588,6 +621,7 @@ body {
     max-height: 256px;
     max-width: 1024px;
     margin-bottom: 8px;
+    border-radius: 8px;
 }
 
 .attachment-video {
@@ -757,7 +791,6 @@ body {
 
 /* every button inside chat input */
 .chat-button {
-    background: none;
     border: none;
     display: flex;
     align-items: flex-end;
@@ -767,7 +800,7 @@ body {
 .chat-button-icon {
     height: 32px;
     width: 32px;
-    background: #a29e9e;
+    background: var(--button-color);
     margin: 8px;
     border-radius: 50%;
     /* this is for the text inside it */

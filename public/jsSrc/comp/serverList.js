@@ -48,7 +48,7 @@ function addServer(serverID, ownerID, serverName, picture, className) {
     }
 
     function onHoverOut() {
-        if (serverID != currentServerID) {
+        if (serverID !== currentServerID) {
             button.style.borderRadius = "50%"
             button.style.backgroundColor = ""
             span.style.height = "8px"
@@ -57,7 +57,7 @@ function addServer(serverID, ownerID, serverName, picture, className) {
     }
 
     var owned = false
-    if (ownerID == ownUserID) {
+    if (ownerID === ownUserID) {
         owned = true
     }
 
