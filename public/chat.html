@@ -5,8 +5,8 @@
 <head>
     <meta content="width=device-width,height=device-height,user-scalable=no,initial-scale=1.0" name="viewport">
     <title>Discord Clone</title>
-    <link href="/css/global.css" rel="stylesheet">
-    <link href="/css/chat.css" rel="stylesheet">
+    <link href="global.css" rel="stylesheet">
+    <link href="chat.css" rel="stylesheet">
 </head>
 
 <body>
@@ -14,7 +14,7 @@
         <div>Loading</div>
     </div>
     <!-- <img id="imagePreview" alt="Image Preview" style="display: none; max-width: 300px; margin-top: 20px;"> -->
-    <input id="attachment-input" onchange="attachmentAdded()" style="display: none;" type="file">
+    <input id="attachment-input" multiple onchange="attachmentAdded()" style="display: none;" type="file">
     <ol id="server-list">
         <div class="servers-separator" id="first-servers-separator" style="display: none;"></div>
         <div class="servers-separator" id="second-servers-separator" style="display: none;"></div>
@@ -94,7 +94,7 @@
         </div>
     </div>
     <audio id="notification-sound" preload="auto" src="sounds/discord-notification.mp3"></audio>
-    <script src="js/script.js"></script>
+    <script src="script.js"></script>
 </body>
 
 </html>

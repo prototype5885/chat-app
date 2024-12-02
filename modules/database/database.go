@@ -61,7 +61,7 @@ func CreateTables() {
 	CreateServerMembersTable()
 	CreateChannelsTable()
 	CreateChatMessagesTable()
-	//CreateProfilePicsTable()
+	//CreateAttachmentsTable()
 	CreateServerInvitesTable()
 }
 
@@ -89,6 +89,11 @@ func Insert(structo any) bool {
 		insertedItemID = s.MessageID
 		printInsertingMsg()
 		_, err = db.Exec(insertChatMessageQuery, s.MessageID, s.ChannelID, s.UserID, s.Timestamp, s.Message, s.Attachments)
+	case Attachment:
+		typeName = "attachment"
+		insertedItemID = s.UserID
+		printInsertingMsg()
+		_, err = db.Exec(insertAttachmentQuery, s.FileName, s.UserID)
 	case Server:
 		typeName = "server"
 		insertedItemID = s.ServerID

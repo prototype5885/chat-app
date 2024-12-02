@@ -4,7 +4,7 @@ let waitingForHistory = false
 let amountOfMessagesLoaded = 0
 
 // adds the new chat message into html
-function addChatMessage(messageID, userID, message, attachment, after) {
+function addChatMessage(messageID, userID, message, attachments, after) {
     // extract the message date from messageID
     const msgDate = new Date(Number((BigInt(messageID) >> BigInt(22)))).toLocaleString()
 
@@ -17,7 +17,7 @@ function addChatMessage(messageID, userID, message, attachment, after) {
     li.setAttribute("user-id", userID)
 
     var owner = false
-    if (userID == ownUserID) {
+    if (userID === ownUserID) {
         owner = true
     }
 
@@ -64,18 +64,37 @@ function addChatMessage(messageID, userID, message, attachment, after) {
 
     msgDataDiv.appendChild(msgNameAndDateDiv)
 
-    if (attachment.length > 0) {
-        const path = `/content/attachments/${attachment[0]}`
-        const extension = attachment[0].split('.').pop().toLowerCase()
-        if (extension === "mp4") {
-            const videoHtml = `
-                <video controls class="attachment-video">
-                    <source src="${path}" type="video/mp4">
-                </video>`
-            msgDataDiv.innerHTML += videoHtml
-        } else {
-            const imgHtml = `<img src="${path}" class="attachment-pic">`
-            msgDataDiv.innerHTML += imgHtml
+    // add attachments
+    if (attachments !== undefined && attachments.length > 0) {
+        const videosContainer = document.createElement("div")
+        videosContainer.className = "message-attachment-videos"
+        msgDataDiv.appendChild(videosContainer)
+
+        const picturesContainer = document.createElement("div")
+        picturesContainer.className = "message-attachment-pictures"
+        msgDataDiv.appendChild(picturesContainer)
+
+        for (let i = 0; i < attachments.length; i++) {
+            const path = `/content/attachments/${attachments[i]}`
+            const extension = attachments[i].split('.').pop().toLowerCase()
+
+            switch (extension) {
+                case "mp4":
+                    videosContainer.innerHTML += `
+                        <video controls class="attachment-video">
+                            <source src="${path}" type="video/mp4">
+                        </video>`
+                    break
+                case "jpg":
+                case "jpeg":
+                case "webp":
+                case "png":
+                    picturesContainer.innerHTML += `<img src="${path}" class="attachment-pic">`
+                    break
+                default:
+                    console.warn("Unsupported attachment type:", extension)
+                    break
+            }
         }
     }
 
@@ -116,7 +135,7 @@ async function chatMessageReceived(json) {
     }
 
     console.log(`New chat message ID [${json.IDm}] received`)
-    addChatMessage(json.IDm, json.IDu, json.Msg, json.Att, true)
+    addChatMessage(json.IDm, json.IDu, json.Msg, json.A, true)
 
     if (getScrollDistanceFromBottom(ChatMessagesList) < 200 || json.IDu === ownUserID) {
         ChatMessagesList.scrollTo({
@@ -148,7 +167,7 @@ async function chatHistoryReceived(json) {
         // loop through the json and add each messages one by one
         for (let i = 0; i < json.length; i++) {
             // false here means these messages will be inserted before existing ones
-            const attachments = JSON.parse(json[i].Att)
+            const attachments = JSON.parse(json[i].A)
             addChatMessage(json[i].IDm, json[i].IDu, json[i].Msg, attachments, false)
         }
         // only auto scroll down when entering channel, and not when

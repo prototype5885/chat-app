@@ -258,6 +258,7 @@ async function preparePacket(type, bigIntIDs, struct) {
     // since javascript cant serialize BigInt
     for (i = 0; i < bigIntIDs.length; i++) {
         if (bigIntIDs[i] !== 0) {
+            console.log(bigIntIDs[i])
             json = json.replace(`"${bigIntIDs[i]}"`, bigIntIDs[i])
         }
     }

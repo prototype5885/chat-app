@@ -1,7 +1,11 @@
 package webRequests
 
 import (
+	"bytes"
 	"encoding/json"
+	"fmt"
+	"image"
+	"image/jpeg"
 	"io"
 	"net/http"
 	"os"
@@ -198,36 +202,61 @@ func uploadAttachmentHandler(w http.ResponseWriter, r *http.Request) {
 
 	log.Debug("User ID [%d] is uploading an attachment", userID)
 
-	err := r.ParseMultipartForm(100 << 10)
+	reader, err := r.MultipartReader()
 	if err != nil {
-		log.WarnError(err.Error(), "Received attachment from user ID [%d] is too big in size", userID)
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	formFile, handler, err := r.FormFile("attachment")
-	if err != nil {
-		log.WarnError(err.Error(), "Error parsing multipart form 2")
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	defer formFile.Close()
-
-	//var extension string = filepath.Ext(handler.Filename)
-
-	var pfpPath = "./public/content/attachments/" + handler.Filename
-
-	pfp, err := os.Create(pfpPath)
-	if err != nil {
-		log.WarnError(err.Error(), "Error creating formFile of attachment from user ID [%d]", userID)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer pfp.Close()
 
-	if _, err := io.Copy(pfp, formFile); err != nil {
-		log.WarnError(err.Error(), "Error copying attachment to attachments folder from user ID [%d]", userID)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+	var fileNames []string
+
+	for {
+		part, err := reader.NextPart()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+
+		}
+
+		if part.FileName() != "" {
+			img, _, err := image.Decode(part)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+
+				return
+			}
+
+			buf := new(bytes.Buffer)
+			opt := jpeg.Options{Quality: 75}
+			err = jpeg.Encode(buf, img, &opt)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				log.FatalError(err.Error(), "Error encoding image sent by user ID [%d]", userID)
+			}
+
+			var fileName = GenerateAttachmentName() + ".jpg"
+			fileNames = append(fileNames, fileName)
+
+			err = os.WriteFile("./public/content/attachments/"+fileName, buf.Bytes(), 0644)
+			if err != nil {
+				fmt.Println("Error writing to file:", err)
+				return
+			}
+		}
 	}
+
+	responseJsonBytes, jsonErr := json.Marshal(fileNames)
+	if jsonErr != nil {
+		log.FatalError(jsonErr.Error(), "Error serializing log/reg POST request response")
+	}
+
+	log.Debug("Response for [%s] POST request: [%s]", r.URL.Path, string(responseJsonBytes))
+	_, err = w.Write(responseJsonBytes)
+	if err != nil {
+		log.WarnError(err.Error(), "Error sending %s POST request response", r.URL.Path)
+	}
+	log.Debug("[%s] POST request response was sent", r.URL.Path)
 }

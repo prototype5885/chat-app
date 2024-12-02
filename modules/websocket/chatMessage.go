@@ -4,14 +4,63 @@ import (
 	"encoding/json"
 	"fmt"
 	"proto-chat/modules/database"
+	log "proto-chat/modules/logging"
 	"proto-chat/modules/macros"
 	"proto-chat/modules/snowflake"
 	"strconv"
 )
 
+type ChatMessageResponse struct {
+	IDm string   // message ID
+	IDu string   // user ID
+	Msg string   // message
+	A   []string // attachment list
+}
+
+type ChatMessageResponseWoAttachment struct {
+	IDm string // message ID
+	IDu string // user ID
+	Msg string // message
+}
+
+func SerializeChatMessage(messageID uint64, userID uint64, message string, attachments []string) []byte {
+	const jsonType string = "response chat message"
+
+	var jsonBytes []byte
+
+	if len(attachments) > 0 {
+		var serverChatMsg = ChatMessageResponse{
+			IDm: strconv.FormatUint(messageID, 10),
+			IDu: strconv.FormatUint(userID, 10),
+			Msg: message,
+			A:   attachments,
+		}
+		var err error
+		jsonBytes, err = json.Marshal(serverChatMsg)
+		if err != nil {
+			macros.ErrorSerializing(err.Error(), jsonType, userID)
+		}
+	} else if len(attachments) == 0 {
+		var serverChatMsg = ChatMessageResponseWoAttachment{
+			IDm: strconv.FormatUint(messageID, 10),
+			IDu: strconv.FormatUint(userID, 10),
+			Msg: message,
+		}
+		var err error
+		jsonBytes, err = json.Marshal(serverChatMsg)
+		if err != nil {
+			macros.ErrorSerializing(err.Error(), jsonType, userID)
+		}
+	} else {
+		log.Fatal("There are minus attachments for user ID [%d]", userID)
+	}
+
+	return jsonBytes
+}
+
 // when client sent a chat message, type 1
 func (c *Client) onChatMessageRequest(packetJson []byte, packetType byte) (BroadcastData, []byte) {
-	const jsonType string = "add chat message"
+	const jsonType string = "received chat message"
 
 	type ClientChatMsg struct {
 		ChannelID   uint64
@@ -43,26 +92,7 @@ func (c *Client) onChatMessageRequest(packetJson []byte, packetType byte) (Broad
 		return BroadcastData{}, macros.RespondFailureReason(rejectMessage)
 	}
 
-	type ChatMessageResponse struct {
-		IDm string   // message ID
-		IDu string   // user ID
-		Msg string   // message
-		Att []string // attachment list
-	}
-
-	fmt.Println(len(chatMessageRequest.Attachments))
-
-	var serverChatMsg = ChatMessageResponse{
-		IDm: strconv.FormatUint(messageID, 10),
-		IDu: strconv.FormatUint(c.userID, 10),
-		Msg: chatMessageRequest.Message,
-		Att: chatMessageRequest.Attachments,
-	}
-
-	jsonBytes, err := json.Marshal(serverChatMsg)
-	if err != nil {
-		macros.ErrorSerializing(err.Error(), jsonType, c.userID)
-	}
+	jsonBytes := SerializeChatMessage(messageID, c.userID, chatMessageRequest.Message, chatMessageRequest.Attachments)
 
 	return BroadcastData{
 		MessageBytes:    macros.PreparePacket(1, jsonBytes),

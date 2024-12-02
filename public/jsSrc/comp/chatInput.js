@@ -11,12 +11,12 @@ function resizeChatInput() {
 async function sendChatEnter(event) {
     if (event.key === "Enter" && !event.shiftKey) {
         event.preventDefault()
-        listOfAttachments = []
+        // listOfAttachments = []
         if (AttachmentInput.files.length !== 0) {
             for (let i = 0; i < AttachmentInput.files.length; i++) {
-                listOfAttachments.push(AttachmentInput.files[i].name)
+                // listOfAttachments.push(AttachmentInput.files[i].name)
             }
-            await sendAttachment()
+            listOfAttachments = await sendAttachment()
         }
         readChatInput()
         AttachmentInput.value = ""
@@ -40,12 +40,19 @@ function uploadAttachment() {
 async function sendAttachment() {
     const formData = new FormData()
 
-    formData.append("attachment", AttachmentInput.files[0])
+    console.log(AttachmentInput)
+
+    for (let i = 0; i < AttachmentInput.files.length; i++) {
+        console.log(AttachmentInput.files[i].name)
+        formData.append("attachment[]", AttachmentInput.files[i])
+    }
 
     const response = await fetch('/upload-attachment', {
         method: "POST",
         body: formData
     })
+
+    const fileNames = await response.json()
 
     if (!response.ok) {
         console.error("Attachment upload failed")
@@ -55,10 +62,15 @@ async function sendAttachment() {
     console.log("Attachment was uploaded successfully")
     AttachmentList.innerHTML = ""
     calculateAttachments()
+    return fileNames
 }
 
 function attachmentAdded() {
     for (i = 0; i < AttachmentInput.files.length; i++) {
+        if (i >= 4) {
+            console.warn("Too many attachments were added")
+            continue
+        }
         const reader = new FileReader()
         reader.readAsDataURL(AttachmentInput.files[i])
 

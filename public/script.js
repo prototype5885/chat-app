@@ -935,7 +935,7 @@ let waitingForHistory = false
 let amountOfMessagesLoaded = 0
 
 // adds the new chat message into html
-function addChatMessage(messageID, userID, message, attachment, after) {
+function addChatMessage(messageID, userID, message, attachments, after) {
     // extract the message date from messageID
     const msgDate = new Date(Number((BigInt(messageID) >> BigInt(22)))).toLocaleString()
 
@@ -948,7 +948,7 @@ function addChatMessage(messageID, userID, message, attachment, after) {
     li.setAttribute("user-id", userID)
 
     var owner = false
-    if (userID == ownUserID) {
+    if (userID === ownUserID) {
         owner = true
     }
 
@@ -995,18 +995,37 @@ function addChatMessage(messageID, userID, message, attachment, after) {
 
     msgDataDiv.appendChild(msgNameAndDateDiv)
 
-    if (attachment.length > 0) {
-        const path = `/content/attachments/${attachment[0]}`
-        const extension = attachment[0].split('.').pop().toLowerCase()
-        if (extension === "mp4") {
-            const videoHtml = `
-                <video controls class="attachment-video">
-                    <source src="${path}" type="video/mp4">
-                </video>`
-            msgDataDiv.innerHTML += videoHtml
-        } else {
-            const imgHtml = `<img src="${path}" class="attachment-pic">`
-            msgDataDiv.innerHTML += imgHtml
+    // add attachments
+    if (attachments !== undefined && attachments.length > 0) {
+        const videosContainer = document.createElement("div")
+        videosContainer.className = "message-attachment-videos"
+        msgDataDiv.appendChild(videosContainer)
+
+        const picturesContainer = document.createElement("div")
+        picturesContainer.className = "message-attachment-pictures"
+        msgDataDiv.appendChild(picturesContainer)
+
+        for (let i = 0; i < attachments.length; i++) {
+            const path = `/content/attachments/${attachments[i]}`
+            const extension = attachments[i].split('.').pop().toLowerCase()
+
+            switch (extension) {
+                case "mp4":
+                    videosContainer.innerHTML += `
+                        <video controls class="attachment-video">
+                            <source src="${path}" type="video/mp4">
+                        </video>`
+                    break
+                case "jpg":
+                case "jpeg":
+                case "webp":
+                case "png":
+                    picturesContainer.innerHTML += `<img src="${path}" class="attachment-pic">`
+                    break
+                default:
+                    console.warn("Unsupported attachment type:", extension)
+                    break
+            }
         }
     }
 
@@ -1047,7 +1066,7 @@ async function chatMessageReceived(json) {
     }
 
     console.log(`New chat message ID [${json.IDm}] received`)
-    addChatMessage(json.IDm, json.IDu, json.Msg, json.Att, true)
+    addChatMessage(json.IDm, json.IDu, json.Msg, json.A, true)
 
     if (getScrollDistanceFromBottom(ChatMessagesList) < 200 || json.IDu === ownUserID) {
         ChatMessagesList.scrollTo({
@@ -1079,7 +1098,7 @@ async function chatHistoryReceived(json) {
         // loop through the json and add each messages one by one
         for (let i = 0; i < json.length; i++) {
             // false here means these messages will be inserted before existing ones
-            const attachments = JSON.parse(json[i].Att)
+            const attachments = JSON.parse(json[i].A)
             addChatMessage(json[i].IDm, json[i].IDu, json[i].Msg, attachments, false)
         }
         // only auto scroll down when entering channel, and not when
@@ -1633,12 +1652,12 @@ function resizeChatInput() {
 async function sendChatEnter(event) {
     if (event.key === "Enter" && !event.shiftKey) {
         event.preventDefault()
-        listOfAttachments = []
+        // listOfAttachments = []
         if (AttachmentInput.files.length !== 0) {
             for (let i = 0; i < AttachmentInput.files.length; i++) {
-                listOfAttachments.push(AttachmentInput.files[i].name)
+                // listOfAttachments.push(AttachmentInput.files[i].name)
             }
-            await sendAttachment()
+            listOfAttachments = await sendAttachment()
         }
         readChatInput()
         AttachmentInput.value = ""
@@ -1662,12 +1681,19 @@ function uploadAttachment() {
 async function sendAttachment() {
     const formData = new FormData()
 
-    formData.append("attachment", AttachmentInput.files[0])
+    console.log(AttachmentInput)
+
+    for (let i = 0; i < AttachmentInput.files.length; i++) {
+        console.log(AttachmentInput.files[i].name)
+        formData.append("attachment[]", AttachmentInput.files[i])
+    }
 
     const response = await fetch('/upload-attachment', {
         method: "POST",
         body: formData
     })
+
+    const fileNames = await response.json()
 
     if (!response.ok) {
         console.error("Attachment upload failed")
@@ -1677,10 +1703,15 @@ async function sendAttachment() {
     console.log("Attachment was uploaded successfully")
     AttachmentList.innerHTML = ""
     calculateAttachments()
+    return fileNames
 }
 
 function attachmentAdded() {
     for (i = 0; i < AttachmentInput.files.length; i++) {
+        if (i >= 4) {
+            console.warn("Too many attachments were added")
+            continue
+        }
         const reader = new FileReader()
         reader.readAsDataURL(AttachmentInput.files[i])
 
@@ -2066,6 +2097,7 @@ async function preparePacket(type, bigIntIDs, struct) {
     // since javascript cant serialize BigInt
     for (i = 0; i < bigIntIDs.length; i++) {
         if (bigIntIDs[i] !== 0) {
+            console.log(bigIntIDs[i])
             json = json.replace(`"${bigIntIDs[i]}"`, bigIntIDs[i])
         }
     }

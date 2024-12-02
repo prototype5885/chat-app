@@ -617,17 +617,20 @@ body {
     border-radius: 50%;
 }
 
+.message-attachment-pictures > *,
+.message-attachment-videos > *{
+    margin-right: 4px;
+    margin-bottom: 8px;
+    max-width: 1024px;
+    border-radius: 6px;
+}
+
 .attachment-pic {
     max-height: 256px;
-    max-width: 1024px;
-    margin-bottom: 8px;
-    border-radius: 8px;
 }
 
 .attachment-video {
     max-height: 512px;
-    max-width: 1024px;
-    margin-bottom: 8px;
 }
 
 .profile-pic-container {

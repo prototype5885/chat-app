@@ -55,6 +55,14 @@ func AddChatMessage(userID uint64, channelID uint64, message string, attachments
 		Message:     message,
 		Attachments: attachmentsJsonBytes,
 	})
+
+	//for i := 0; i < len(attachments); i++ {
+	//	Insert(Attachment{
+	//		UserID:   userID,
+	//		FileName: attachments[i],
+	//	})
+	//}
+
 	return true
 }
 
@@ -66,7 +74,7 @@ func GetChatHistory(channelID uint64, fromMessageID uint64, older bool, userID u
 			'IDm', CAST(message_id AS CHAR),
 			'IDu', CAST(user_id AS CHAR),
 			'Msg', message,
-		    'Att', attachments
+		    'A', attachments
 		)) AS json_result
 		FROM (
 			SELECT message_id, user_id, message, attachments

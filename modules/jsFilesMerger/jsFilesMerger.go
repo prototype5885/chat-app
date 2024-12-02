@@ -45,7 +45,7 @@ func Init() {
 	//	return
 	//}
 
-	_, err := os.Stat("./public/js/script.js")
+	_, err := os.Stat("./public/script.js")
 	if os.IsNotExist(err) {
 		log.WarnError(err.Error(), "script.js doesn't exist, creating it...")
 		merge()
@@ -135,7 +135,7 @@ func merge() {
 	// Create a new file to store the merged JavaScript code
 	log.Trace("Create script.js that will store all js content")
 	var outFile *os.File
-	outFile, err = os.OpenFile("./public/js/script.js", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
+	outFile, err = os.OpenFile("./public/script.js", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
 	if err != nil {
 		log.FatalError(err.Error(), "Error creating script.js")
 	}
