@@ -64,8 +64,31 @@ function addChatMessage(messageID, userID, message, attachments, after) {
 
     msgDataDiv.appendChild(msgNameAndDateDiv)
 
+    // now create a <div> under name and date that displays the message
+    const msgTextDiv = document.createElement("div")
+    msgTextDiv.className = "msg-text"
+
+    // look for URLs in the message and make them clickable
+    msgTextDiv.innerHTML = message.replace(/https?:\/\/[^\s/$.?#].[^\s]*/g, (url) => {
+        return `<a href="${url}" class="url" target="_blank">${url}</a>`
+    })
+
+    // append both name/date <div> and msg <div> to msgDatDiv
+    msgDataDiv.appendChild(msgTextDiv)
+
+    // append both the profile pic and message data to the <li>
+    li.appendChild(img)
+    li.appendChild(msgDataDiv)
+
+    // and finally append the message to the message list
+    if (after) {
+        ChatMessagesList.insertAdjacentElement("beforeend", li)
+    } else {
+        ChatMessagesList.insertAdjacentElement("afterbegin", li)
+    }
+
     // add attachments
-    if (attachments !== undefined && attachments.length > 0) {
+    if (attachments !== undefined && attachments !== null && attachments.length > 0) {
         const videosContainer = document.createElement("div")
         videosContainer.className = "message-attachment-videos"
         msgDataDiv.appendChild(videosContainer)
@@ -97,30 +120,9 @@ function addChatMessage(messageID, userID, message, attachments, after) {
             }
         }
     }
-
-    // now create a <div> under name and date that displays the message
-    const msgTextDiv = document.createElement("div")
-    msgTextDiv.className = "msg-text"
-
-    // look for URLs in the message and make them clickable
-    msgTextDiv.innerHTML = message.replace(/https?:\/\/[^\s/$.?#].[^\s]*/g, (url) => {
-        return `<a href="${url}" class="url" target="_blank">${url}</a>`
-    })
-
-    // append both name/date <div> and msg <div> to msgDatDiv
-    msgDataDiv.appendChild(msgTextDiv)
-
-    // append both the profile pic and message data to the <li>
-    li.appendChild(img)
-    li.appendChild(msgDataDiv)
-
-    // and finally append the message to the message list
-    if (after) {
-        ChatMessagesList.insertAdjacentElement("beforeend", li)
-    } else {
-        ChatMessagesList.insertAdjacentElement("afterbegin", li)
-    }
 }
+
+
 
 function deleteChatMessage() {
     const messageID = json
@@ -135,7 +137,7 @@ async function chatMessageReceived(json) {
     }
 
     console.log(`New chat message ID [${json.IDm}] received`)
-    addChatMessage(json.IDm, json.IDu, json.Msg, json.A, true)
+    addChatMessage(json.IDm, json.IDu, json.Msg, json.Att, true)
 
     if (getScrollDistanceFromBottom(ChatMessagesList) < 200 || json.IDu === ownUserID) {
         ChatMessagesList.scrollTo({
@@ -167,8 +169,7 @@ async function chatHistoryReceived(json) {
         // loop through the json and add each messages one by one
         for (let i = 0; i < json.length; i++) {
             // false here means these messages will be inserted before existing ones
-            const attachments = JSON.parse(json[i].A)
-            addChatMessage(json[i].IDm, json[i].IDu, json[i].Msg, attachments, false)
+            addChatMessage(json[i].IDm, json[i].IDu, json[i].Msg, JSON.parse(json[i].Att), false)
         }
         // only auto scroll down when entering channel, and not when
         // server sends rest of history while scrolling up manually

@@ -2,42 +2,53 @@ package database
 
 import (
 	log "proto-chat/modules/logging"
+	"strconv"
+	"strings"
 )
 
 type Attachment struct {
-	FileName string
-	UserID   uint64
+	FileName      uint64
+	FileExtension string
+	MessageID     uint64
 }
 
 const (
-	insertAttachmentQuery = "INSERT INTO attachments (file_name, user_id) VALUES (?, ?)"
+	insertAttachmentQuery = "INSERT INTO attachments (name, hash, message_id) VALUES (?, ?, ?)"
 	//deleteChatMessageQuery = "DELETE FROM messages WHERE message_id = ? AND user_id = ?"
 )
 
 func CreateAttachmentsTable() {
 	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS attachments (
-    	file_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY, 
-		file_name CHAR(32) NOT NULL,
-		user_id BIGINT UNSIGNED NOT NULL,
-		INDEX file_name (file_name),
-		FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+		file BIGINT UNSIGNED NOT NULL PRIMARY KEY,
+		hash BINARY(32) NOT NULL,
+		message_id BIGINT UNSIGNED NOT NULL,
+		INDEX hash (hash),
+		INDEX message_id (message_id),
+		FOREIGN KEY (message_id) REFERENCES messages(message_id) ON DELETE CASCADE
 	)`)
 	if err != nil {
 		log.FatalError(err.Error(), "Error creating attachments table")
 	}
 }
 
-//func InsertAttachment(fileName string, userID uint64) string {
-//	log.Trace("Inserting attachment [%s] for user ID [%d]", fileName, userID)
-//	const query = "INSERT INTO attachments (message_id) VALUES (?) RETURNING file_name"
-//
-//	var fileName string
-//	err := db.QueryRow(query, messageID).Scan(&fileName)
-//	if err != nil {
-//		log.FatalError(err.Error(), "Error inserting attachment for message ID [%d]", messageID)
-//	}
-//	if fileName == "" {
-//		log.Impossible("The returned database generated incremental filename for attachment belonging to message ID [%d] is empty", messageID)
-//	}
-//	return fileName
-//}
+func InsertAttachment(fileName string, messageID uint64) {
+	log.Trace("Inserting attachment [%s] for message ID [%d]", fileName, messageID)
+
+	parts := strings.Split(fileName, ".")
+
+	name, err := strconv.ParseUint(parts[0], 10, 64)
+	if err != nil {
+		log.Hack(err.Error(), "Error parsing attachment fileName [%s] for message ID [%d]", fileName, messageID)
+	}
+
+	attachment := Attachment{
+		FileName:      name,
+		FileExtension: parts[1],
+		MessageID:     messageID,
+	}
+
+	success := Insert(attachment)
+	if !success {
+		log.Error("Failed inserting attachment [%s] for message ID [%d]", fileName, messageID)
+	}
+}

@@ -19,7 +19,7 @@ func MainHandler(w http.ResponseWriter, r *http.Request) {
 		// check if client is requesting a file
 		// continue if not
 		if extension != "" && extension != ".html" {
-			//userID := checkIfTokenIsValid(w, r)
+			//userID := CheckIfTokenIsValid(w, r)
 			//if userID == 0 {
 			//	respondText(w, "Not authorized")
 			//	log.Hack("Someone is trying to request a file without token")

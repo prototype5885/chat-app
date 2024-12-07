@@ -1,8 +1,10 @@
 package websocket
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"proto-chat/modules/attachments"
 	"proto-chat/modules/database"
 	log "proto-chat/modules/logging"
 	"proto-chat/modules/macros"
@@ -11,48 +13,24 @@ import (
 )
 
 type ChatMessageResponse struct {
-	IDm string   // message ID
-	IDu string   // user ID
-	Msg string   // message
-	A   []string // attachment list
-}
-
-type ChatMessageResponseWoAttachment struct {
 	IDm string // message ID
 	IDu string // user ID
 	Msg string // message
+	Att []string
 }
 
 func SerializeChatMessage(messageID uint64, userID uint64, message string, attachments []string) []byte {
 	const jsonType string = "response chat message"
 
-	var jsonBytes []byte
-
-	if len(attachments) > 0 {
-		var serverChatMsg = ChatMessageResponse{
-			IDm: strconv.FormatUint(messageID, 10),
-			IDu: strconv.FormatUint(userID, 10),
-			Msg: message,
-			A:   attachments,
-		}
-		var err error
-		jsonBytes, err = json.Marshal(serverChatMsg)
-		if err != nil {
-			macros.ErrorSerializing(err.Error(), jsonType, userID)
-		}
-	} else if len(attachments) == 0 {
-		var serverChatMsg = ChatMessageResponseWoAttachment{
-			IDm: strconv.FormatUint(messageID, 10),
-			IDu: strconv.FormatUint(userID, 10),
-			Msg: message,
-		}
-		var err error
-		jsonBytes, err = json.Marshal(serverChatMsg)
-		if err != nil {
-			macros.ErrorSerializing(err.Error(), jsonType, userID)
-		}
-	} else {
-		log.Fatal("There are minus attachments for user ID [%d]", userID)
+	var serverChatMsg = ChatMessageResponse{
+		IDm: strconv.FormatUint(messageID, 10),
+		IDu: strconv.FormatUint(userID, 10),
+		Msg: message,
+		Att: attachments,
+	}
+	jsonBytes, err := json.Marshal(serverChatMsg)
+	if err != nil {
+		macros.ErrorSerializing(err.Error(), jsonType, userID)
 	}
 
 	return jsonBytes
@@ -63,9 +41,9 @@ func (c *Client) onChatMessageRequest(packetJson []byte, packetType byte) (Broad
 	const jsonType string = "received chat message"
 
 	type ClientChatMsg struct {
-		ChannelID   uint64
-		Message     string
-		Attachments []string
+		ChannelID uint64
+		Message   string
+		AttTok    string
 	}
 
 	var chatMessageRequest ClientChatMsg
@@ -85,14 +63,25 @@ func (c *Client) onChatMessageRequest(packetJson []byte, packetType byte) (Broad
 		return BroadcastData{}, macros.RespondFailureReason(rejectMessage)
 	}
 
+	attachmentToken, err := base64.StdEncoding.DecodeString(chatMessageRequest.AttTok)
+	if err != nil {
+		log.Hack("User ID [%d] sent an attachmentToken base64 string that can't be decoded", c.userID)
+		return BroadcastData{}, macros.RespondFailureReason(rejectMessage)
+	}
+
+	var fileNames []string
+	if len(attachmentToken) > 0 {
+		fileNames = attachments.GetWaitingAttachment([64]byte(attachmentToken))
+	}
+
 	var messageID = snowflake.Generate()
 
-	success := database.AddChatMessage(c.userID, chatMessageRequest.ChannelID, chatMessageRequest.Message, chatMessageRequest.Attachments)
+	success := database.AddChatMessage(c.userID, chatMessageRequest.ChannelID, chatMessageRequest.Message, fileNames)
 	if !success {
 		return BroadcastData{}, macros.RespondFailureReason(rejectMessage)
 	}
 
-	jsonBytes := SerializeChatMessage(messageID, c.userID, chatMessageRequest.Message, chatMessageRequest.Attachments)
+	jsonBytes := SerializeChatMessage(messageID, c.userID, chatMessageRequest.Message, fileNames)
 
 	return BroadcastData{
 		MessageBytes:    macros.PreparePacket(1, jsonBytes),

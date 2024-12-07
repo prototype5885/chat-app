@@ -1,4 +1,4 @@
-package webRequests
+package macros
 
 import (
 	"math"

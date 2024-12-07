@@ -91,6 +91,13 @@ func main() {
 	// snowflake
 	snowflake.SetSnowflakeWorkerID(0)
 
+	//start := time.Now().UnixMilli()
+	//for i := 0; i < 9999999; i++ {
+	//	_ = snowflake.Generate()
+	//}
+	//fmt.Println(time.Now().UnixMilli() - start)
+	//return
+
 	// websocket
 	websocket.Init()
 

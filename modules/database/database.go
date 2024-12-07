@@ -14,11 +14,6 @@ import (
 
 var db *sql.DB
 
-// type Info struct {
-// 	ValueNames string
-// 	ValueCount int
-// }
-
 var nullJson = []byte("null")
 
 func ConnectSqlite() {
@@ -61,11 +56,11 @@ func CreateTables() {
 	CreateServerMembersTable()
 	CreateChannelsTable()
 	CreateChatMessagesTable()
-	//CreateAttachmentsTable()
+	CreateAttachmentsTable()
 	CreateServerInvitesTable()
 }
 
-func Insert(structo any) bool {
+func Insert(structs any) bool {
 	start := time.Now().UnixMicro()
 
 	var typeName string
@@ -78,7 +73,7 @@ func Insert(structo any) bool {
 	}
 
 	var err error
-	switch s := structo.(type) {
+	switch s := structs.(type) {
 	case Channel:
 		typeName = "channel"
 		insertedItemID = s.ChannelID
@@ -91,9 +86,9 @@ func Insert(structo any) bool {
 		_, err = db.Exec(insertChatMessageQuery, s.MessageID, s.ChannelID, s.UserID, s.Timestamp, s.Message, s.Attachments)
 	case Attachment:
 		typeName = "attachment"
-		insertedItemID = s.UserID
+		insertedItemID = s.MessageID
 		printInsertingMsg()
-		_, err = db.Exec(insertAttachmentQuery, s.FileName, s.UserID)
+		_, err = db.Exec(insertAttachmentQuery, s.FileName, s.FileExtension, s.MessageID)
 	case Server:
 		typeName = "server"
 		insertedItemID = s.ServerID

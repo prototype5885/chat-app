@@ -288,15 +288,15 @@ async function preparePacket(type, bigIntIDs, struct) {
     wsClient.send(packet)
 }
 
-function sendChatMessage(message, channelID, attachments) { // type is 1
+async function sendChatMessage(message, channelID, attachmentToken) { // type is 1
     console.log("Sending a chat message")
-    preparePacket(1, [channelID], {
+    await preparePacket(1, [channelID], {
         ChannelID: channelID,
         Message: message,
-        Attachments: attachments
+        AttTok: attachmentToken
     })
 }
-function requestChatHistory(channelID, lastMessageID) {
+async function requestChatHistory(channelID, lastMessageID) {
     console.log("Requesting chat history for channel ID", channelID)
     preparePacket(2, [channelID, lastMessageID], {
         ChannelID: channelID,
@@ -304,13 +304,13 @@ function requestChatHistory(channelID, lastMessageID) {
         Older: true // if true it will request older, if false it will request newer messages from the message id
     })
 }
-function requestDeleteChatMessage(messageID) {
+async function requestDeleteChatMessage(messageID) {
     console.log("Requesting to delete chat message ID", messageID)
     preparePacket(3, [messageID], {
         MessageID: messageID
     })
 }
-function requestAddServer(serverName) {
+async function requestAddServer(serverName) {
     console.log("Requesting to add a new server")
     preparePacket(21, [0], {
         Name: serverName

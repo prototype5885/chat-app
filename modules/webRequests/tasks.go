@@ -259,7 +259,7 @@ func newToken(userID uint64) database.Token {
 	return token
 }
 
-func checkIfTokenIsValid(w http.ResponseWriter, r *http.Request) uint64 {
+func CheckIfTokenIsValid(w http.ResponseWriter, r *http.Request) uint64 {
 	cookieToken, found := findCookie(r.Cookies(), "token")
 	if found { // if user has a token
 		// decode to bytes

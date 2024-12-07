@@ -30,7 +30,6 @@ func CreateChatMessagesTable() {
 		timestamp BIGINT UNSIGNED NOT NULL,
 		message TEXT NOT NULL,
 		attachments BLOB,
-		INDEX timestamp (timestamp),
 		FOREIGN KEY (channel_id) REFERENCES channels(channel_id) ON DELETE CASCADE,
 		FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
 	)`)
@@ -39,29 +38,33 @@ func CreateChatMessagesTable() {
 	}
 }
 
-func AddChatMessage(userID uint64, channelID uint64, message string, attachments []string) bool {
-	var snowflakeID uint64 = snowflake.Generate()
+func AddChatMessage(userID uint64, channelID uint64, message string, filenames []string) bool {
+	snowflakeID := snowflake.Generate()
 
-	attachmentsJsonBytes, err := json.Marshal(attachments)
-	if err != nil {
-		macros.ErrorSerializing(err.Error(), "attachments list", userID)
+	if len(filenames) > 0 {
+		filenamesJson, err := json.Marshal(filenames)
+		if err != nil {
+			macros.ErrorSerializing(err.Error(), "add chat message", userID)
+		}
+
+		Insert(ChatMessage{
+			MessageID:   snowflakeID,
+			ChannelID:   channelID,
+			UserID:      userID,
+			Timestamp:   snowflake.ExtractTimestamp(snowflakeID),
+			Message:     message,
+			Attachments: filenamesJson,
+		})
+	} else {
+		Insert(ChatMessage{
+			MessageID:   snowflakeID,
+			ChannelID:   channelID,
+			UserID:      userID,
+			Timestamp:   snowflake.ExtractTimestamp(snowflakeID),
+			Message:     message,
+			Attachments: nil,
+		})
 	}
-
-	Insert(ChatMessage{
-		MessageID:   snowflakeID,
-		ChannelID:   channelID,
-		UserID:      userID,
-		Timestamp:   snowflake.ExtractTimestamp(snowflakeID),
-		Message:     message,
-		Attachments: attachmentsJsonBytes,
-	})
-
-	//for i := 0; i < len(attachments); i++ {
-	//	Insert(Attachment{
-	//		UserID:   userID,
-	//		FileName: attachments[i],
-	//	})
-	//}
 
 	return true
 }
@@ -74,7 +77,7 @@ func GetChatHistory(channelID uint64, fromMessageID uint64, older bool, userID u
 			'IDm', CAST(message_id AS CHAR),
 			'IDu', CAST(user_id AS CHAR),
 			'Msg', message,
-		    'A', attachments
+		    'Att', attachments
 		)) AS json_result
 		FROM (
 			SELECT message_id, user_id, message, attachments

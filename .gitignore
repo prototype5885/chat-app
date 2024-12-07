@@ -13,7 +13,7 @@ proto-chat
 *.Identifier
 *.gz
 discord-notification.mp3
-public/js/script.js
+public/script.js
 jsHashes.bin
 public/content/avatars/
 /public/content/attachments/

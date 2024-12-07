@@ -22,9 +22,9 @@ func CreateUsersTable() {
 		user_id BIGINT UNSIGNED PRIMARY KEY NOT NULL,
 		username VARCHAR(32) NOT NULL,
 		display_name VARCHAR(64) NOT NULL,
-		status TINYINT UNSIGNED	NOT NULL,
-		status_text VARCHAR(32) NOT NULL,
-		picture VARCHAR(255) NOT NULL,
+		status TINYINT UNSIGNED	NOT NULL DEFAULT 1,
+		status_text VARCHAR(32) NOT NULL DEFAULT '',
+		picture VARCHAR(255) NOT NULL DEFAULT '',
 		password BINARY(60) NOT NULL,
 		totp CHAR(32),
 		UNIQUE(username)

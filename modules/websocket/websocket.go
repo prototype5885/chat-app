@@ -102,6 +102,14 @@ func checkIfUserIsOnline(userID uint64) bool {
 	return false
 }
 
+func GetSessionTokens(userID uint64) []uint64 {
+	var sessionTokens []uint64
+	for _, client := range Clients {
+		sessionTokens = append(sessionTokens, client.sessionToken)
+	}
+	return sessionTokens
+}
+
 // client is connecting to the websocket
 func AcceptWsClient(userID uint64, w http.ResponseWriter, r *http.Request) {
 	// session ID is used as key value for Clients hashmap to make it possible

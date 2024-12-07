@@ -46,7 +46,3 @@ func OnProfilePicChanged(userID uint64, fileName string) {
 
 	broadcastChan <- broadcastData
 }
-
-func onAttachmentUploaded(userID uint64, fileName string) {
-	log.Debug("User ID [%d] uploaded [%s]", userID, fileName)
-}

@@ -161,6 +161,7 @@ func logIntoFile(logMsg string) {
 	defer mtx.Unlock()
 	var currentTime [3]int = getYearMonthDay()
 	if currentTime != lastTime {
+		file.Close()
 		// logFileReady needs to be disabled here else it will cause a loop
 		// when trying to log inside newLogFile()
 		logFileReady = false

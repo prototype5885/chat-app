@@ -38,8 +38,7 @@ var (
 func SetSnowflakeWorkerID(id uint64) {
 	if id > maxWorkerValue {
 		log.Fatal("Worker ID value exceeds maximum value of [%d]", maxWorkerValue)
-	}
-	if !alreadyHasWorkerID {
+	} else if !alreadyHasWorkerID {
 		workerID = id
 		alreadyHasWorkerID = true
 	} else {
@@ -51,7 +50,7 @@ func Generate() uint64 {
 	snowflakeMutex.Lock()
 	defer snowflakeMutex.Unlock()
 
-	var timestamp uint64 = uint64(time.Now().UnixMilli())
+	timestamp := uint64(time.Now().UnixMilli())
 	if timestamp == lastTimestamp {
 		lastIncrement += 1
 		if lastIncrement > maxIncrementValue {
@@ -66,7 +65,7 @@ func Generate() uint64 {
 }
 
 func Extract(snowflakeId uint64) Snowflake {
-	var snowflake Snowflake = Snowflake{
+	snowflake := Snowflake{
 		Timestamp: snowflakeId >> timestampPos,
 		WorkerID:  (snowflakeId >> workerPos) & ((1 << workerLength) - 1),
 		Increment: snowflakeId & ((1 << incrementLength) - 1),

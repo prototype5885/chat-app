@@ -1,4 +1,3 @@
-let listOfAttachments = []
 
 // dynamically resize the chat input textarea to fit the text content
 // runs whenever the chat input textarea content changes
@@ -8,27 +7,32 @@ function resizeChatInput() {
 }
 
 // send the text message on enter
-async function sendChatEnter(event) {
+async function chatEnterPressed(event) {
     if (event.key === "Enter" && !event.shiftKey) {
         event.preventDefault()
-        // listOfAttachments = []
-        if (AttachmentInput.files.length !== 0) {
-            for (let i = 0; i < AttachmentInput.files.length; i++) {
-                // listOfAttachments.push(AttachmentInput.files[i].name)
-            }
-            listOfAttachments = await sendAttachment()
-        }
-        readChatInput()
-        AttachmentInput.value = ""
+        await readChatInput()
     }
 }
 
 // read the text message for sending
-function readChatInput() {
-    if (ChatInput.value || listOfAttachments.length !== 0) {
-        console.log("list:", listOfAttachments)
-        sendChatMessage(ChatInput.value, currentChannelID, listOfAttachments)
+async function readChatInput() {
+    let attachmentToken = null
+    if (AttachmentInput.files.length !== 0) {
+        // for (let i = 0; i < AttachmentInput.files.length; i++) {
+        //     listOfAttachments.push(AttachmentInput.files[i].name)
+        // }
+        attachmentToken = await sendAttachment()
+        console.log("http response to uploading attachment:", attachmentToken)
+    }
+
+    if (ChatInput.value) {
+        if (attachmentToken !== null) {
+            await sendChatMessage(ChatInput.value, currentChannelID, attachmentToken.AttToken)
+        } else {
+            await sendChatMessage(ChatInput.value, currentChannelID, null)
+        }
         ChatInput.value = ""
+        AttachmentInput.value = ""
         resizeChatInput()
     }
 }
@@ -40,10 +44,7 @@ function uploadAttachment() {
 async function sendAttachment() {
     const formData = new FormData()
 
-    console.log(AttachmentInput)
-
     for (let i = 0; i < AttachmentInput.files.length; i++) {
-        console.log(AttachmentInput.files[i].name)
         formData.append("attachment[]", AttachmentInput.files[i])
     }
 
@@ -52,7 +53,7 @@ async function sendAttachment() {
         body: formData
     })
 
-    const fileNames = await response.json()
+    const attachmentToken = await response.json()
 
     if (!response.ok) {
         console.error("Attachment upload failed")
@@ -62,7 +63,7 @@ async function sendAttachment() {
     console.log("Attachment was uploaded successfully")
     AttachmentList.innerHTML = ""
     calculateAttachments()
-    return fileNames
+    return attachmentToken
 }
 
 function attachmentAdded() {
