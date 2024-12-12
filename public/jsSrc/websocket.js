@@ -70,10 +70,11 @@ async function connectToWebsocket() {
         // get the json string from the 6th byte to the end
         const packetJson = String.fromCharCode.apply(null, receivedBytes.slice(5, endIndex))
 
-        // console.log("Received packet:", endIndex, packetType, packetJson)
+        console.log("Received packet:", endIndex, packetType, packetJson)
         console.log(`Received packet size: [${receivedBytes.length} bytes] index: [${endIndex}] packetType: [${packetType}] json: ${packetJson}`)
 
-        const json = JSON.parse(packetJson)
+        const json = fixJson(packetJson)
+        // const json = JSON.parse(packetJson)
         switch (packetType) {
             case 0: // Server sent rejection message
                 console.warn(json.Reason)
@@ -89,7 +90,7 @@ async function connectToWebsocket() {
                 break
             case 21: // Server responded to the add server request
                 console.log("Add server request response arrived")
-                addServer(json.ServerID, json.OwnerID, json.Name, imageHost + "content/avatars/" + json.Picture, "server")
+                addServer(json.ServerID, json.UserID, json.Name, imageHost + json.Picture, "server")
                 selectServer(json.ServerID)
                 break
             case 22: // Server sent the requested server list
@@ -97,7 +98,7 @@ async function connectToWebsocket() {
                 if (json != null) {
                     for (let i = 0; i < json.length; i++) {
                         console.log("Adding server ID", json[i].ServerID)
-                        addServer(json[i].ServerID, json[i].OwnerID, json[i].Name, imageHost + "content/avatars/" + json[i].Picture, "server")
+                        addServer(json[i].ServerID, json[i].UserID, json[i].Name, imageHost + json[i].Picture, "server")
                     }
                 } else {
                     console.log("Not being in any servers")
@@ -131,13 +132,14 @@ async function connectToWebsocket() {
                 }
                 for (let i = 0; i < json.length; i++) {
                     addChannel(json[i].ChannelID, json[i].Name)
+                    console.log(json[i])
                 }
                 selectLastChannels(json[0].ChannelID)
                 break
             case 41: // A user connected to the server
                 console.log("A user connected to the server")
                 if (json.UserID !== ownUserID) {
-                    addMember(json.UserID, json.Name, json.Picture, json.Status)
+                    addMember(json.UserID, json.Name, json.Picture, json.Status, json.StatusText)
                 }
                 break
             case 42: // Server sent the requested member list
@@ -147,7 +149,7 @@ async function connectToWebsocket() {
                     break
                 }
                 for (let i = 0; i < json.length; i++) {
-                    addMember(json[i].UserID, json[i].Online, json[i].Name, json[i].Pic, json[i].Status, json[i].StatusText)
+                    addMember(json[i].UserID, json[i].Name, json[i].Pic, json[i].Online, json[i].Status, json[i].StatusText)
                 }
                 memberListLoaded = true
                 break
@@ -164,24 +166,18 @@ async function connectToWebsocket() {
             case 51: // Server sent that a user changed display name
                 if (json.UserID === ownUserID) {
                     console.log("My new display name:", json.NewName)
-                    ownDisplayName = json.NewName
-                    setUserPanelName()
                 } else {
                     console.log(`User ID [${json.UserID}] changed their name to [${json.NewName}]`)
                 }
-                changeDisplayNameInChatMessageList(json.UserID, json.NewName)
-                changeDisplayNameInMemberList(json.UserID, json.NewName)
+                setDisplayName(json.UserID, json.NewName)
                 break
             case 52: // Server sent that a user changed profile pic
                 if (json.UserID === ownUserID) {
                     console.log("My new profile pic:", json.Pic)
-                    ownProfilePic = json.Pic
-                    setUserPanelPic()
                 } else {
                     console.log(`User ID [${json.UserID}] changed profile pic to [${json.Pic}]`)
                 }
-                changeProfilePicInChatMessageList(json.UserID, json.Pic)
-                changeProfilePicInMemberList(json.UserID, json.Pic)
+                setProfilePic(json.UserID, json.Pic)
                 break
             case 53: // Server sent that a user changed their status value
                 if (json.UserID === ownUserID) {
@@ -209,10 +205,8 @@ async function connectToWebsocket() {
                 break
             case 241: // Server sent the client's own user ID and display name
                 ownUserID = json.UserID
-                // document.cookie = `sessionToken=${json.SessionToken}; path=/chat.html; secure; SameSite=Strict`
-                ownDisplayName = json.DisplayName
-                ownProfilePic = json.ProfilePic
-                setUserPanelName()
+                setProfilePic(ownUserID, json.ProfilePic)
+                setDisplayName(ownUserID, json.DisplayName)
                 receivedOwnUserData = true
                 console.log(`Received own user ID [${ownUserID}] and display name: [${ownDisplayName}]:`)
                 break
@@ -258,7 +252,6 @@ async function preparePacket(type, bigIntIDs, struct) {
     // since javascript cant serialize BigInt
     for (i = 0; i < bigIntIDs.length; i++) {
         if (bigIntIDs[i] !== 0) {
-            console.log(bigIntIDs[i])
             json = json.replace(`"${bigIntIDs[i]}"`, bigIntIDs[i])
         }
     }

@@ -2,62 +2,83 @@ package database
 
 import (
 	"database/sql"
-	"fmt"
 	"os"
 	log "proto-chat/modules/logging"
 	"strings"
 	"time"
 
-	_ "github.com/go-sql-driver/mysql"
-	_ "modernc.org/sqlite"
+	_ "github.com/mattn/go-sqlite3"
 )
 
-var db *sql.DB
+var Conn *sql.DB
 
 var nullJson = []byte("null")
 
 func ConnectSqlite() {
-	//os.Remove("./database/database.db")
+	//os.Remove("./database/database.Conn")
 	if err := os.MkdirAll("database", os.ModePerm); err != nil {
 		log.FatalError(err.Error(), "Error creating sqlite database folder")
 	}
 
 	var err error
-	db, err = sql.Open("sqlite", "./database/database.db")
+	Conn, err = sql.Open("sqlite3", "./database/sqlite.db")
 	if err != nil {
-		log.FatalError(err.Error(), "Error opening sqlite file")
+		log.FatalError(err.Error(), "Error connecting to sqlite database")
 	}
 
-	db.SetMaxOpenConns(1)
+	Conn.SetMaxOpenConns(1)
+
+	_, err = Conn.Exec("PRAGMA foreign_keys = ON")
+	if err != nil {
+		log.FatalError(err.Error(), "Error enabling foreign keys for sqlite")
+	}
+
 	log.Info("Connection to Sqlite database opened")
 }
 
 func ConnectMariadb(username string, password string, address string, port string, dbName string) {
-	var err error
-	db, err = sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", username, password, address, port, dbName))
-	if err != nil {
-		log.FatalError(err.Error(), "Error opening mariadb connection")
-	}
+	// var err error
+	// Conn, err = gorm.Open(mysql.Open(fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", username, password, address, port, dbName)), &gorm.Config{Logger: newLogger})
+	// if err != nil {
+	// 	log.FatalError(err.Error(), "Error connecting to mariadb database")
+	// }
 
-	db.SetMaxOpenConns(100)
+	// sqlDB, _ := Conn.DB()
+	// sqlDB.SetMaxOpenConns(100)
+
+	//var err error
+	//Conn, err = sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", username, password, address, port, dbName))
+	//if err != nil {
+	//	log.FatalError(err.Error(), "Error opening mariadb connection")
+	//}
+	//
+	//Conn.SetMaxOpenConns(100)
 	log.Info("Connection to MySQL/MariaDB database opened")
 }
 
 func CloseDatabaseConnection() error {
-	fmt.Println("Closing main db connection...")
-	err := db.Close()
-	return err
+	//fmt.Println("Closing main Conn connection...")
+	//err := Conn.Close()
+	//return err
+	return nil
 }
 
 func CreateTables() {
+	//Conn.AutoMigrate(&User{}, &Token{}, &Server{}, &ServerMember{}, &Channel{}, &message{}, &ServerInvite{})
 	CreateUsersTable()
 	CreateTokensTable()
 	CreateServersTable()
 	CreateServerMembersTable()
 	CreateChannelsTable()
 	CreateChatMessagesTable()
-	CreateAttachmentsTable()
+	//CreateAttachmentsTable()
 	CreateServerInvitesTable()
+}
+
+func DatabaseErrorCheck(err error) {
+	if err != nil {
+		log.FatalError(err.Error(), "Fatal error in database")
+	}
 }
 
 func Insert(structs any) bool {
@@ -69,7 +90,7 @@ func Insert(structs any) bool {
 
 	printInsertingMsg := func() {
 		tableName = typeName + "s"
-		log.Debug("Inserting row into db table [%s]", tableName)
+		log.Trace("Inserting row into Conn table [%s]", tableName)
 	}
 
 	var err error
@@ -78,49 +99,49 @@ func Insert(structs any) bool {
 		typeName = "channel"
 		insertedItemID = s.ChannelID
 		printInsertingMsg()
-		_, err = db.Exec(insertChannelQuery, s.ChannelID, s.ServerID, s.Name)
-	case ChatMessage:
+		_, err = Conn.Exec(insertChannelQuery, s.ChannelID, s.ServerID, s.Name)
+	case Message:
 		typeName = "message"
 		insertedItemID = s.MessageID
 		printInsertingMsg()
-		_, err = db.Exec(insertChatMessageQuery, s.MessageID, s.ChannelID, s.UserID, s.Timestamp, s.Message, s.Attachments)
+		_, err = Conn.Exec(insertChatMessageQuery, s.MessageID, s.ChannelID, s.UserID, s.Message, s.Attachments)
 	case Attachment:
 		typeName = "attachment"
 		insertedItemID = s.MessageID
 		printInsertingMsg()
-		_, err = db.Exec(insertAttachmentQuery, s.FileName, s.FileExtension, s.MessageID)
+		_, err = Conn.Exec(insertAttachmentQuery, s.FileName, s.FileExtension, s.MessageID)
 	case Server:
 		typeName = "server"
 		insertedItemID = s.ServerID
 		printInsertingMsg()
-		_, err = db.Exec(insertServerQuery, s.ServerID, s.OwnerID, s.Name, s.Picture)
+		_, err = Conn.Exec(insertServerQuery, s.ServerID, s.UserID, s.Name, s.Picture)
 	case Token:
 		typeName = "token"
 		insertedItemID = s.UserID
-		_, err = db.Exec(insertTokenQuery, s.Token, s.UserID, s.Expiration)
+		_, err = Conn.Exec(insertTokenQuery, s.Token, s.UserID, s.Expiration)
 	case User:
 		typeName = "user"
 		insertedItemID = s.UserID
 		printInsertingMsg()
-		_, err = db.Exec(insertUserQuery, s.UserID, s.Username, s.DisplayName, s.Picture, s.Password, s.Totp)
+		_, err = Conn.Exec(insertUserQuery, s.UserID, s.Username, s.DisplayName, s.Picture, s.Password, s.Totp)
 	case ServerMember:
 		typeName = "server_member"
 		insertedItemID = s.UserID
 		printInsertingMsg()
-		_, err = db.Exec(insertServerMemberQuery, s.ServerID, s.UserID)
+		_, err = Conn.Exec(insertServerMemberQuery, s.ServerID, s.UserID)
 	case ServerInvite:
 		typeName = "server_invite"
 		insertedItemID = s.ServerID
 		printInsertingMsg()
-		_, err = db.Exec(insertServerInviteQuery, s.InviteID, s.ServerID, s.SingleUse, s.Expiration)
+		_, err = Conn.Exec(insertServerInviteQuery, s.InviteID, s.ServerID, s.SingleUse, s.Expiration)
 	default:
-		log.Fatal("Unknown type in db Insert: %T", s)
+		log.Fatal("Unknown type in Conn Insert: %T", s)
 	}
 
 	if err != nil {
 		if strings.Contains(err.Error(), "Error 1452") {
 			// Error 1452: Cannot add or update a child row: a foreign key constraint fails
-			log.WarnError(err.Error(), "Failed adding [%s] ID [%d] into db table [%s], it wouldn't have an owner", typeName, insertedItemID, tableName)
+			log.WarnError(err.Error(), "Failed adding [%s] ID [%d] into Conn table [%s], it wouldn't have an owner", typeName, insertedItemID, tableName)
 			return false
 		} else if strings.Contains(err.Error(), "Error 1062") {
 			// Error 1062: Duplicate entry for key
@@ -128,7 +149,7 @@ func Insert(structs any) bool {
 			return false
 		} else {
 			// unknown error
-			log.FatalError(err.Error(), "Error adding [%s] ID [%d] into db table [%s]", typeName, insertedItemID, tableName)
+			log.FatalError(err.Error(), "Error adding [%s] ID [%d] into Conn table [%s]", typeName, insertedItemID, tableName)
 			return false
 		}
 	}
@@ -147,7 +168,7 @@ func Delete(structo any) bool {
 
 	printDeletingMsg := func() {
 		tableName = typeName + "s"
-		log.Debug("Deleting row from db table [%s]", tableName)
+		log.Trace("Deleting row from Conn table [%s]", tableName)
 	}
 
 	var err error
@@ -159,7 +180,7 @@ func Delete(structo any) bool {
 		deletedItemID = s.ServerID
 		deletedItemOwnerID = s.UserID
 		printDeletingMsg()
-		result, err = db.Exec(deleteServerQuery, s.ServerID, s.UserID)
+		result, err = Conn.Exec(deleteServerQuery, s.ServerID, s.UserID)
 	case Token:
 	case User:
 	case ServerMember:
@@ -167,9 +188,9 @@ func Delete(structo any) bool {
 		deletedItemID = s.UserID
 		deletedItemOwnerID = s.ServerID
 		printDeletingMsg()
-		result, err = db.Exec(deleteServerMemberQuery, s.ServerID, s.UserID)
+		result, err = Conn.Exec(deleteServerMemberQuery, s.ServerID, s.UserID)
 	default:
-		log.Fatal("Unknown type in db Insert: [%T]", s)
+		log.Fatal("Unknown type in Conn Insert: [%T]", s)
 	}
 
 	// first check if there are errors executing the query
@@ -188,7 +209,7 @@ func Delete(structo any) bool {
 	}
 
 	if rowsAffected == 1 {
-		log.Debug("[%s] ID [%d] owned by ID [%d] was deleted from database", typeName, deletedItemID, deletedItemOwnerID)
+		log.Trace("[%s] ID [%d] owned by ID [%d] was deleted from database", typeName, deletedItemID, deletedItemOwnerID)
 		return true
 	} else if rowsAffected == 0 {
 		log.Hack("User ID [%d] doesn't own any [%s] with ID [%d]", deletedItemOwnerID, typeName, deletedItemID)

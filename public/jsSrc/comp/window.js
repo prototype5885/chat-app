@@ -304,7 +304,7 @@ function createSettingsLeftSide(windowMain, type) {
                         accountSettings.className = "account-settings"
                         mainRight.appendChild(accountSettings)
 
-                        const profilePicPath = "content/avatars/" + ownProfilePic
+                        const profilePicPath = ownProfilePic
 
 
                         accountSettings.innerHTML = `

@@ -1,4 +1,4 @@
-function addMember(userID, online, displayName, picture, status, statusText) {
+function addMember(userID, displayName, picture, online, status, statusText) {
     // create a <li> that holds the user
     const li = document.createElement("li")
     li.className = "member"
@@ -9,23 +9,35 @@ function addMember(userID, online, displayName, picture, status, statusText) {
     picContainer.style.width = "32px"
     picContainer.style.height = "32px"
 
+    if (picture === "") {
+        picture = "/content/static/default_profilepic.webp"
+    } else {
+        picture = getAvatarFullPath(picture)
+    }
+
     // create a <img> that shows profile pic on the left
     const img = document.createElement("img")
     img.className = "profile-pic"
-    img.src = getAvatarFullPath(picture)
+    img.src = picture
     img.width = 32
     img.height = 32
 
-    // create a <div> that will be a circle in the corner of profile pic to show online status
-    // const status = document.createElement("div")
-    // status.className = "user-status"
+    console.log(getAvatarFullPath(picture))
 
+    // create a <div> that will be a circle in the corner of profile pic to show online status
+    const statusDiv = document.createElement("div")
+    statusDiv.className = "user-status"
+
+    picContainer.appendChild(statusDiv)
     picContainer.appendChild(img)
-    // picContainer.appendChild(status)
 
     // create a nested <div> that will contain username and status
     const userDataDiv = document.createElement("div")
     userDataDiv.className = "user-data"
+
+    if (displayName === "") {
+        displayName = userID
+    }
 
     // create <div> that will hold the user's message
     const userNameDiv = document.createElement("div")
@@ -50,7 +62,7 @@ function addMember(userID, online, displayName, picture, status, statusText) {
     MemberList.appendChild(li)
 
     changeStatusValueInMemberList(userID, status)
-    setMemberOnline(userID, online)
+    // setMemberOnline(userID, online)
 }
 
 function removeMember(userID) {
@@ -94,13 +106,21 @@ function resetMemberList() {
 }
 
 function changeDisplayNameInMemberList(userID, newDisplayName) {
-    const user = document.getElementById(userID)
-    user.querySelector(".user-name").textContent = newDisplayName
+    try {
+        const user = document.getElementById(userID)
+        user.querySelector(".user-name").textContent = newDisplayName
+    } catch {
+        console.error(`Failed changing display name of member ID [${userID}], there is no member list loaded`)
+    }
 }
 
-function changeProfilePicInMemberList(userID, newPicture) {
-    const user = document.getElementById(userID)
-    user.querySelector(".profile-pic").src = getAvatarFullPath(newPicture)
+function changeProfilePicInMemberList(userID, pic) {
+    try {
+        const user = document.getElementById(userID)
+        user.querySelector(".profile-pic").src = getAvatarFullPath(pic)
+    } catch {
+        console.error(`Failed changing profile pic of member ID [${userID}]`)
+    }
 }
 
 function changeStatusValueInMemberList(userID, newStatus) {
@@ -148,11 +168,11 @@ function setMemberOnlineStatusText(userID, newStatusText) {
 
 function setMemberOnline(userID, online) {
     const userStatus = document.getElementById(userID).querySelector(".profile-pic-container").querySelector(".user-status")
+    const member = findMember(userID)
     if (online) {
-        findMember(userID).removeAttribute("style")
+        member.removeAttribute("style")
         userStatus.style.display = "block"
     } else {
-        const member = findMember(userID)
         member.style.filter = "grayscale(100%)"
         member.style.opacity = "0.5"
         userStatus.style.display = "none"

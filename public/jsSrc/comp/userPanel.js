@@ -1,9 +1,9 @@
-function setUserPanelName() {
-    document.getElementById("user-panel-name").textContent = ownDisplayName
+function setUserPanelName(name) {
+    document.getElementById("user-panel-name").textContent = name
 }
 
-function setUserPanelPic() {
-    document.getElementById("user-panel-pfp").src = getAvatarFullPath(ownProfilePic)
+function setUserPanelPic(pic) {
+    document.getElementById("user-panel-pfp").src = pic
 }
 
 function setUserPanelStatusText(statusText) {

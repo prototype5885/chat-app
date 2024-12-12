@@ -169,7 +169,7 @@ async function chatHistoryReceived(json) {
         // loop through the json and add each messages one by one
         for (let i = 0; i < json.length; i++) {
             // false here means these messages will be inserted before existing ones
-            addChatMessage(json[i].IDm, json[i].IDu, json[i].Msg, JSON.parse(json[i].Att), false)
+            addChatMessage(json[i].IDm, json[i].IDu, json[i].Msg, json[i].Att, false)
         }
         // only auto scroll down when entering channel, and not when
         // server sends rest of history while scrolling up manually

@@ -1,8 +1,6 @@
 package database
 
 import (
-	"database/sql"
-	"fmt"
 	log "proto-chat/modules/logging"
 )
 
@@ -10,15 +8,17 @@ type User struct {
 	UserID      uint64
 	Username    string
 	DisplayName string
+	Status      byte
+	StatusText  string
 	Picture     string
 	Password    []byte
 	Totp        string
 }
 
-const insertUserQuery string = "INSERT INTO users (user_id, username, display_name, picture, password, totp) VALUES (?, ?, ?, ?, ?, ?)"
+const insertUserQuery = "INSERT INTO users (user_id, username, display_name, password) VALUES (?, ?, ?, ?)"
 
 func CreateUsersTable() {
-	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS users (
+	_, err := Conn.Exec(`CREATE TABLE IF NOT EXISTS users (
 		user_id BIGINT UNSIGNED PRIMARY KEY NOT NULL,
 		username VARCHAR(32) NOT NULL,
 		display_name VARCHAR(64) NOT NULL,
@@ -26,7 +26,7 @@ func CreateUsersTable() {
 		status_text VARCHAR(32) NOT NULL DEFAULT '',
 		picture VARCHAR(255) NOT NULL DEFAULT '',
 		password BINARY(60) NOT NULL,
-		totp CHAR(32),
+		totp CHAR(32) NOT NULL DEFAULT '',
 		UNIQUE(username)
 	)`)
 	if err != nil {
@@ -34,137 +34,131 @@ func CreateUsersTable() {
 	}
 }
 
-//func GetDisplayname(userID uint64) string {
-//	log.Debug("Searching for field [display_name] in database using user ID [%d]...", userID)
-//	const query string = "SELECT display_name FROM users WHERE user_id = ?"
-//	var displayName string
-//	err := db.QueryRow(query, userID).Scan(&displayName)
-//	if err != nil {
-//		log.Error(err.Error())
-//		if err == sql.ErrNoRows { // there is no user with this id
-//			log.Debug("No user was found with user ID [%d]", userID)
-//			return ""
-//		}
-//		log.Fatal("Error getting field [display_name] of user ID [%d] from database", userID)
-//	}
-//	log.Debug("Display name of user ID [%d] was retrieved from database successfully", userID)
-//	return displayName
-//}
+func RegisterUser(userID uint64, username string, passwordHash []byte) {
+	log.Trace("Registering username [%s] into database as user ID [%d]", username, userID)
+	// add the new user to database
+	var user = User{
+		UserID:      userID,
+		Username:    username,
+		DisplayName: username,
+		Status:      1,
+		StatusText:  "",
+		Picture:     "",
+		Password:    passwordHash,
+		Totp:        "",
+	}
+
+	success := Insert(user)
+	if !success {
+		log.Trace("Failed to register username [%s] into database", username)
+		return
+	}
+
+	log.Trace("Successfully registered username [%s] as user ID [%d] in database", username, userID)
+}
+
+func GetDisplayName(userID uint64) string {
+	log.Trace("Searching for field [display_name] in database using user ID [%d]...", userID)
+
+	const query string = "SELECT display_name FROM users WHERE user_id = ?"
+
+	var displayName string
+	err := Conn.QueryRow(query, userID).Scan(&displayName)
+	DatabaseErrorCheck(err)
+
+	if displayName == "" {
+		log.Trace("Failed to find user ID [%d] in database", userID)
+	} else {
+		log.Trace("Display name of user ID [%d] was retrieved from database successfully", userID)
+	}
+
+	return displayName
+}
 
 func GetUsername(userID uint64) string {
-	log.Debug("Searching for field [username] in database using user ID [%d]...", userID)
+	log.Trace("Searching for field [username] in database using user ID [%d]...", userID)
+
 	const query string = "SELECT username FROM users WHERE user_id = ?"
-	var userName string
-	err := db.QueryRow(query, userID).Scan(&userName)
-	if err != nil {
-		log.Error(err.Error())
-		if err == sql.ErrNoRows { // there is no user with this id
-			log.Debug("No user was found with user ID [%d]", userID)
-			return ""
-		}
-		log.Fatal("Error getting field [username] of user ID [%d] from database", userID)
+
+	var username string
+	err := Conn.QueryRow(query, userID).Scan(&username)
+	DatabaseErrorCheck(err)
+
+	if username == "" {
+		log.Hack("Failed getting username of user ID [%d]", userID)
+	} else {
+		log.Trace("Username of user ID [%d] was retrieved from database successfully", userID)
 	}
-	log.Debug("Username of user ID [%d] was retrieved from database successfully", userID)
-	return userName
+
+	return username
 }
 
 func GetUserStatus(userID uint64) byte {
-	log.Debug("Searching for field [status] in database of user ID [%d]...", userID)
+	log.Trace("Searching for field [status] in database of user ID [%d]...", userID)
+
 	const query string = "SELECT status FROM users WHERE user_id = ?"
-	var status byte
-	err := db.QueryRow(query, userID).Scan(&status)
-	if err != nil {
-		log.Error(err.Error())
-		if err == sql.ErrNoRows { // there is no user with this id
-			log.Debug("No user was found with user ID [%d]", userID)
-			return 0
-		}
-		log.Fatal("Error getting field [status] of user ID [%d] from database", userID)
+
+	var status byte = 0
+	err := Conn.QueryRow(query, userID).Scan(&status)
+	DatabaseErrorCheck(err)
+
+	if status == 0 {
+		log.Hack("Failed getting user status of user ID [%d]", userID)
+	} else {
+		log.Trace("Status value of user ID [%d] was retrieved from database successfully", userID)
 	}
-	log.Debug("Status value of user ID [%d] was retrieved from database successfully", userID)
+
 	return status
 }
-
 func GetPasswordAndID(username string) ([]byte, uint64) {
-	log.Debug("Searching for password of user [%s] in database...", username)
-	const query string = "SELECT user_id, password FROM users WHERE username = ?"
-	var passwordHash []byte
+	log.Trace("Searching for password of user [%s] in database...", username)
+
+	const query = "SELECT FROM users (user_id, password) WHERE username = ?"
+
+	var password []byte = nil
 	var userID uint64
-	err := db.QueryRow(query, username).Scan(&userID, &passwordHash)
-	if err != nil {
-		log.Error(err.Error())
-		if err == sql.ErrNoRows {
-			log.Debug("No user was found with user [%s]", username)
-			return nil, 0
-		}
-		log.Fatal("Error getting password of user [%s] from database", username)
+	err := Conn.QueryRow(query, username).Scan(&password, &userID)
+	DatabaseErrorCheck(err)
+
+	if userID == 0 || password == nil {
+		log.Trace("Failed to find username [%s] in database", username)
+	} else {
+		log.Trace("Password and user ID of username [%s] was retrieved from database successfully", username)
 	}
-	log.Debug("Password of user  [%s] was retreived from database successfully", username)
-	return passwordHash, userID
+	return password, userID
+
 }
-
 func GetUserData(userID uint64) (string, string) {
-	log.Debug("Searching for fields [display_name] and [picture] in database of user ID [%d]...", userID)
+	log.Trace("Searching for fields [display_name] and [picture] in database of user ID [%d]...", userID)
 
-	const query string = "SELECT display_name, picture FROM users WHERE user_id = ?"
+	const query = "SELECT display_name, picture FROM users WHERE user_id = ?"
 
 	var displayName string
-	var profilePic string
+	var picture string
+	err := Conn.QueryRow(query, userID).Scan(&displayName, &picture)
+	DatabaseErrorCheck(err)
 
-	err := db.QueryRow(query, userID).Scan(&displayName, &profilePic)
-	if err != nil {
-		log.Error(err.Error())
-		if err == sql.ErrNoRows { // there is no user with this id
-			log.Debug("No user was found with user ID [%d]", userID)
-			return "", ""
-		}
-		log.Fatal("Error getting fields [display_name] and picture of user ID [%d] from database", userID)
+	if displayName == "" || picture == "" {
+		log.Trace("Failed to find username [%s] in database", userID)
+	} else {
+		log.Trace("Successfully retrieved display name and profile pic of user ID [%d]", userID)
 	}
-	log.Debug("Display name and picture of user ID [%d] were retrieved from database successfully", userID)
-	return displayName, profilePic
+
+	return displayName, picture
 }
 
-func UpdateUserRow(userID uint64, newValueStr string, newValueByte byte, fieldToUpdate string) bool {
-	var info = fmt.Sprintf("Updating field [%s] of user ID [%d] with [%s]", fieldToUpdate, userID, newValueStr)
-	log.Debug(info)
+// func UpdateUserRow(user User, userID uint64) bool {
+// 	log.Trace("Updating user row of user ID [%d]", userID)
 
-	var query = fmt.Sprintf("UPDATE users SET %s = ? WHERE user_id = ?", fieldToUpdate)
+// 	const query = "UPDATE users SET "
 
-	var result sql.Result
-	var err error
-
-	if newValueStr != "" {
-		result, err = db.Exec(query, newValueStr, userID)
-	} else {
-		result, err = db.Exec(query, newValueByte, userID)
-	}
-
-	if err != nil {
-		log.FatalError(err.Error(), "Fatal Error: "+info)
-		return false
-	}
-
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		log.FatalError(err.Error(), "Fatal Error: Getting rowsAffected in UpdateUserRow for user ID [%d]", userID)
-		return false
-	}
-
-	log.Trace("Rows affected: [%d] while updating field [%s] of user ID [%d]", rowsAffected, fieldToUpdate, userID)
-
-	if rowsAffected == 1 {
-		if newValueStr != "" {
-			log.Debug("Field [%s] of user ID [%d] was successfully changed to [%s]", fieldToUpdate, userID, newValueStr)
-		} else {
-			log.Debug("Field [%s] of user ID [%d] was successfully changed to [%d]", fieldToUpdate, userID, newValueByte)
-		}
-
-		return true
-	} else if rowsAffected == 0 {
-		log.Hack("User ID [%d] tried to change field [%s] to the same as before", userID, fieldToUpdate)
-		return false
-	} else {
-		log.Impossible("For some reason rowsAffected value is [%d] while changing field [%d] for user ID [%d], it should be only 1", fieldToUpdate, rowsAffected, userID)
-		return false
-	}
-}
+// 	result := Conn.Table("users").Where("user_id = ?", userID).Updates(user)
+// 	DatabaseErrorCheck(result.Error)
+// 	if result.RowsAffected == 1 {
+// 		log.Trace("User row of user ID [%d] was successfully updated")
+// 		return true
+// 	} else {
+// 		log.Hack("User ID [%d] failed to update their user row", userID)
+// 		return false
+// 	}
+// }

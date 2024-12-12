@@ -1,24 +1,20 @@
 package database
 
 import (
-	"database/sql"
 	log "proto-chat/modules/logging"
 )
 
 type ServerInvite struct {
-	InviteID   uint64
-	ServerID   uint64
-	SingleUse  bool
-	Expiration uint64
+	InviteID   uint64 `gorm:"primaryKey;not null"`
+	ServerID   uint64 `gorm:"not null"`
+	SingleUse  bool   `gorm:"not null"`
+	Expiration uint64 `gorm:"not null"`
 }
 
-const (
-	insertServerInviteQuery = "INSERT INTO server_invites (invite_id, server_id, single_use, expiration) VALUES (?, ?, ?, ?)"
-	deleteServerInviteQuery = "DELETE FROM server_invites WHERE invite_id = ?"
-)
+const insertServerInviteQuery = "INSERT INTO server_invites (invite_id, server_id, single_use, expiration)"
 
 func CreateServerInvitesTable() {
-	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS server_invites (
+	_, err := Conn.Exec(`CREATE TABLE IF NOT EXISTS server_invites (
 		invite_id BIGINT UNSIGNED PRIMARY KEY NOT NULL,
 		server_id BIGINT UNSIGNED NOT NULL,
 		single_use BOOLEAN NOT NULL,
@@ -36,17 +32,14 @@ func ConfirmServerInviteID(inviteID uint64) uint64 {
 	const query string = "SELECT server_id FROM server_invites WHERE invite_id = ?"
 
 	var serverID uint64
+	err := Conn.QueryRow(query, inviteID).Scan(&serverID)
+	DatabaseErrorCheck(err)
 
-	err := db.QueryRow(query, inviteID).Scan(&serverID)
-	if err != nil {
-		log.Error(err.Error())
-		if err == sql.ErrNoRows { // invite id was not found
-			log.Debug("Invite ID [%d] was not found in database", inviteID)
-			return 0
-		}
-		log.Fatal("Error retrieving invite ID [%d] from database", inviteID)
-		return 0
+	if serverID == 0 {
+		log.Debug("Invite ID [%d] was not found in database", inviteID)
+	} else {
+		log.Debug("Invite ID [%d] was found in database, it belongs to server ID [%d]", inviteID, serverID)
 	}
-	log.Debug("Invite ID [%d] was found in database, it belongs to server ID [%d]", inviteID, serverID)
+
 	return serverID
 }

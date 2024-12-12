@@ -7,28 +7,24 @@ import (
 )
 
 type Token struct {
-	Token      []byte
-	UserID     uint64
-	Expiration uint64
+	Token      []byte `gorm:"type:binary(128)"`
+	UserID     uint64 `gorm:"not null"`
+	Expiration uint64 `gorm:"not null"`
 }
 
-const (
-	insertTokenQuery = "INSERT INTO tokens (token, user_id, expiration) VALUES (?, ?, ?)"
-	deleteTokenQuery = "DELETE FROM tokens WHERE token = ?"
-)
+const insertTokenQuery = "INSERT INTO tokens (token, user_id, expiration) VALUES (?, ?, ?)"
 
 func CreateTokensTable() {
-	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS tokens (
-		token BINARY(128) PRIMARY KEY NOT NULL,
-		user_id BIGINT UNSIGNED NOT NULL,
-		expiration BIGINT UNSIGNED NOT NULL,
-		FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
-	)`)
+	_, err := Conn.Exec(`CREATE TABLE IF NOT EXISTS tokens (
+			token BINARY(128) PRIMARY KEY NOT NULL,
+			user_id BIGINT UNSIGNED NOT NULL,
+			expiration BIGINT UNSIGNED NOT NULL,
+			FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+		)`)
 	if err != nil {
 		log.FatalError(err.Error(), "Error creating tokens table")
 	}
 }
-
 func ConfirmToken(tokenBytes []byte) (uint64, uint64) {
 	log.Debug("Searching for token in database...")
 
@@ -37,7 +33,7 @@ func ConfirmToken(tokenBytes []byte) (uint64, uint64) {
 	var userID uint64
 	var expiration uint64
 
-	err := db.QueryRow(query, tokenBytes).Scan(&userID, &expiration)
+	err := Conn.QueryRow(query, tokenBytes).Scan(&userID, &expiration)
 	if err != nil {
 		log.Error(err.Error())
 		if err == sql.ErrNoRows { // token was not found
@@ -55,7 +51,7 @@ func RenewTokenExpiration(newExpiration uint64, tokenBytes []byte) {
 
 	const query string = "UPDATE tokens SET expiration = ? WHERE token = ?"
 
-	result, err := db.Exec(query, newExpiration, tokenBytes)
+	result, err := Conn.Exec(query, newExpiration, tokenBytes)
 	if err != nil {
 		log.FatalError(err.Error(), "Couldn't update token expiration timestamp for token [%s] in database", macros.ShortenToken(tokenBytes))
 	}

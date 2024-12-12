@@ -13,7 +13,11 @@ function createPlaceHolderServers() {
     return placeholderButtons
 }
 
-function addServer(serverID, ownerID, serverName, picture, className) {
+function addServer(serverID, userID, serverName, picture, className) {
+    if (serverName === "") {
+        serverName = serverID
+    }
+
     // this li will hold the server and notification thing, which is the span
     const li = document.createElement("li")
     li.className = className
@@ -23,15 +27,20 @@ function addServer(serverID, ownerID, serverName, picture, className) {
     const button = document.createElement("button")
     button.id = serverID
     button.setAttribute("name", serverName)
-
     li.append(button)
 
+    console.log(picture)
     // set picture of server
     if (picture !== "") {
+        if (serverID !== "2000") {
+            picture = "content/avatars/" + picture
+        }
         button.style.backgroundImage = `url(${picture})`
     } else {
         button.textContent = serverName[0].toUpperCase()
     }
+
+
 
     const span = document.createElement("span")
     span.className = "server-notification"
@@ -57,7 +66,7 @@ function addServer(serverID, ownerID, serverName, picture, className) {
     }
 
     var owned = false
-    if (ownerID === ownUserID) {
+    if (userID === ownUserID) {
         owned = true
     }
 

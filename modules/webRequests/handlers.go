@@ -42,7 +42,7 @@ func loginRegisterHandler(w http.ResponseWriter, r *http.Request) {
 	// check if user requesting login/registration already has a token
 	userID := CheckIfTokenIsValid(w, r)
 	if userID != 0 { // if user is trying to log in but has a token
-		log.Debug("User is trying to access /login-register but already has authorized token, redirecting to /chat.html...")
+		log.Trace("User is trying to access /login-register but already has authorized token, redirecting to /chat.html...")
 		redirect(w, r, "/chat.html")
 		return
 	}
@@ -57,7 +57,7 @@ func chatHandler(w http.ResponseWriter, r *http.Request) {
 	// check if user requesting login/registration already has a token
 	userID := CheckIfTokenIsValid(w, r)
 	if userID == 0 { // if user tries to use the chat but has no token
-		log.Debug("Someone is trying to access /chat without authorized token, redirecting to / ...")
+		log.Trace("Someone is trying to access /chat without authorized token, redirecting to / ...")
 		redirect(w, r, "/")
 	} else {
 		// serve static files
@@ -75,16 +75,8 @@ func loginRequestHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// will close body on return
-	// defer func() {
-	// 	err := r.Body.Close()
-	// 	if err != nil {
-	// 		log.Fatal("Unable to close body: %s", err)
-	// 	}
-	// }()
-
 	// print received json
-	log.Debug("Received json: %s", string(bodyBytes))
+	log.Trace("Received json from post request: %s", string(bodyBytes))
 
 	// handle different POST requests
 	if r.URL.Path == "/login" || r.URL.Path == "/register" {
@@ -99,19 +91,19 @@ func loginRequestHandler(w http.ResponseWriter, r *http.Request) {
 			log.FatalError(jsonErr.Error(), "Error serializing log/reg POST request response")
 		}
 
-		log.Debug("Response for log/reg request: %s", string(responseJsonBytes))
+		log.Trace("Response for log/reg request: %s", string(responseJsonBytes))
 		i, err := w.Write(responseJsonBytes)
 		if err != nil {
 			log.WarnError(err.Error(), "Error sending %s POST request response", r.URL.Path)
 		}
-		log.Debug("%s POST request response was sent: %d", r.URL.Path, i)
+		log.Trace("%s POST request response was sent: %d", r.URL.Path, i)
 	}
 }
 
 func inviteHandler(w http.ResponseWriter, r *http.Request) {
-	log.Debug("Received invite request")
+	log.Trace("Received invite request")
 
-	var userID uint64 = CheckIfTokenIsValid(w, r)
+	userID := CheckIfTokenIsValid(w, r)
 	if userID == 0 { // if user has no valid token
 		respondText(w, "Not logged in")
 		log.Hack("Someone without authorized token clicked on an invite link")
@@ -119,19 +111,19 @@ func inviteHandler(w http.ResponseWriter, r *http.Request) {
 	} else {
 		parts := strings.Split(r.URL.Path, "/invite/")
 		if len(parts) > 1 {
-			var inviteIDstring string = parts[len(parts)-1]
-			inviteID, err := strconv.ParseUint(inviteIDstring, 10, 64)
+			inviteIDstr := parts[len(parts)-1]
+			inviteID, err := strconv.ParseUint(inviteIDstr, 10, 64)
 			if err != nil {
 				respondText(w, "What kind of invite ID is that?")
-				log.Hack("User ID [%d] sent a server invite http request where the ID can't be parsed [%s]", userID, inviteIDstring)
+				log.Hack("User ID [%d] sent a server invite http request where the ID can't be parsed [%s]", userID, inviteIDstr)
 				return
 			}
-			log.Debug("Server invite ID is: [%d]", inviteID)
-			var serverID uint64 = database.ConfirmServerInviteID(inviteID)
+			serverID := database.ConfirmServerInviteID(inviteID)
 			if serverID != 0 {
-				if database.Insert(database.ServerMember{ServerID: serverID, UserID: userID}) {
+				success := database.Insert(database.ServerMember{ServerID: serverID, UserID: userID})
+				if success {
 					respondText(w, "Successfully joined server ID [%d]", serverID)
-					log.Debug("User ID [%d] successfully joined server ID [%d]", userID, serverID)
+					log.Trace("User ID [%d] successfully joined server ID [%d]", userID, serverID)
 					redirect(w, r, "/chat.html")
 					return
 				} else {
@@ -153,7 +145,7 @@ func uploadProfilePicHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Debug("User ID [%d] wants to change their profile pic", userID)
+	log.Trace("User ID [%d] wants to change their profile pic", userID)
 
 	err := r.ParseMultipartForm(100 << 10)
 	if err != nil {
@@ -187,11 +179,11 @@ func uploadProfilePicHandler(w http.ResponseWriter, r *http.Request) {
 
 	}
 
-	success := database.UpdateUserRow(userID, handler.Filename, 0, "picture")
-	if !success {
-		log.Warn("Failed updating profile picture of user ID [%d]", userID)
-		return
-	}
+	// success := database.UpdateUserRow(database.User{Picture: handler.Filename}, userID)
+	// if !success {
+	// 	log.Warn("Failed updating profile picture of user ID [%d]", userID)
+	// 	return
+	// }
 
 	websocket.OnProfilePicChanged(userID, handler.Filename)
 }
@@ -207,7 +199,7 @@ func uploadAttachmentHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Debug("User ID [%d] is uploading an attachment", userID)
+	log.Trace("User ID [%d] is uploading an attachment", userID)
 
 	reader, err := r.MultipartReader()
 	if err != nil {
@@ -252,9 +244,9 @@ func uploadAttachmentHandler(w http.ResponseWriter, r *http.Request) {
 
 			_, err = os.Stat(filePath)
 			if err == nil {
-				log.Debug("Attachment at path [%s] already exists", filePath)
+				log.Trace("Attachment at path [%s] already exists", filePath)
 			} else if os.IsNotExist(err) {
-				log.Debug("Attachment at path [%s] doesn't exist, creating...", filePath)
+				log.Trace("Attachment at path [%s] doesn't exist, creating...", filePath)
 				err = os.WriteFile(filePath, buf.Bytes(), 0644)
 				if err != nil {
 					log.FatalError(err.Error(), "Error writing to file:")
@@ -266,12 +258,12 @@ func uploadAttachmentHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	log.Debug("[%s] POST request response was sent", r.URL.Path)
+	log.Trace("[%s] POST request response was sent", r.URL.Path)
 
 	attachmentToken := attachments.OnAttachmentUploaded(userID, fileNames)
 	encoded := base64.StdEncoding.EncodeToString(attachmentToken)
 
-	log.Debug("Response for [%s] POST request: [%s]", r.URL.Path, encoded)
+	log.Trace("Response for [%s] POST request: [%s]", r.URL.Path, encoded)
 	w.Header().Set("Content-Type", "application/json")
 	_, err = w.Write([]byte(fmt.Sprintf(`{"AttToken":"%s"}`, encoded)))
 	if err != nil {

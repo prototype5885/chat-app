@@ -2,6 +2,7 @@ package websocket
 
 import (
 	"encoding/json"
+	"fmt"
 	"proto-chat/modules/database"
 	log "proto-chat/modules/logging"
 	"proto-chat/modules/macros"
@@ -21,14 +22,16 @@ func (c *Client) onAddChannelRequest(packetJson []byte, packetType byte) (Broadc
 	var channelRequest = AddChannelRequest{}
 
 	if err := json.Unmarshal(packetJson, &channelRequest); err != nil {
-		return BroadcastData{}, macros.ErrorDeserializing(err.Error(), jsonType, c.userID)
+		return BroadcastData{}, macros.ErrorDeserializing(err.Error(), jsonType, c.UserID)
 	}
+
+	var errorMessage = fmt.Sprintf("Error adding channel called [%s]", channelRequest.Name)
 
 	// check if client is authorized to add channel to given server
 	var ownerID uint64 = database.GetServerOwner(channelRequest.ServerID)
-	if ownerID != c.userID {
-		log.Hack("User [%d] is trying to add a channel to server ID [%d] that they dont own", c.userID, channelRequest.ServerID)
-		return BroadcastData{}, macros.RespondFailureReason("Error adding channel called [%s]", channelRequest.Name)
+	if ownerID != c.UserID {
+		log.Hack("User [%d] is trying to add a channel to server ID [%d] that they dont own", c.UserID, channelRequest.ServerID)
+		return BroadcastData{}, macros.RespondFailureReason(errorMessage)
 	}
 
 	var channelID uint64 = snowflake.Generate()
@@ -40,11 +43,12 @@ func (c *Client) onAddChannelRequest(packetJson []byte, packetType byte) (Broadc
 		Name:      channelRequest.Name,
 	}
 
-	if !database.Insert(channel) {
-		return BroadcastData{}, macros.RespondFailureReason("Error adding channel called [%s]", channelRequest.Name)
+	success := database.Insert(channel)
+	if !success {
+		return BroadcastData{}, macros.RespondFailureReason(errorMessage)
 	}
 
-	type ChannelResponse struct { // this is whats sent to the client when client requests channel
+	type ChannelResponse struct { // this is what's sent to the client when client requests channel
 		ChannelID string
 		Name      string
 	}
@@ -57,7 +61,7 @@ func (c *Client) onAddChannelRequest(packetJson []byte, packetType byte) (Broadc
 
 	messagesBytes, err := json.Marshal(channelResponse)
 	if err != nil {
-		macros.ErrorSerializing(err.Error(), jsonType, c.userID)
+		macros.ErrorSerializing(err.Error(), jsonType, c.UserID)
 	}
 
 	return BroadcastData{
@@ -78,12 +82,12 @@ func (c *Client) onChannelListRequest(packetJson []byte) []byte {
 	var channelListRequest ChannelListRequest
 
 	if err := json.Unmarshal(packetJson, &channelListRequest); err != nil {
-		macros.ErrorDeserializing(err.Error(), jsonType, c.userID)
+		macros.ErrorDeserializing(err.Error(), jsonType, c.UserID)
 	}
 
 	var serverID uint64 = channelListRequest.ServerID
 
-	var isMember bool = database.ConfirmServerMembership(c.userID, serverID)
+	var isMember bool = database.ConfirmServerMembership(c.UserID, serverID)
 	if isMember {
 		c.setCurrentServerID(serverID)
 		var jsonBytes []byte = database.GetChannelList(serverID)

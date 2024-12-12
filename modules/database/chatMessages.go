@@ -8,96 +8,102 @@ import (
 	"proto-chat/modules/snowflake"
 )
 
-type ChatMessage struct {
-	MessageID   uint64
-	ChannelID   uint64
-	UserID      uint64
-	Timestamp   uint64
+type Message struct {
+	MessageID uint64
+	ChannelID uint64
+	UserID    uint64
+	// Timestamp   uint64
 	Message     string
 	Attachments []byte
 }
 
-const (
-	insertChatMessageQuery = "INSERT INTO messages (message_id, channel_id, user_id, timestamp, message, attachments) VALUES (?, ?, ?, ?, ?, ?)"
-	deleteChatMessageQuery = "DELETE FROM messages WHERE message_id = ? AND user_id = ?"
-)
+type ChatMessageHistory struct {
+	IDm uint64
+	IDu uint64
+	Msg string
+	Att []string
+}
+
+const insertChatMessageQuery = "INSERT INTO messages (message_id, channel_id, user_id, message, attachments) VALUES (?, ?, ?, ?, ?)"
 
 func CreateChatMessagesTable() {
-	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS messages (
-		message_id BIGINT UNSIGNED PRIMARY KEY NOT NULL,
-		channel_id BIGINT UNSIGNED NOT NULL,
-		user_id BIGINT UNSIGNED NOT NULL,
-		timestamp BIGINT UNSIGNED NOT NULL,
-		message TEXT NOT NULL,
-		attachments BLOB,
-		FOREIGN KEY (channel_id) REFERENCES channels(channel_id) ON DELETE CASCADE,
-		FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
-	)`)
+	_, err := Conn.Exec(`CREATE TABLE IF NOT EXISTS messages (
+			message_id BIGINT UNSIGNED PRIMARY KEY NOT NULL,
+			channel_id BIGINT UNSIGNED NOT NULL,
+			user_id BIGINT UNSIGNED NOT NULL,
+			message TEXT NOT NULL,
+			attachments BLOB,
+			FOREIGN KEY (channel_id) REFERENCES channels(channel_id) ON DELETE CASCADE,
+			FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+		)`)
 	if err != nil {
 		log.FatalError(err.Error(), "Error creating messages table")
 	}
 }
-
-func AddChatMessage(userID uint64, channelID uint64, message string, filenames []string) bool {
-	snowflakeID := snowflake.Generate()
-
+func AddChatMessage(userID uint64, channelID uint64, chatMessage string, filenames []string) bool {
+	var filenamesJson []byte = nil
 	if len(filenames) > 0 {
-		filenamesJson, err := json.Marshal(filenames)
+		var err error
+		filenamesJson, err = json.Marshal(filenames)
 		if err != nil {
-			macros.ErrorSerializing(err.Error(), "add chat message", userID)
+			macros.ErrorSerializing(err.Error(), "add chat chatMessage", userID)
 		}
-
-		Insert(ChatMessage{
-			MessageID:   snowflakeID,
-			ChannelID:   channelID,
-			UserID:      userID,
-			Timestamp:   snowflake.ExtractTimestamp(snowflakeID),
-			Message:     message,
-			Attachments: filenamesJson,
-		})
-	} else {
-		Insert(ChatMessage{
-			MessageID:   snowflakeID,
-			ChannelID:   channelID,
-			UserID:      userID,
-			Timestamp:   snowflake.ExtractTimestamp(snowflakeID),
-			Message:     message,
-			Attachments: nil,
-		})
+	}
+	success := Insert(Message{
+		MessageID:   snowflake.Generate(),
+		ChannelID:   channelID,
+		UserID:      userID,
+		Message:     chatMessage,
+		Attachments: filenamesJson,
+	})
+	if !success {
+		return false
 	}
 
 	return true
 }
 
 func GetChatHistory(channelID uint64, fromMessageID uint64, older bool, userID uint64) []byte {
-	log.Debug("Getting chat message history of channel ID [%d] from database...", channelID)
+	log.Debug("Retrieving chat message history of channel ID [%d] from database...", channelID)
 
-	const query string = `
-		SELECT JSON_ARRAYAGG(JSON_OBJECT(
-			'IDm', CAST(message_id AS CHAR),
-			'IDu', CAST(user_id AS CHAR),
-			'Msg', message,
-		    'Att', attachments
-		)) AS json_result
-		FROM (
-			SELECT message_id, user_id, message, attachments
+	const query = `SELECT message_id, user_id, message, attachments
 			FROM messages
 			WHERE channel_id = ? AND (message_id < ? OR ? = 0)
-			ORDER BY timestamp DESC
-			LIMIT 50
-		) AS messages_chunk;
-	`
+			ORDER BY message_id DESC
+			LIMIT 50`
 
-	var jsonResult []byte
-	err := db.QueryRow(query, channelID, fromMessageID, fromMessageID).Scan(&jsonResult)
-	if err != nil {
-		log.FatalError(err.Error(), "Error getting chat history of channel ID [%d] for user ID [%d]", channelID, userID)
+	rows, err := Conn.Query(query, channelID, fromMessageID, fromMessageID)
+	DatabaseErrorCheck(err)
+
+	var chatMessageHistory []ChatMessageHistory
+	var counter int
+	for rows.Next() {
+		var cm ChatMessageHistory
+		var attachmentsJson []byte
+
+		err := rows.Scan(&cm.IDm, &cm.IDu, &cm.Msg, &attachmentsJson)
+		DatabaseErrorCheck(err)
+
+		if attachmentsJson != nil {
+			err = json.Unmarshal(attachmentsJson, &cm.Att)
+			if err != nil {
+				log.FatalError(err.Error(), "Error deserializing message attachments retrieved from database of message ID [%d]", cm.IDm)
+			}
+		}
+
+		chatMessageHistory = append(chatMessageHistory, cm)
+		counter++
 	}
+	DatabaseErrorCheck(rows.Err())
 
-	if len(jsonResult) == 0 {
+	if counter == 0 {
 		log.Trace("Channel ID [%d] does not have any messages or user reached top of chat", channelID)
 		return nullJson
+	} else {
+		log.Trace("Retrieved [%d] messages from channel ID [%d]", counter, channelID)
 	}
+
+	jsonResult, _ := json.Marshal(chatMessageHistory)
 
 	return jsonResult
 }
@@ -107,13 +113,14 @@ func DeleteChatMessage(messageID uint64, userID uint64) uint64 {
 
 	var channelID uint64
 	const query string = "DELETE FROM messages WHERE message_id = ? AND user_id = ? RETURNING channel_id"
-	err := db.QueryRow(query, messageID, userID).Scan(&channelID)
+	err := Conn.QueryRow(query, messageID, userID).Scan(&channelID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			log.Hack("There is no message ID [%d] owned by user ID [%d]", messageID, userID)
 			return 0
 		}
-		log.FatalError(err.Error(), "Error deleting message ID [%d] on the request of user ID [%d]", messageID, userID)
+		DatabaseErrorCheck(err)
+		// log.FatalError(err.Error(), "Error deleting message ID [%d] on the request of user ID [%d]", messageID, userID)
 	}
 	return channelID
 }

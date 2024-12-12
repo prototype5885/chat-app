@@ -169,22 +169,7 @@ func registerUser(username string, passwordBytes []byte) (uint64, structs.Result
 	//printWithName(username, totpResult.Message)
 
 	// add the new user to database
-	var user = database.User{
-		UserID:      userID,
-		Username:    username,
-		DisplayName: "placeholder name",
-		Picture:     "default_profilepic.webp",
-		Password:    passwordHash,
-		Totp:        "",
-	}
-
-	newUserResult := database.Insert(user)
-	if !newUserResult {
-		return 0, structs.Result{
-			Success: false,
-			Message: "Registration failed",
-		}
-	}
+	database.RegisterUser(userID, username, passwordHash)
 
 	// return the Success
 	return userID, structs.Result{
@@ -200,8 +185,7 @@ func loginUser(username string, passwordBytes []byte) uint64 {
 
 	// get the password hash from the database
 	passwordHash, userID := database.GetPasswordAndID(username)
-	if passwordHash == nil {
-		log.Warn("No user was found with username [%s]", username)
+	if passwordHash == nil || userID == 0 {
 		return 0
 	}
 
@@ -253,7 +237,10 @@ func newToken(userID uint64) database.Token {
 	}
 
 	// add the newly generated token into the database
-	database.Insert(token)
+	success := database.Insert(token)
+	if !success {
+		return token
+	}
 
 	// return the new token
 	return token

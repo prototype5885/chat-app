@@ -25,3 +25,4 @@ add more stuff to userChanges.go
 adding chat message should be a multi transaction
 check if user can send message to server or request messages from server they are not in
 cache joined servers too next to database
+check if username is already taken

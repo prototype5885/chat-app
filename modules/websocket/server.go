@@ -20,10 +20,10 @@ func (c *Client) onAddServerRequest(packetJson []byte) []byte {
 	var addServerRequest = AddServerRequest{}
 
 	if err := json.Unmarshal(packetJson, &addServerRequest); err != nil {
-		return macros.ErrorDeserializing(err.Error(), jsonType, c.userID)
+		return macros.ErrorDeserializing(err.Error(), jsonType, c.UserID)
 	}
 
-	var server database.Server = database.AddNewServer(c.userID, addServerRequest.Name, "default_serverpic.webp")
+	var server database.Server = database.AddNewServer(c.UserID, addServerRequest.Name, "default_serverpic.webp")
 
 	type ServerResponse struct {
 		ServerID string
@@ -34,14 +34,14 @@ func (c *Client) onAddServerRequest(packetJson []byte) []byte {
 
 	var serverResponse = ServerResponse{
 		ServerID: strconv.FormatUint(server.ServerID, 10),
-		OwnerID:  strconv.FormatUint(server.OwnerID, 10),
+		OwnerID:  strconv.FormatUint(server.UserID, 10),
 		Name:     server.Name,
 		Picture:  server.Picture,
 	}
 
 	messagesBytes, err := json.Marshal(serverResponse)
 	if err != nil {
-		macros.ErrorSerializing(err.Error(), jsonType, c.userID)
+		macros.ErrorSerializing(err.Error(), jsonType, c.UserID)
 	}
 	return macros.PreparePacket(21, messagesBytes)
 }
@@ -63,21 +63,21 @@ func (c *Client) onServerDeleteRequest(jsonBytes []byte, packetType byte) Broadc
 
 	if err := json.Unmarshal(jsonBytes, &serverDeleteRequest); err != nil {
 		return BroadcastData{
-			MessageBytes: macros.ErrorDeserializing(err.Error(), jsonType, c.userID),
+			MessageBytes: macros.ErrorDeserializing(err.Error(), jsonType, c.UserID),
 		}
 	}
 
-	var serverToDelete = database.ServerDeletion{
-		ServerID: serverDeleteRequest.ServerID,
-		UserID:   c.userID,
-	}
+	//var serverToDelete = database.ServerDeletion{
+	//	ServerID: serverDeleteRequest.ServerID,
+	//	UserID:   c.userID,
+	//}
 
-	success := database.Delete(serverToDelete)
-	if !success {
-		return BroadcastData{
-			MessageBytes: macros.RespondFailureReason("Couldn't delete server"),
-		}
-	}
+	//success := database.Delete(serverToDelete)
+	//if !success {
+	//	return BroadcastData{
+	//		MessageBytes: macros.RespondFailureReason("Couldn't delete server"),
+	//	}
+	//}
 
 	type ServerDeletionResponse struct {
 		ServerID string
@@ -86,12 +86,12 @@ func (c *Client) onServerDeleteRequest(jsonBytes []byte, packetType byte) Broadc
 
 	var serverDeletionResponse = ServerDeletionResponse{
 		ServerID: strconv.FormatUint(serverDeleteRequest.ServerID, 10),
-		UserID:   strconv.FormatUint(c.userID, 10),
+		UserID:   strconv.FormatUint(c.UserID, 10),
 	}
 
 	messagesBytes, err := json.Marshal(serverDeletionResponse)
 	if err != nil {
-		macros.ErrorSerializing(err.Error(), jsonType, c.userID)
+		macros.ErrorSerializing(err.Error(), jsonType, c.UserID)
 	}
 
 	return BroadcastData{
@@ -113,7 +113,7 @@ func (c *Client) onServerInviteRequest(packetJson []byte) []byte {
 	var serverInviteRequest = ServerInviteRequest{}
 
 	if err := json.Unmarshal(packetJson, &serverInviteRequest); err != nil {
-		return macros.ErrorDeserializing(err.Error(), jsonType, c.userID)
+		return macros.ErrorDeserializing(err.Error(), jsonType, c.UserID)
 	}
 
 	var inviteID uint64 = snowflake.Generate()
@@ -125,13 +125,14 @@ func (c *Client) onServerInviteRequest(packetJson []byte) []byte {
 		Expiration: uint64(serverInviteRequest.Expiration),
 	}
 
-	if !database.Insert(serverInvite) {
-		log.Fatal("Error creating invite for server ID [%d] for user ID [%d]", serverInviteRequest.ServerID, c.userID)
+	success := database.Insert(serverInvite)
+	if !success {
+		log.Fatal("Error creating invite for server ID [%d] for user ID [%d]", serverInviteRequest.ServerID, c.UserID)
 	}
 
 	messagesBytes, err := json.Marshal(strconv.FormatUint(inviteID, 10))
 	if err != nil {
-		macros.ErrorSerializing(err.Error(), jsonType, c.userID)
+		macros.ErrorSerializing(err.Error(), jsonType, c.UserID)
 	}
 	return macros.PreparePacket(24, messagesBytes)
 }

@@ -49,23 +49,23 @@ func (c *Client) onChatMessageRequest(packetJson []byte, packetType byte) (Broad
 	var chatMessageRequest ClientChatMsg
 
 	if err := json.Unmarshal(packetJson, &chatMessageRequest); err != nil {
-		return BroadcastData{}, macros.ErrorDeserializing(err.Error(), jsonType, c.userID)
+		return BroadcastData{}, macros.ErrorDeserializing(err.Error(), jsonType, c.UserID)
 	}
 
 	var rejectMessage = fmt.Sprintf("Denied sending chat message to channel ID [%d]", chatMessageRequest.ChannelID)
 
 	// check if user is member of the server which the channel belongs to
-	var serverID uint64 = database.GetServerOfChannel(chatMessageRequest.ChannelID)
+	var serverID uint64 = database.GetServerIdOfChannel(chatMessageRequest.ChannelID)
 	if serverID == 0 {
 		return BroadcastData{}, macros.RespondFailureReason(rejectMessage)
 	}
-	if !database.ConfirmServerMembership(c.userID, serverID) {
+	if !database.ConfirmServerMembership(c.UserID, serverID) {
 		return BroadcastData{}, macros.RespondFailureReason(rejectMessage)
 	}
 
 	attachmentToken, err := base64.StdEncoding.DecodeString(chatMessageRequest.AttTok)
 	if err != nil {
-		log.Hack("User ID [%d] sent an attachmentToken base64 string that can't be decoded", c.userID)
+		log.Hack("User ID [%d] sent an attachmentToken base64 string that can't be decoded", c.UserID)
 		return BroadcastData{}, macros.RespondFailureReason(rejectMessage)
 	}
 
@@ -76,12 +76,12 @@ func (c *Client) onChatMessageRequest(packetJson []byte, packetType byte) (Broad
 
 	var messageID = snowflake.Generate()
 
-	success := database.AddChatMessage(c.userID, chatMessageRequest.ChannelID, chatMessageRequest.Message, fileNames)
+	success := database.AddChatMessage(c.UserID, chatMessageRequest.ChannelID, chatMessageRequest.Message, fileNames)
 	if !success {
 		return BroadcastData{}, macros.RespondFailureReason(rejectMessage)
 	}
 
-	jsonBytes := SerializeChatMessage(messageID, c.userID, chatMessageRequest.Message, fileNames)
+	jsonBytes := SerializeChatMessage(messageID, c.UserID, chatMessageRequest.Message, fileNames)
 
 	return BroadcastData{
 		MessageBytes:    macros.PreparePacket(1, jsonBytes),
@@ -92,8 +92,6 @@ func (c *Client) onChatMessageRequest(packetJson []byte, packetType byte) (Broad
 
 // when client is requesting chat history for a channel, type 2
 func (c *Client) onChatHistoryRequest(packetJson []byte, packetType byte) []byte {
-	const jsonType string = "chat history"
-
 	type ChatHistoryRequest struct {
 		ChannelID     uint64
 		FromMessageID uint64
@@ -103,21 +101,22 @@ func (c *Client) onChatHistoryRequest(packetJson []byte, packetType byte) []byte
 	var req ChatHistoryRequest
 
 	if err := json.Unmarshal(packetJson, &req); err != nil {
-		return macros.ErrorDeserializing(err.Error(), jsonType, c.userID)
+		return macros.ErrorDeserializing(err.Error(), "chat history", c.UserID)
 	}
 
+	const rejectionMessage = "Denied chat history request"
 	// check if user is member of server channel is part of
-	var serverID uint64 = database.GetServerOfChannel(req.ChannelID)
+	serverID := database.GetServerIdOfChannel(req.ChannelID)
 	if serverID == 0 {
-		return nil
+		return macros.RespondFailureReason(rejectionMessage)
 	}
-	if !database.ConfirmServerMembership(c.userID, serverID) {
-		return nil
+	if !database.ConfirmServerMembership(c.UserID, serverID) {
+		return macros.RespondFailureReason(rejectionMessage)
 	}
 
-	var jsonBytes []byte = database.GetChatHistory(req.ChannelID, req.FromMessageID, req.Older, c.userID)
+	var jsonBytes []byte = database.GetChatHistory(req.ChannelID, req.FromMessageID, req.Older, c.UserID)
 	if jsonBytes == nil {
-		return macros.RespondFailureReason("Denied chat history request")
+		return macros.RespondFailureReason(rejectionMessage)
 	}
 
 	c.setCurrentChannelID(req.ChannelID)
@@ -137,20 +136,20 @@ func (c *Client) onChatMessageDeleteRequest(packetJson []byte, packetType byte) 
 
 	if err := json.Unmarshal(packetJson, &messageDeleteRequest); err != nil {
 		return BroadcastData{
-			MessageBytes: macros.ErrorDeserializing(err.Error(), jsonType, c.userID),
+			MessageBytes: macros.ErrorDeserializing(err.Error(), jsonType, c.UserID),
 		}, nil
 	}
 
 	// get the channel ID where the message was deleted,
 	// so can broadcoast it to affected Clients
-	var channelID uint64 = database.DeleteChatMessage(messageDeleteRequest.MessageID, c.userID)
+	var channelID uint64 = database.DeleteChatMessage(messageDeleteRequest.MessageID, c.UserID)
 	if channelID == 0 {
 		return BroadcastData{}, macros.RespondFailureReason("Denied to delete chat message")
 	}
 
 	responseBytes, err := json.Marshal(strconv.FormatUint(messageDeleteRequest.MessageID, 10))
 	if err != nil {
-		macros.ErrorSerializing(err.Error(), jsonType, c.userID)
+		macros.ErrorSerializing(err.Error(), jsonType, c.UserID)
 	}
 
 	return BroadcastData{

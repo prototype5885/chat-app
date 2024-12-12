@@ -1,8 +1,9 @@
 package database
 
 import (
-	"database/sql"
+	"encoding/json"
 	log "proto-chat/modules/logging"
+	"proto-chat/modules/macros"
 )
 
 type Channel struct {
@@ -11,59 +12,62 @@ type Channel struct {
 	Name      string
 }
 
-const (
-	insertChannelQuery = "INSERT INTO channels (channel_id, server_id, name) VALUES (?, ?, ?)"
-	deleteChannelQuery = "DELETE FROM channels WHERE channel_id = ?"
-)
+const insertChannelQuery = "INSERT INTO channels (channel_id, server_id, name) VALUES (?, ?, ?)"
 
 func CreateChannelsTable() {
-	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS channels (
-		channel_id BIGINT UNSIGNED PRIMARY KEY NOT NULL,
-		server_id BIGINT UNSIGNED NOT NULL,
-		name TEXT NOT NULL,
-		FOREIGN KEY (server_id) REFERENCES servers(server_id) ON DELETE CASCADE
-	)`)
+	_, err := Conn.Exec(`CREATE TABLE IF NOT EXISTS channels (
+			channel_id BIGINT UNSIGNED PRIMARY KEY NOT NULL,
+			server_id BIGINT UNSIGNED NOT NULL,
+			name TEXT NOT NULL,
+			FOREIGN KEY (server_id) REFERENCES servers(server_id) ON DELETE CASCADE
+		)`)
 	if err != nil {
 		log.FatalError(err.Error(), "Error creating channels table")
 	}
 }
-
 func GetChannelList(serverID uint64) []byte {
-	log.Debug("Getting channel list of server ID [%d] from database...", serverID)
+	log.Trace("Getting channels of server ID [%d] from database...", serverID)
 
-	const query string = `
-		SELECT JSON_ARRAYAGG(JSON_OBJECT(
-            'ChannelID', CAST(channel_id AS CHAR),
-            'Name', name
-        )) AS json_result
-        FROM channels
-        WHERE server_id = ?
-	`
+	const query string = "SELECT * FROM channels WHERE server_id = ?"
 
-	var jsonResult []byte
-	err := db.QueryRow(query, serverID).Scan(&jsonResult)
-	if err != nil {
-		log.FatalError(err.Error(), "Error getting channel list of server ID [%d]", serverID)
+	rows, err := Conn.Query(query, serverID)
+	DatabaseErrorCheck(err)
+
+	var channels []Channel
+	for rows.Next() {
+		var channel Channel
+		err := rows.Scan(&channel.ChannelID, &channel.ServerID, &channel.Name)
+		DatabaseErrorCheck(err)
+		channels = append(channels, channel)
 	}
 
-	if len(jsonResult) == 0 {
+	if len(channels) == 0 {
+		log.Trace("Server ID [%d] does't have any channels")
 		return nullJson
+	}
+
+	jsonResult, err := json.Marshal(channels)
+	if err != nil {
+		macros.ErrorSerializing(err.Error(), "channel list", serverID)
 	}
 
 	return jsonResult
 }
 
-func GetServerOfChannel(channelID uint64) uint64 {
-	var serverID uint64
+func GetServerIdOfChannel(channelID uint64) uint64 {
 	log.Trace("Getting which server channel ID [%d] belongs to", channelID)
-	err := db.QueryRow("SELECT server_id FROM channels WHERE channel_id = ?", channelID).Scan(&serverID)
-	if err != nil {
-		log.Error(err.Error())
-		if err == sql.ErrNoRows {
-			log.Warn("Channel ID [%d] doesn't belong to any server", channelID)
-			return 0
-		}
-		log.Fatal("Error getting which server channel ID [%d] belongs to", channelID)
+
+	const query = "SELECT server_id FROM channels WHERE channel_id = ?"
+
+	var serverID uint64
+	err := Conn.QueryRow(query, channelID).Scan(&serverID)
+	DatabaseErrorCheck(err)
+
+	if serverID == 0 {
+		log.Trace("Channel ID [%d] does not belong to any server", channelID)
+	} else {
+		log.Trace("Channel ID [%d] belongs to server ID [%d]", channelID, serverID)
 	}
+
 	return serverID
 }

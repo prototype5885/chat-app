@@ -34,6 +34,7 @@ let reachedBeginningOfChannel = false
 
 // let imageHost = "http://localhost:8000/"
 let imageHost = ""
+const defaultProfilePic = "/content/static/default_profilepic.webp"
 
 function waitUntilBoolIsTrue(checkFunction, interval = 10) {
     return new Promise((resolve) => {
@@ -48,6 +49,42 @@ function waitUntilBoolIsTrue(checkFunction, interval = 10) {
 
 function getAvatarFullPath(pic) {
     return imageHost + "/content/avatars/" + pic
+}
+
+function setProfilePic(userID, pic) {
+    if (pic === "") {
+        pic = defaultProfilePic
+    } else {
+        pic = getAvatarFullPath(pic)
+    }
+
+    if (userID === ownUserID) {
+        ownProfilePic = pic
+        setUserPanelPic(pic)
+    }
+
+    changeProfilePicInMemberList(userID, pic)
+}
+
+function setDisplayName(userID, name) {
+    if (name === "") {
+        name = userID
+    }
+
+    if (userID === ownUserID) {
+        ownDisplayName = name
+        setUserPanelName(name)
+    }
+    changeDisplayNameInMemberList(userID, name)
+    changeDisplayNameInChatMessageList(userID, name)
+}
+
+function fixJson(jsonString) {
+    const valueNames = ["ChannelID", "UserID", "MessageID", "ServerID", "IDm", "IDu"]
+    for (let i = 0; i < valueNames.length; i++) {
+        jsonString = jsonString.replace(new RegExp(`"${valueNames[i]}":(\\d+)`, 'g'), (match, p1) => `"${valueNames[i]}":"${p1}"`)
+    }
+    return JSON.parse(jsonString)
 }
 
 function main() {
@@ -78,8 +115,6 @@ function main() {
         // wait until the address is received
         console.log("Waiting for server to send image host address..")
         await waitUntilBoolIsTrue(() => receivedImageHostAddress)
-
-        setUserPanelPic()
 
         // remove placeholder servers
         for (let i = 0; i < placeholderButtons.length; i++) {
