@@ -2,6 +2,7 @@ package database
 
 import (
 	log "proto-chat/modules/logging"
+	"time"
 )
 
 type ServerMember struct {
@@ -34,10 +35,9 @@ func CreateServerMembersTable() {
 	}
 }
 
-func GetServerMembersList(serverID uint64, userID uint64) []MemberInfo {
-	log.Trace("Getting list of members of server ID [%d] for user ID [%d]...", serverID, userID)
-
+func GetServerMembersList(serverID uint64) []MemberInfo {
 	const query = "SELECT u.user_id, u.display_name, u.picture, u.status, u.status_text FROM users u JOIN server_members sm ON u.user_id = sm.user_id WHERE sm.server_id = ?"
+	log.Query(query, serverID)
 
 	rows, err := Conn.Query(query, serverID)
 	DatabaseErrorCheck(err)
@@ -56,17 +56,14 @@ func GetServerMembersList(serverID uint64, userID uint64) []MemberInfo {
 		log.Hack("Server ID [%d] has no members", serverID)
 	}
 
-	log.Trace("Members of server ID [%d] for user ID [%d] were retrieved successfully", serverID, userID)
-
+	log.Trace("Members of server ID [%d] were retrieved successfully", serverID)
 	return members
 }
 func ConfirmServerMembership(userID uint64, serverID uint64) bool {
-	log.Trace("Searching for user ID [%d] in server ID [%d]...", userID, serverID)
-
 	const query string = "SELECT EXISTS (SELECT 1 FROM server_members WHERE server_id = ? AND user_id = ?)"
+	log.Query(query, serverID, userID)
 
 	var isMember bool = false
-
 	err := Conn.QueryRow(query, serverID, userID).Scan(&isMember)
 	DatabaseErrorCheck(err)
 
@@ -75,18 +72,14 @@ func ConfirmServerMembership(userID uint64, serverID uint64) bool {
 	} else {
 		log.Hack("User ID [%d] is not a member of server ID [%d]", userID, serverID)
 	}
+
 	return isMember
 }
 
 func GetJoinedServersList(userID uint64) []uint64 {
-	log.Trace("Getting list of server IDs where user ID [%d] is joined", userID)
-
-	const query string = `
-		SELECT s.server_id
-		FROM servers s
-		JOIN server_members m ON s.server_id = m.server_id
-		WHERE m.user_id = ?
-		`
+	start := time.Now().UnixMicro()
+	const query string = "SELECT s.server_idFROM servers sJOIN server_members m ON s.server_id = m.server_idWHERE m.user_id = ?"
+	log.Query(query, userID)
 
 	rows, err := Conn.Query(query, userID)
 	DatabaseErrorCheck(err)
@@ -104,5 +97,6 @@ func GetJoinedServersList(userID uint64) []uint64 {
 	} else {
 		log.Trace("Successfully retrieved list of servers where user ID [%d] is joined", userID)
 	}
+	measureTime(start)
 	return serverIDs
 }

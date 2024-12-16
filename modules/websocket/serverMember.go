@@ -21,7 +21,7 @@ func (c *Client) onServerMemberListRequest(packetJson []byte) []byte {
 		macros.ErrorDeserializing(err.Error(), "member list request", c.UserID)
 	}
 
-	members := database.GetServerMembersList(memberListRequest.ServerID, c.UserID)
+	members := database.GetServerMembersList(memberListRequest.ServerID)
 
 	for i := 0; i < len(members); i++ {
 		members[i].Online = c.CheckIfUserIsOnline()
@@ -75,15 +75,6 @@ func (c *Client) onLeaveServerRequest(packetJson []byte) (BroadcastData, []byte)
 			MessageBytes: macros.ErrorDeserializing(err.Error(), jsonType, c.UserID),
 		}, nil
 	}
-
-	//var serverMember = database.ServerMember{
-	//	ServerID: leaveServerRequest.ServerID,
-	//	UserID:   c.userID,
-	//}
-
-	//if !database.Delete(serverMember) {
-	//	return BroadcastData{}, macros.RespondFailureReason("Couldn't leave server")
-	//}
 
 	type ServerMemberDeletionResponse struct {
 		ServerID string

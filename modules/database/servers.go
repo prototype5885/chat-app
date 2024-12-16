@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	log "proto-chat/modules/logging"
 	"proto-chat/modules/snowflake"
+	"time"
 )
 
 type Server struct {
@@ -34,9 +35,9 @@ func CreateServersTable() {
 	}
 }
 func GetServerList(userID uint64) []byte {
-	log.Trace("Getting joined server list of user ID [%d]...", userID)
-
+	start := time.Now().UnixMicro()
 	const query = "SELECT s.* FROM servers s JOIN server_members m ON s.server_id = m.server_id WHERE m.user_id = ?"
+	log.Query(query, userID)
 
 	rows, err := Conn.Query(query, userID)
 	DatabaseErrorCheck(err)
@@ -54,12 +55,14 @@ func GetServerList(userID uint64) []byte {
 	}
 
 	jsonResult, _ := json.Marshal(servers)
+
+	measureTime(start)
 	return jsonResult
 }
 func GetServerOwner(serverID uint64) uint64 {
-	log.Trace("Getting owner of server ID [%d]...", serverID)
-
+	start := time.Now().UnixMicro()
 	const query = "SELECT user_id FROM servers WHERE server_id = ?"
+	log.Query(query, serverID)
 
 	var ownerID uint64
 	err := Conn.QueryRow(query, serverID).Scan(&ownerID)
@@ -71,46 +74,35 @@ func GetServerOwner(serverID uint64) uint64 {
 		log.Trace("Owner of server ID [%d] is: [%d]", serverID, ownerID)
 	}
 
+	measureTime(start)
 	return ownerID
 }
 
-func AddNewServer(userID uint64, name string, picture string) Server {
+func AddNewServer(userID uint64, name string, picture string) uint64 {
+	tx, err := Conn.Begin()
+	transactionErrorCheck(err)
+
+	defer tx.Rollback()
+
+	// insert server
 	var serverID uint64 = snowflake.Generate()
+	log.Query(insertServerQuery, serverID, userID, name, picture)
+	_, err = tx.Exec(insertServerQuery, serverID, userID, name, picture)
+	transactionErrorCheck(err)
 
-	var server = Server{
-		ServerID: serverID,
-		UserID:   userID,
-		Name:     name,
-		Picture:  picture,
-	}
+	// insert default channel
+	var channelID uint64 = snowflake.Generate()
+	log.Query(insertChannelQuery, channelID, serverID, defaultChannelName)
+	_, err = tx.Exec(insertChannelQuery, channelID, serverID, defaultChannelName)
+	transactionErrorCheck(err)
 
-	// err := Conn.Transaction(func(tx *gorm.DB) error {
-	// 	var err error
-	// 	// create server
-	// 	err = tx.Create(&server).Error
-	// 	DatabaseErrorCheck(err)
+	// insert creator as server member
+	log.Query(insertServerMemberQuery, serverID, userID)
+	_, err = tx.Exec(insertServerMemberQuery, serverID, userID)
+	transactionErrorCheck(err)
 
-	// 	// create channel
-	// 	var channel = Channel{
-	// 		ChannelID: snowflake.Generate(),
-	// 		ServerID:  server.ServerID,
-	// 		Name:      "Default Channel",
-	// 	}
+	err = tx.Commit()
+	transactionErrorCheck(err)
 
-	// 	err = tx.Create(&channel).Error
-	// 	DatabaseErrorCheck(err)
-
-	// 	// add owner user to server
-	// 	var member = ServerMember{
-	// 		ServerID: server.ServerID,
-	// 		UserID:   userID,
-	// 	}
-
-	// 	err = tx.Create(&member).Error
-
-	// 	return err
-	// })
-	// DatabaseErrorCheck(err)
-
-	return server
+	return serverID
 }

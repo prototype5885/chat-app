@@ -1,11 +1,11 @@
 package database
 
 import (
-	"database/sql"
 	"encoding/json"
 	log "proto-chat/modules/logging"
 	"proto-chat/modules/macros"
 	"proto-chat/modules/snowflake"
+	"time"
 )
 
 type Message struct {
@@ -56,21 +56,15 @@ func AddChatMessage(userID uint64, channelID uint64, chatMessage string, filenam
 		Message:     chatMessage,
 		Attachments: filenamesJson,
 	})
-	if !success {
-		return false
-	}
 
-	return true
+	return success
 }
 
 func GetChatHistory(channelID uint64, fromMessageID uint64, older bool, userID uint64) []byte {
-	log.Debug("Retrieving chat message history of channel ID [%d] from database...", channelID)
+	start := time.Now().UnixMicro()
 
-	const query = `SELECT message_id, user_id, message, attachments
-			FROM messages
-			WHERE channel_id = ? AND (message_id < ? OR ? = 0)
-			ORDER BY message_id DESC
-			LIMIT 50`
+	const query = "SELECT message_id, user_id, message, attachments FROM messages WHERE channel_id = ? AND (message_id < ? OR ? = 0) ORDER BY message_id DESC LIMIT 50"
+	log.Query(query, channelID, fromMessageID, fromMessageID)
 
 	rows, err := Conn.Query(query, channelID, fromMessageID, fromMessageID)
 	DatabaseErrorCheck(err)
@@ -105,22 +99,24 @@ func GetChatHistory(channelID uint64, fromMessageID uint64, older bool, userID u
 
 	jsonResult, _ := json.Marshal(chatMessageHistory)
 
+	measureTime(start)
 	return jsonResult
 }
 
 func DeleteChatMessage(messageID uint64, userID uint64) uint64 {
-	log.Debug("Deleting chat message ID [%d] and returning it's channel ID on the request of user ID [%d]...", messageID, userID)
+	start := time.Now().UnixMicro()
+
+	const query string = "DELETE FROM messages WHERE message_id = ? AND user_id = ? RETURNING channel_id"
+	log.Query(query, messageID, userID)
 
 	var channelID uint64
-	const query string = "DELETE FROM messages WHERE message_id = ? AND user_id = ? RETURNING channel_id"
 	err := Conn.QueryRow(query, messageID, userID).Scan(&channelID)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			log.Hack("There is no message ID [%d] owned by user ID [%d]", messageID, userID)
-			return 0
-		}
-		DatabaseErrorCheck(err)
-		// log.FatalError(err.Error(), "Error deleting message ID [%d] on the request of user ID [%d]", messageID, userID)
+	DatabaseErrorCheck(err)
+
+	if channelID == 0 {
+		log.Hack("There is no message ID [%d] owned by user ID [%d]", messageID, userID)
 	}
+
+	measureTime(start)
 	return channelID
 }

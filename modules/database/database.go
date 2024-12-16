@@ -2,12 +2,14 @@ package database
 
 import (
 	"database/sql"
+	"fmt"
 	"os"
 	log "proto-chat/modules/logging"
 	"strings"
 	"time"
 
-	_ "github.com/mattn/go-sqlite3"
+	_ "github.com/go-sql-driver/mysql"
+	_ "modernc.org/sqlite"
 )
 
 var Conn *sql.DB
@@ -15,13 +17,12 @@ var Conn *sql.DB
 var nullJson = []byte("null")
 
 func ConnectSqlite() {
-	//os.Remove("./database/database.Conn")
 	if err := os.MkdirAll("database", os.ModePerm); err != nil {
 		log.FatalError(err.Error(), "Error creating sqlite database folder")
 	}
 
 	var err error
-	Conn, err = sql.Open("sqlite3", "./database/sqlite.db")
+	Conn, err = sql.Open("sqlite", "./database/sqlite.db")
 	if err != nil {
 		log.FatalError(err.Error(), "Error connecting to sqlite database")
 	}
@@ -33,38 +34,29 @@ func ConnectSqlite() {
 		log.FatalError(err.Error(), "Error enabling foreign keys for sqlite")
 	}
 
-	log.Info("Connection to Sqlite database opened")
+	log.Info("Connected to sqlite")
 }
 
 func ConnectMariadb(username string, password string, address string, port string, dbName string) {
-	// var err error
-	// Conn, err = gorm.Open(mysql.Open(fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", username, password, address, port, dbName)), &gorm.Config{Logger: newLogger})
-	// if err != nil {
-	// 	log.FatalError(err.Error(), "Error connecting to mariadb database")
-	// }
+	var err error
+	Conn, err = sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", username, password, address, port, dbName))
+	if err != nil {
+		log.FatalError(err.Error(), "Error opening mariadb connection")
+	}
 
-	// sqlDB, _ := Conn.DB()
-	// sqlDB.SetMaxOpenConns(100)
-
-	//var err error
-	//Conn, err = sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", username, password, address, port, dbName))
-	//if err != nil {
-	//	log.FatalError(err.Error(), "Error opening mariadb connection")
-	//}
-	//
-	//Conn.SetMaxOpenConns(100)
-	log.Info("Connection to MySQL/MariaDB database opened")
+	Conn.SetMaxOpenConns(100)
+	log.Info("Connected to mysql/mariadb")
 }
 
 func CloseDatabaseConnection() error {
-	//fmt.Println("Closing main Conn connection...")
-	//err := Conn.Close()
-	//return err
-	return nil
+	fmt.Println("Closing main Conn connection...")
+	err := Conn.Close()
+	return err
 }
 
 func CreateTables() {
-	//Conn.AutoMigrate(&User{}, &Token{}, &Server{}, &ServerMember{}, &Channel{}, &message{}, &ServerInvite{})
+	log.Trace("Creating database tables...")
+	start := time.Now().UnixMicro()
 	CreateUsersTable()
 	CreateTokensTable()
 	CreateServersTable()
@@ -73,12 +65,29 @@ func CreateTables() {
 	CreateChatMessagesTable()
 	//CreateAttachmentsTable()
 	CreateServerInvitesTable()
+	measureTime(start)
 }
 
 func DatabaseErrorCheck(err error) {
 	if err != nil {
-		log.FatalError(err.Error(), "Fatal error in database")
+		if err == sql.ErrNoRows {
+			log.WarnError(err.Error(), "No row was returned")
+		} else {
+			log.FatalError(err.Error(), "Fatal error in database")
+		}
 	}
+}
+
+func transactionErrorCheck(err error) {
+	if err != nil {
+		log.FatalError(err.Error(), "Fatal error executing database transaction")
+	}
+}
+
+func measureTime(start int64) {
+	duration := time.Now().UnixMicro() - start
+	durationMs := duration / 1000
+	log.Time("Database statement took [%d μs] [%d ms]", duration, durationMs)
 }
 
 func Insert(structs any) bool {
@@ -88,51 +97,47 @@ func Insert(structs any) bool {
 	var tableName string
 	var insertedItemID uint64
 
-	printInsertingMsg := func() {
-		tableName = typeName + "s"
-		log.Trace("Inserting row into Conn table [%s]", tableName)
-	}
-
 	var err error
 	switch s := structs.(type) {
 	case Channel:
 		typeName = "channel"
 		insertedItemID = s.ChannelID
-		printInsertingMsg()
+		log.Query(insertChannelQuery, s.ChannelID, s.ServerID, s.Name)
 		_, err = Conn.Exec(insertChannelQuery, s.ChannelID, s.ServerID, s.Name)
 	case Message:
 		typeName = "message"
 		insertedItemID = s.MessageID
-		printInsertingMsg()
+		log.Query(insertChatMessageQuery, s.MessageID, s.ChannelID, s.UserID, s.Message, s.Attachments)
 		_, err = Conn.Exec(insertChatMessageQuery, s.MessageID, s.ChannelID, s.UserID, s.Message, s.Attachments)
 	case Attachment:
 		typeName = "attachment"
 		insertedItemID = s.MessageID
-		printInsertingMsg()
+		log.Query(insertAttachmentQuery, s.FileName, s.FileExtension, s.MessageID)
 		_, err = Conn.Exec(insertAttachmentQuery, s.FileName, s.FileExtension, s.MessageID)
 	case Server:
 		typeName = "server"
 		insertedItemID = s.ServerID
-		printInsertingMsg()
+		log.Query(insertServerQuery, s.ServerID, s.UserID, s.Name, s.Picture)
 		_, err = Conn.Exec(insertServerQuery, s.ServerID, s.UserID, s.Name, s.Picture)
 	case Token:
 		typeName = "token"
 		insertedItemID = s.UserID
+		log.Query(insertTokenQuery, s.Token, s.UserID, s.Expiration)
 		_, err = Conn.Exec(insertTokenQuery, s.Token, s.UserID, s.Expiration)
 	case User:
 		typeName = "user"
 		insertedItemID = s.UserID
-		printInsertingMsg()
-		_, err = Conn.Exec(insertUserQuery, s.UserID, s.Username, s.DisplayName, s.Picture, s.Password, s.Totp)
+		log.Query(insertUserQuery, s.UserID, s.Username, s.Username, s.Password)
+		_, err = Conn.Exec(insertUserQuery, s.UserID, s.Username, s.Username, s.Password)
 	case ServerMember:
 		typeName = "server_member"
 		insertedItemID = s.UserID
-		printInsertingMsg()
+		log.Query(insertServerMemberQuery, s.ServerID, s.UserID)
 		_, err = Conn.Exec(insertServerMemberQuery, s.ServerID, s.UserID)
 	case ServerInvite:
 		typeName = "server_invite"
 		insertedItemID = s.ServerID
-		printInsertingMsg()
+		log.Query(insertServerInviteQuery, s.InviteID, s.ServerID, s.SingleUse, s.Expiration)
 		_, err = Conn.Exec(insertServerInviteQuery, s.InviteID, s.ServerID, s.SingleUse, s.Expiration)
 	default:
 		log.Fatal("Unknown type in Conn Insert: %T", s)
@@ -153,8 +158,7 @@ func Insert(structs any) bool {
 			return false
 		}
 	}
-	var duration int64 = time.Now().UnixMicro() - start
-	log.Time("Insert took [%d μs] or [%d ms]", duration, duration/1000)
+	measureTime(start)
 	return true
 }
 
@@ -193,16 +197,12 @@ func Delete(structo any) bool {
 		log.Fatal("Unknown type in Conn Insert: [%T]", s)
 	}
 
-	// first check if there are errors executing the query
 	if err != nil {
 		log.FatalError(err.Error(), "Error deleting [%s] ID [%d] requested by user ID [%d]", typeName, deletedItemID, deletedItemOwnerID)
 	}
 
-	// print time it took
-	var duration int64 = time.Now().UnixMicro() - start
-	log.Time("Deletion took [%d μs] [%d ms]", duration, duration/1000)
+	measureTime(start)
 
-	// get how many rows were affected
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
 		log.FatalError(err.Error(), "Error getting rowsAffected while deleting %s ID [%d] requested by user ID [%d]", typeName, deletedItemID, deletedItemOwnerID)

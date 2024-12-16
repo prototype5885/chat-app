@@ -23,20 +23,22 @@ func (c *Client) onAddServerRequest(packetJson []byte) []byte {
 		return macros.ErrorDeserializing(err.Error(), jsonType, c.UserID)
 	}
 
-	var server database.Server = database.AddNewServer(c.UserID, addServerRequest.Name, "default_serverpic.webp")
+	const defaultPic = ""
+
+	serverID := database.AddNewServer(c.UserID, addServerRequest.Name, defaultPic)
 
 	type ServerResponse struct {
-		ServerID string
-		OwnerID  string
+		ServerID uint64
+		OwnerID  uint64
 		Name     string
 		Picture  string
 	}
 
 	var serverResponse = ServerResponse{
-		ServerID: strconv.FormatUint(server.ServerID, 10),
-		OwnerID:  strconv.FormatUint(server.UserID, 10),
-		Name:     server.Name,
-		Picture:  server.Picture,
+		ServerID: serverID,
+		OwnerID:  c.UserID,
+		Name:     addServerRequest.Name,
+		Picture:  defaultPic,
 	}
 
 	messagesBytes, err := json.Marshal(serverResponse)
@@ -67,26 +69,14 @@ func (c *Client) onServerDeleteRequest(jsonBytes []byte, packetType byte) Broadc
 		}
 	}
 
-	//var serverToDelete = database.ServerDeletion{
-	//	ServerID: serverDeleteRequest.ServerID,
-	//	UserID:   c.userID,
-	//}
-
-	//success := database.Delete(serverToDelete)
-	//if !success {
-	//	return BroadcastData{
-	//		MessageBytes: macros.RespondFailureReason("Couldn't delete server"),
-	//	}
-	//}
-
 	type ServerDeletionResponse struct {
-		ServerID string
-		UserID   string
+		ServerID uint64
+		UserID   uint64
 	}
 
 	var serverDeletionResponse = ServerDeletionResponse{
-		ServerID: strconv.FormatUint(serverDeleteRequest.ServerID, 10),
-		UserID:   strconv.FormatUint(c.UserID, 10),
+		ServerID: serverDeleteRequest.ServerID,
+		UserID:   c.UserID,
 	}
 
 	messagesBytes, err := json.Marshal(serverDeletionResponse)

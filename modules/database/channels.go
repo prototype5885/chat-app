@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	log "proto-chat/modules/logging"
 	"proto-chat/modules/macros"
+	"time"
 )
 
 type Channel struct {
@@ -13,6 +14,8 @@ type Channel struct {
 }
 
 const insertChannelQuery = "INSERT INTO channels (channel_id, server_id, name) VALUES (?, ?, ?)"
+
+const defaultChannelName = "Default Channel"
 
 func CreateChannelsTable() {
 	_, err := Conn.Exec(`CREATE TABLE IF NOT EXISTS channels (
@@ -26,14 +29,15 @@ func CreateChannelsTable() {
 	}
 }
 func GetChannelList(serverID uint64) []byte {
-	log.Trace("Getting channels of server ID [%d] from database...", serverID)
-
+	start := time.Now().UnixMicro()
 	const query string = "SELECT * FROM channels WHERE server_id = ?"
+	log.Query(query, serverID)
+
+	var channels []Channel
 
 	rows, err := Conn.Query(query, serverID)
 	DatabaseErrorCheck(err)
 
-	var channels []Channel
 	for rows.Next() {
 		var channel Channel
 		err := rows.Scan(&channel.ChannelID, &channel.ServerID, &channel.Name)
@@ -42,7 +46,7 @@ func GetChannelList(serverID uint64) []byte {
 	}
 
 	if len(channels) == 0 {
-		log.Trace("Server ID [%d] does't have any channels")
+		log.Trace("Server ID [%d] does't have any channels", serverID)
 		return nullJson
 	}
 
@@ -51,13 +55,14 @@ func GetChannelList(serverID uint64) []byte {
 		macros.ErrorSerializing(err.Error(), "channel list", serverID)
 	}
 
+	measureTime(start)
 	return jsonResult
 }
 
 func GetServerIdOfChannel(channelID uint64) uint64 {
-	log.Trace("Getting which server channel ID [%d] belongs to", channelID)
-
+	start := time.Now().UnixMicro()
 	const query = "SELECT server_id FROM channels WHERE channel_id = ?"
+	log.Query(query, channelID)
 
 	var serverID uint64
 	err := Conn.QueryRow(query, channelID).Scan(&serverID)
@@ -69,5 +74,6 @@ func GetServerIdOfChannel(channelID uint64) uint64 {
 		log.Trace("Channel ID [%d] belongs to server ID [%d]", channelID, serverID)
 	}
 
+	measureTime(start)
 	return serverID
 }

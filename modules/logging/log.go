@@ -2,13 +2,16 @@ package log
 
 import (
 	"fmt"
-	"gopkg.in/natefinch/lumberjack.v2"
 	"log"
 	"os"
+	"strings"
 	"time"
+
+	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 const (
+	queryStr      = "QUERY"
 	traceStr      = "TRACE"
 	debugStr      = "DEBUG"
 	infoStr       = "INFO"
@@ -75,6 +78,19 @@ func logMsg(logLevelStr string, format string, v ...any) {
 	}
 	if logFile {
 		fileLogger.Printf("%s\t%s\t%d\t%s\n", logLevelStr, timestamp, ms, msg)
+	}
+}
+
+func Query(format string, v ...any) {
+	var replacedQuery = strings.Replace(format, "?", "%v", -1)
+	if logLevel >= 4 {
+		logMsg(queryStr, replacedQuery, v...)
+	}
+}
+
+func QueryTx(query string) {
+	if logLevel >= 4 {
+		logMsg(queryStr, query)
 	}
 }
 

@@ -35,17 +35,10 @@ func CreateUsersTable() {
 }
 
 func RegisterUser(userID uint64, username string, passwordHash []byte) {
-	log.Trace("Registering username [%s] into database as user ID [%d]", username, userID)
-	// add the new user to database
 	var user = User{
-		UserID:      userID,
-		Username:    username,
-		DisplayName: username,
-		Status:      1,
-		StatusText:  "",
-		Picture:     "",
-		Password:    passwordHash,
-		Totp:        "",
+		UserID:   userID,
+		Username: username,
+		Password: passwordHash,
 	}
 
 	success := Insert(user)
@@ -58,9 +51,8 @@ func RegisterUser(userID uint64, username string, passwordHash []byte) {
 }
 
 func GetDisplayName(userID uint64) string {
-	log.Trace("Searching for field [display_name] in database using user ID [%d]...", userID)
-
 	const query string = "SELECT display_name FROM users WHERE user_id = ?"
+	log.Query(query, userID)
 
 	var displayName string
 	err := Conn.QueryRow(query, userID).Scan(&displayName)
@@ -76,9 +68,8 @@ func GetDisplayName(userID uint64) string {
 }
 
 func GetUsername(userID uint64) string {
-	log.Trace("Searching for field [username] in database using user ID [%d]...", userID)
-
 	const query string = "SELECT username FROM users WHERE user_id = ?"
+	log.Query(query, userID)
 
 	var username string
 	err := Conn.QueryRow(query, userID).Scan(&username)
@@ -94,9 +85,8 @@ func GetUsername(userID uint64) string {
 }
 
 func GetUserStatus(userID uint64) byte {
-	log.Trace("Searching for field [status] in database of user ID [%d]...", userID)
-
 	const query string = "SELECT status FROM users WHERE user_id = ?"
+	log.Query(query, userID)
 
 	var status byte = 0
 	err := Conn.QueryRow(query, userID).Scan(&status)
@@ -111,9 +101,8 @@ func GetUserStatus(userID uint64) byte {
 	return status
 }
 func GetPasswordAndID(username string) ([]byte, uint64) {
-	log.Trace("Searching for password of user [%s] in database...", username)
-
-	const query = "SELECT FROM users (user_id, password) WHERE username = ?"
+	const query = "SELECT password, user_id FROM users WHERE username = ?"
+	log.Query(query, username)
 
 	var password []byte = nil
 	var userID uint64
@@ -125,13 +114,13 @@ func GetPasswordAndID(username string) ([]byte, uint64) {
 	} else {
 		log.Trace("Password and user ID of username [%s] was retrieved from database successfully", username)
 	}
+
 	return password, userID
 
 }
 func GetUserData(userID uint64) (string, string) {
-	log.Trace("Searching for fields [display_name] and [picture] in database of user ID [%d]...", userID)
-
 	const query = "SELECT display_name, picture FROM users WHERE user_id = ?"
+	log.Query(query, userID)
 
 	var displayName string
 	var picture string
@@ -139,7 +128,7 @@ func GetUserData(userID uint64) (string, string) {
 	DatabaseErrorCheck(err)
 
 	if displayName == "" || picture == "" {
-		log.Trace("Failed to find username [%s] in database", userID)
+		log.Trace("Failed to find username [%d] in database", userID)
 	} else {
 		log.Trace("Successfully retrieved display name and profile pic of user ID [%d]", userID)
 	}
