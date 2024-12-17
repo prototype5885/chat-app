@@ -299,15 +299,12 @@ function createSettingsLeftSide(windowMain, type) {
                 console.log("Selected my", elements[i].text)
                 const mainRight = createSettingsRightSideMyAccount(windowMain, elements[i].text, settingsRight)
                 switch (elements[i].text) {
-                    case "My Account":
-                        const accountSettings = document.createElement("div")
-                        accountSettings.className = "account-settings"
-                        mainRight.appendChild(accountSettings)
+                    case "Profile":
+                        const profileSettings = document.createElement("div")
+                        profileSettings.className = "profile-settings"
+                        mainRight.appendChild(profileSettings)
 
-                        const profilePicPath = ownProfilePic
-
-
-                        accountSettings.innerHTML = `
+                        profileSettings.innerHTML = `
                             <div>
                                 <label class="input-label">Display name:</label>
                                 <input class="change-display-name" maxlength="64" value="${ownDisplayName}">
@@ -319,30 +316,27 @@ function createSettingsLeftSide(windowMain, type) {
                                     <input class="change-pronoun-second" placeholder="them" maxlength="8">
                                 </div>
                                 <br>
-                                    <label class="input-label">Status:</label>
-                                    <input class="change-status" placeholder="Was passiert?">
-                                    <br>
+                                <label class="input-label">Status:</label>
+                                <input class="change-status" placeholder="Was passiert?">
                                 <br>
                                 <button class="button update-account-data">Apply</button>
                             </div>
                             <div>
                                 <input type="file" name="image" class="pfp-uploader" accept="image/*" style="display: none">
-                                <button class="select-pfp" style="background-image: url(${profilePicPath})"></button>
+                                <button class="select-pfp" style="background-image: url(${ownProfilePic})"></button>
                                 <br>
                                 <button class="button send-pfp">Apply Picture</button>
                             </div>`
 
-                        const applyButton = accountSettings.querySelector(".update-account-data")
-
                         // applying username, pronouns, etc
-                        applyButton.addEventListener('click', function() {
-                            const newDisplayName = accountSettings.querySelector(".change-display-name").value
+                        profileSettings.querySelector(".update-account-data").addEventListener('click', function () {
+                            const newDisplayName = profileSettings.querySelector(".change-display-name").value
 
-                            const firstPronoun = accountSettings.querySelector(".change-pronoun-first").value
-                            const secondPronoun = accountSettings.querySelector(".change-pronoun-second").value
+                            const firstPronoun = profileSettings.querySelector(".change-pronoun-first").value
+                            const secondPronoun = profileSettings.querySelector(".change-pronoun-second").value
                             const newPronouns = firstPronoun + "/" + secondPronoun
 
-                            const newStatusText = accountSettings.querySelector(".change-status").value
+                            const newStatusText = profileSettings.querySelector(".change-status").value
 
                             if (newDisplayName === ownDisplayName && newPronouns === ownPronouns && newStatusText === ownStatusText) {
                                 console.warn("No user settings was changed")
@@ -359,26 +353,26 @@ function createSettingsLeftSide(windowMain, type) {
                         })
 
                         // clicked on profile pic
-                        accountSettings.querySelector(".select-pfp").addEventListener("click", async (event) => {
-                           accountSettings.querySelector(".pfp-uploader").click()
+                        profileSettings.querySelector(".select-pfp").addEventListener("click", async (event) => {
+                            profileSettings.querySelector(".pfp-uploader").click()
                         })
 
                         // added a profile pic
-                        const profilePicUploader = accountSettings.querySelector(".pfp-uploader")
+                        const profilePicUploader = profileSettings.querySelector(".pfp-uploader")
                         profilePicUploader.addEventListener("change", async (event) => {
                             console.log("pic added")
                             const reader = new FileReader()
                             reader.readAsDataURL(profilePicUploader.files[0])
 
                             reader.onload = function (e) {
-                                const pfpPreview = accountSettings.querySelector(".select-pfp")
+                                const pfpPreview = profileSettings.querySelector(".select-pfp")
                                 pfpPreview.style.backgroundImage = `url(${e.target.result})`
                             }
 
                         })
 
                         // upload the profile pic
-                        accountSettings.querySelector(".send-pfp").addEventListener("click", async (event) => {
+                        profileSettings.querySelector(".send-pfp").addEventListener("click", async (event) => {
                             console.log("Uploading profile pic...")
                             event.preventDefault()
 
@@ -403,8 +397,24 @@ function createSettingsLeftSide(windowMain, type) {
                             }
                         })
                         break
-                    case "Idk":
+                    case "Account":
+                        const accountSettings = document.createElement("div")
+                        accountSettings.className = "profile-settings"
+                        mainRight.appendChild(accountSettings)
 
+                        accountSettings.innerHTML = `
+                            <div>
+                                <label class="input-label">Current Password:</label>
+                                <input type="password" class="change-password-current" maxlength="32">
+                                <br>
+                                <label class="input-label">New Password:</label>
+                                <input type="password" class="change-password-first" maxlength="32" minlength="4" required>
+                                <br>
+                                <label class="input-label">New Password Again:</label>
+                                <input type="password" class="change-password-second" maxlength="32" minlength="4" required>
+                                <br>
+                                <button class="button update-password">Apply</button>
+                            </div>`
                         break
                 }
             })
@@ -418,11 +428,11 @@ function createSettingsLeftSide(windowMain, type) {
     // add these elements to the left side
     switch (type) {
         case "user-settings":
-            leftSideContent.push({text: "My Account"})
-            leftSideContent.push({text: "Idk"})
-            leftSideContent.push({text: "1"})
-            leftSideContent.push({text: "2"})
-            leftSideContent.push({text: "3"})
+            leftSideContent.push({ text: "Profile" })
+            leftSideContent.push({ text: "Account" })
+            leftSideContent.push({ text: "1" })
+            leftSideContent.push({ text: "2" })
+            leftSideContent.push({ text: "3" })
             addElementsLeftSide(leftSideContent)
             break
     }

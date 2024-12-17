@@ -15,9 +15,14 @@ import (
 	"proto-chat/modules/attachments"
 	"proto-chat/modules/database"
 	log "proto-chat/modules/logging"
+	"proto-chat/modules/macros"
+	"proto-chat/modules/snowflake"
 	"proto-chat/modules/websocket"
 	"strconv"
 	"strings"
+	"time"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 // on /wss or /ws
@@ -42,7 +47,7 @@ func loginRegisterHandler(w http.ResponseWriter, r *http.Request) {
 	// check if user requesting login/registration already has a token
 	userID := CheckIfTokenIsValid(w, r)
 	if userID != 0 { // if user is trying to log in but has a token
-		log.Trace("User is trying to access /login-register but already has authorized token, redirecting to /chat.html...")
+		log.Trace("User is trying to access /login-register.html but already has authorized token, redirecting to /chat.html...")
 		redirect(w, r, "/chat.html")
 		return
 	}
@@ -65,41 +70,192 @@ func chatHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// on /login or /register POST requests
+// on /login POST request
 func loginRequestHandler(w http.ResponseWriter, r *http.Request) {
+	const serverError = "Error processing /login POST request"
 
 	// reading POST request body as bytes
 	bodyBytes, err := io.ReadAll(r.Body)
 	if err != nil {
-		http.Error(w, "Unable to read body", http.StatusBadRequest)
+		log.Error(err.Error(), "Error reading /login POST request body")
+		w.Write([]byte(serverError))
 		return
 	}
 
-	// print received json
-	log.Trace("Received json from post request: %s", string(bodyBytes))
-
-	// handle different POST requests
-	if r.URL.Path == "/login" || r.URL.Path == "/register" {
-		cookie, result := loginOrRegister(bodyBytes, r.URL.Path)
-		if result.Success {
-			http.SetCookie(w, &cookie) // sets the token as cookie on the client side
-		}
-
-		// serialize the response into json
-		responseJsonBytes, jsonErr := json.Marshal(result)
-		if jsonErr != nil {
-			log.FatalError(jsonErr.Error(), "Error serializing log/reg POST request response")
-		}
-
-		log.Trace("Response for log/reg request: %s", string(responseJsonBytes))
-		i, err := w.Write(responseJsonBytes)
+	defer func() {
+		err := r.Body.Close()
 		if err != nil {
-			log.WarnError(err.Error(), "Error sending %s POST request response", r.URL.Path)
+			log.FatalError(err.Error(), "Unable to close body of /login POST request")
 		}
-		log.Trace("%s POST request response was sent: %d", r.URL.Path, i)
+	}()
+
+	type LoginRequest struct {
+		Username string
+		Password string
 	}
+
+	var loginRequest LoginRequest
+
+	err = json.Unmarshal(bodyBytes, &loginRequest)
+	if err != nil {
+		log.WarnError(err.Error(), "Error deserializing /login body json")
+		w.Write([]byte(serverError))
+		return
+	}
+
+	if loginRequest.Username == "" || loginRequest.Password == "" {
+		log.Hack("Someone sent a login POST request without username and/or password")
+		w.Write([]byte(serverError))
+		return
+	}
+
+	if !macros.IsAscii(loginRequest.Username) {
+		log.Trace("Username [%s] wants to login with non ASCII characters in username", loginRequest.Username)
+		w.Write([]byte("Non ASCII characters are not allowed"))
+		return
+	}
+
+	tooLong := macros.CheckUsernameLength(loginRequest.Username)
+	if tooLong {
+		w.Write([]byte("Username is longer than max allowed"))
+		return
+	}
+
+	const userError = "Wrong username or password"
+
+	// get the password hash from the database using username
+	passwordHash, userID := database.GetPasswordAndID(loginRequest.Username)
+	if passwordHash == nil || userID == 0 {
+		log.Warn("There is no user with username [%s]", loginRequest.Username)
+		w.Write([]byte(userError))
+		return
+	}
+
+	// decode password from base64 string to byte array so bcrypt can hash it, password is in SHA512 format
+	// so the server can't really know what the original password was
+	passwordBytes, err := base64.StdEncoding.DecodeString(loginRequest.Password)
+	if err != nil {
+		log.Error("Failed decoding SHA512 password string into byte array")
+		w.Write([]byte(serverError))
+		return
+	}
+
+	// compare given password with the retrieved hash
+	log.Debug("Comparing password hash and string for user [%s]...", loginRequest.Username)
+	var start = time.Now().UnixMilli()
+	if err := bcrypt.CompareHashAndPassword(passwordHash, passwordBytes); err != nil {
+		log.Warn("User entered wrong password for username [%s]", loginRequest.Username)
+		w.Write([]byte(userError))
+		return
+	}
+
+	log.Trace("%s: password matches with hash, comparison took: %d ms", loginRequest.Username, time.Now().UnixMilli()-start)
+
+	cookie := newTokenCookie(userID)
+	http.SetCookie(w, &cookie)
+	redirect(w, r, "/chat.html")
 }
 
+func registerRequestHandler(w http.ResponseWriter, r *http.Request) {
+	const serverError = "Error processing /register POST request"
+
+	// reading POST request body as bytes
+	bodyBytes, err := io.ReadAll(r.Body)
+	if err != nil {
+		log.Error(err.Error(), "Error reading /register POST request body")
+		w.Write([]byte(serverError))
+		return
+	}
+
+	defer func() {
+		err := r.Body.Close()
+		if err != nil {
+			log.FatalError(err.Error(), "Unable to close body of /register POST request")
+		}
+	}()
+
+	// deserializing json
+	type RegisterRequest struct {
+		Username string
+		Password string
+	}
+
+	var registerRequest RegisterRequest
+
+	err = json.Unmarshal(bodyBytes, &registerRequest)
+	if err != nil {
+		log.WarnError(err.Error(), "Error deserializing /register body json")
+		w.Write([]byte(serverError))
+		return
+	}
+
+	// checking if deserialized values arent empty
+	if registerRequest.Username == "" || registerRequest.Password == "" {
+		log.Hack("Someone sent a /register POST request without username and/or password")
+		w.Write([]byte(serverError))
+		return
+	}
+
+	if !macros.IsAscii(registerRequest.Username) {
+		log.Hack("Username [%s] wants to register their name with non ASCII character", registerRequest.Username)
+		w.Write([]byte("Non ASCII characters are not allowed"))
+		return
+	}
+
+	tooLong := macros.CheckUsernameLength(registerRequest.Username)
+	if tooLong {
+		w.Write([]byte("Username is longer than max allowed"))
+		return
+	}
+
+	taken := database.CheckIfUsernameExists(registerRequest.Username)
+	if taken {
+		response := fmt.Sprintf("Username [%s] is already taken", registerRequest.Username)
+		log.Trace("%s", response)
+		w.Write([]byte(response))
+		return
+	}
+
+	// decode password from base64 string to byte array so bcrypt can hash it, password is in SHA512 format
+	// so the server can't really know what the original password was
+	passwordBytes, err := base64.StdEncoding.DecodeString(registerRequest.Password)
+	if err != nil {
+		log.Error("Failed decoding SHA512 password string into byte array")
+		w.Write([]byte(serverError))
+		return
+	}
+
+	// check if received password is in proper format
+	if len(passwordBytes) != 64 {
+		log.Error("Password byte array length isn't 64 bytes")
+		w.Write([]byte(serverError))
+		return
+	} else if len(registerRequest.Username) > 16 {
+		log.Error("Username is longer than 16 bytes")
+		w.Write([]byte(serverError))
+		return
+	}
+
+	// hash the password using bcrypt
+	var start int64 = time.Now().UnixMilli()
+	passwordHash, err := bcrypt.GenerateFromPassword(passwordBytes, 10)
+	if err != nil {
+		log.FatalError(err.Error(), "Failed generating bcrypt password hash for username [%s]", registerRequest.Username)
+	}
+	macros.MeasureTime(start, "Password hashing for user "+registerRequest.Username)
+
+	var userID uint64 = snowflake.Generate()
+
+	success := database.RegisterUser(userID, registerRequest.Username, passwordHash)
+	if !success {
+		w.Write([]byte(serverError))
+		return
+	}
+
+	cookie := newTokenCookie(userID)
+	http.SetCookie(w, &cookie)
+	redirect(w, r, "/chat.html")
+}
 func inviteHandler(w http.ResponseWriter, r *http.Request) {
 	log.Trace("Received invite request")
 
@@ -193,7 +349,7 @@ func uploadAttachmentHandler(w http.ResponseWriter, r *http.Request) {
 	if userID == 0 {
 		_, err := fmt.Fprintf(w, "Who are you?")
 		if err != nil {
-			log.Error(err.Error())
+			log.Error("%s", err.Error())
 		}
 		log.Hack("Someone is trying to upload an attachment without token")
 		return

@@ -15,9 +15,11 @@ body {
     0% {
         transform: rotate(-10deg);
     }
+
     50% {
         transform: rotate(10deg);
     }
+
     100% {
         transform: rotate(-10deg);
     }
@@ -170,7 +172,7 @@ body {
     color: white;
 }
 
-.account-settings {
+.profile-settings {
     background-color: var(--bit-darker-color);
     border-radius: 16px;
     display: flex;
@@ -178,7 +180,7 @@ body {
     align-items: center;
 }
 
-.account-settings>div {
+.profile-settings>div {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -375,7 +377,7 @@ body {
 }
 
 #channel-list button,
-.settings-list button{
+.settings-list button {
     height: 32px;
     display: flex;
     align-items: center;
@@ -386,7 +388,7 @@ body {
 }
 
 #channel-list button:hover,
-.settings-list button:hover{
+.settings-list button:hover {
     background-color: var(--hover-color);
     font-size: large;
 }
@@ -483,11 +485,13 @@ body {
 }
 
 .rotate-svg {
-    transition: transform 0.3s ease; /* Smooth transition for the initial hover */
+    transition: transform 0.3s ease;
+    /* Smooth transition for the initial hover */
 }
 
 .rotate-svg:hover {
-    animation: rotateAnimation 2s linear infinite; /* Apply continuous rotation on hover */
+    animation: rotateAnimation 2s linear infinite;
+    /* Apply continuous rotation on hover */
 }
 
 #user-settings-button {
@@ -514,6 +518,7 @@ body {
     0% {
         transform: rotate(0deg);
     }
+
     100% {
         transform: rotate(360deg);
     }
@@ -617,8 +622,8 @@ body {
     border-radius: 50%;
 }
 
-.message-attachment-pictures > *,
-.message-attachment-videos > *{
+.message-attachment-pictures>*,
+.message-attachment-videos>* {
     margin-right: 4px;
     margin-bottom: 8px;
     max-width: 1024px;

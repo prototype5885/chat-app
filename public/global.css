@@ -19,7 +19,7 @@ body {
     font-family: Roboto, Helvetica, Arial, sans-serif;
     color: var(--text-color);
     font-size: 14px;
-    /*background-color: var(--main-color);*/
+    background-color: var(--bit-darker-color);
 }
 
 
@@ -101,7 +101,8 @@ input::placeholder {
     min-width: 0;
 }
 
-.double-input>div { /* separator */
+.double-input>div {
+    /* separator */
     font-size: x-large;
 }
 

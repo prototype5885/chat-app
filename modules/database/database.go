@@ -16,6 +16,8 @@ var Conn *sql.DB
 
 var nullJson = []byte("null")
 
+var sqlite bool = false
+
 func ConnectSqlite() {
 	if err := os.MkdirAll("database", os.ModePerm); err != nil {
 		log.FatalError(err.Error(), "Error creating sqlite database folder")
@@ -35,6 +37,7 @@ func ConnectSqlite() {
 	}
 
 	log.Info("Connected to sqlite")
+	sqlite = true
 }
 
 func ConnectMariadb(username string, password string, address string, port string, dbName string) {
@@ -93,70 +96,64 @@ func measureTime(start int64) {
 func Insert(structs any) bool {
 	start := time.Now().UnixMicro()
 
-	var typeName string
-	var tableName string
-	var insertedItemID uint64
-
 	var err error
 	switch s := structs.(type) {
 	case Channel:
-		typeName = "channel"
-		insertedItemID = s.ChannelID
 		log.Query(insertChannelQuery, s.ChannelID, s.ServerID, s.Name)
 		_, err = Conn.Exec(insertChannelQuery, s.ChannelID, s.ServerID, s.Name)
 	case Message:
-		typeName = "message"
-		insertedItemID = s.MessageID
 		log.Query(insertChatMessageQuery, s.MessageID, s.ChannelID, s.UserID, s.Message, s.Attachments)
 		_, err = Conn.Exec(insertChatMessageQuery, s.MessageID, s.ChannelID, s.UserID, s.Message, s.Attachments)
 	case Attachment:
-		typeName = "attachment"
-		insertedItemID = s.MessageID
 		log.Query(insertAttachmentQuery, s.FileName, s.FileExtension, s.MessageID)
 		_, err = Conn.Exec(insertAttachmentQuery, s.FileName, s.FileExtension, s.MessageID)
 	case Server:
-		typeName = "server"
-		insertedItemID = s.ServerID
 		log.Query(insertServerQuery, s.ServerID, s.UserID, s.Name, s.Picture)
 		_, err = Conn.Exec(insertServerQuery, s.ServerID, s.UserID, s.Name, s.Picture)
 	case Token:
-		typeName = "token"
-		insertedItemID = s.UserID
 		log.Query(insertTokenQuery, s.Token, s.UserID, s.Expiration)
 		_, err = Conn.Exec(insertTokenQuery, s.Token, s.UserID, s.Expiration)
 	case User:
-		typeName = "user"
-		insertedItemID = s.UserID
 		log.Query(insertUserQuery, s.UserID, s.Username, s.Username, s.Password)
 		_, err = Conn.Exec(insertUserQuery, s.UserID, s.Username, s.Username, s.Password)
 	case ServerMember:
-		typeName = "server_member"
-		insertedItemID = s.UserID
 		log.Query(insertServerMemberQuery, s.ServerID, s.UserID)
 		_, err = Conn.Exec(insertServerMemberQuery, s.ServerID, s.UserID)
 	case ServerInvite:
-		typeName = "server_invite"
-		insertedItemID = s.ServerID
 		log.Query(insertServerInviteQuery, s.InviteID, s.ServerID, s.SingleUse, s.Expiration)
 		_, err = Conn.Exec(insertServerInviteQuery, s.InviteID, s.ServerID, s.SingleUse, s.Expiration)
 	default:
-		log.Fatal("Unknown type in Conn Insert: %T", s)
+		log.Fatal("Unknown type in database Insert: %T", s)
 	}
 
 	if err != nil {
-		if strings.Contains(err.Error(), "Error 1452") {
-			// Error 1452: Cannot add or update a child row: a foreign key constraint fails
-			log.WarnError(err.Error(), "Failed adding [%s] ID [%d] into Conn table [%s], it wouldn't have an owner", typeName, insertedItemID, tableName)
-			return false
-		} else if strings.Contains(err.Error(), "Error 1062") {
-			// Error 1062: Duplicate entry for key
-			log.WarnError(err.Error(), "Trying to insert duplicate key into database")
-			return false
-		} else {
-			// unknown error
-			log.FatalError(err.Error(), "Error adding [%s] ID [%d] into Conn table [%s]", typeName, insertedItemID, tableName)
-			return false
+		if sqlite { // sqlite
+			if strings.Contains(err.Error(), "1555") { // duplicate primary key
+				log.Error("%s", err.Error())
+				return false
+			} else if strings.Contains(err.Error(), "2067") { // duplicate unique value
+				log.Error("%s", err.Error())
+				return false
+			} else if strings.Contains(err.Error(), "787") { // no foreign key, no owner
+				log.Error("%s", err.Error())
+				return false
+			} else { // unknown error
+				log.FatalError(err.Error(), "")
+				return false
+			}
+		} else { // mariadb or mysql
+			if strings.Contains(err.Error(), "1452") { // no foreign key, no owner
+				log.Error("%s", err.Error())
+				return false
+			} else if strings.Contains(err.Error(), "1062") { // duplicate primary key or unique value
+				log.Error("%s", err.Error())
+				return false
+			} else { // unknown error
+				log.Error("%s", err.Error())
+				return false
+			}
 		}
+
 	}
 	measureTime(start)
 	return true

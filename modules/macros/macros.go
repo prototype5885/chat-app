@@ -7,8 +7,11 @@ import (
 	"encoding/json"
 	"fmt"
 	log "proto-chat/modules/logging"
+	"strings"
 	"time"
 )
+
+const maxUsernameLength = 16
 
 func GetTimestamp() int64 {
 	return time.Now().UnixMilli()
@@ -79,4 +82,33 @@ func GenerateRandomBytes() []byte {
 		log.FatalError(err.Error(), "Could not generate random bytes")
 	}
 	return bytes
+}
+
+func ToAscii(input string) string {
+	var result strings.Builder
+	for _, char := range input {
+		if char > 127 {
+			result.WriteRune('?')
+		} else {
+			result.WriteRune(char)
+		}
+	}
+	return result.String()
+}
+
+func IsAscii(input string) bool {
+	for _, char := range input {
+		if char > 127 {
+			return false
+		}
+	}
+	return true
+}
+
+func CheckUsernameLength(username string) bool {
+	if len(username) > maxUsernameLength {
+		log.Hack("Username [%s] wants to register their name that's longer than %d bytes", username, maxUsernameLength)
+		return true
+	}
+	return false
 }

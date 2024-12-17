@@ -34,7 +34,7 @@ func CreateUsersTable() {
 	}
 }
 
-func RegisterUser(userID uint64, username string, passwordHash []byte) {
+func RegisterUser(userID uint64, username string, passwordHash []byte) bool {
 	var user = User{
 		UserID:   userID,
 		Username: username,
@@ -44,10 +44,11 @@ func RegisterUser(userID uint64, username string, passwordHash []byte) {
 	success := Insert(user)
 	if !success {
 		log.Trace("Failed to register username [%s] into database", username)
-		return
+		return false
 	}
 
 	log.Trace("Successfully registered username [%s] as user ID [%d] in database", username, userID)
+	return true
 }
 
 func GetDisplayName(userID uint64) string {
@@ -118,6 +119,24 @@ func GetPasswordAndID(username string) ([]byte, uint64) {
 	return password, userID
 
 }
+
+func CheckIfUsernameExists(username string) bool {
+	const query string = "SELECT EXISTS (SELECT 1 FROM users WHERE username = ?)"
+	log.Query(query, username)
+
+	var taken bool = false
+	err := Conn.QueryRow(query, username).Scan(&taken)
+	DatabaseErrorCheck(err)
+
+	if taken {
+		log.Trace("Username [%s] is already taken", username)
+	} else {
+		log.Hack("Username [%s] is free", username)
+	}
+
+	return taken
+}
+
 func GetUserData(userID uint64) (string, string) {
 	const query = "SELECT display_name, picture FROM users WHERE user_id = ?"
 	log.Query(query, userID)
@@ -135,19 +154,3 @@ func GetUserData(userID uint64) (string, string) {
 
 	return displayName, picture
 }
-
-// func UpdateUserRow(user User, userID uint64) bool {
-// 	log.Trace("Updating user row of user ID [%d]", userID)
-
-// 	const query = "UPDATE users SET "
-
-// 	result := Conn.Table("users").Where("user_id = ?", userID).Updates(user)
-// 	DatabaseErrorCheck(result.Error)
-// 	if result.RowsAffected == 1 {
-// 		log.Trace("User row of user ID [%d] was successfully updated")
-// 		return true
-// 	} else {
-// 		log.Hack("User ID [%d] failed to update their user row", userID)
-// 		return false
-// 	}
-// }

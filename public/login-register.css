@@ -22,24 +22,13 @@ body {
     margin-top: 8px;
 }
 
-#second-password,
-#invitation-code {
-    visibility: hidden;
-}
-
 #error-message {
     color: #ff0000;
-    display: flex;
-    justify-content: center;
 }
 
-#login-register-form {
+#login-container>form,
+#register-container>form {
     display: flex;
     justify-content: center;
-    flex-direction: column;
-}
-
-#login-register-form>div {
-    display: flex;
     flex-direction: column;
 }

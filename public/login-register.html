@@ -1,4 +1,3 @@
-<!-- public/login-register.html -->
 <!DOCTYPE html>
 <html lang="en">
 
@@ -7,126 +6,166 @@
     <meta content="width=device-width, initial-scale=1.0" name="viewport">
     <title>Login/Register</title>
     <link href="/global.css" rel="stylesheet" type="text/css">
-    <link href="/login-register.css" rel="stylesheet" type="text/css">
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        #centered-window {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            height: 512px;
+            width: 512px;
+            background-color: #36393f;
+            border-radius: 35px;
+        }
+
+        .text-input {
+            margin-top: 8px;
+        }
+
+        #error-message {
+            color: #ff0000;
+        }
+
+        #login-container>form,
+        #register-container>form {
+            display: flex;
+            justify-content: center;
+            flex-direction: column;
+        }
+    </style>
 </head>
 
 <body>
-    <!-- <h1>Login Page</h1> -->
     <div id="centered-window">
-        <form id="login-register-form">
-            <div>
-                <div id="error-message"></div>
-                <br>
-            </div>
-            <div>
-                <label class="input-label">Username:</label>
-                <input autocomplete="username" id="username-input" required type="text">
-            </div>
-            <br>
-            <div id="first-password">
-                <label class="input-label">Password:</label>
-                <input autocomplete="new-password" id="first-password-input" required type="password">
-            </div>
-            <br>
-            <div id="second-password">
-                <label class="input-label">Password again:</label>
-                <input autocomplete="new-password" id="second-password-input" type="password">
-            </div>
-            <br>
-            <div id="invitation-code">
-                <label class="input-label">Invitation code:</label>
-                <input class="text-input" id="invitation-code-input" type="text">
-            </div>
-            <br>
-            <button class="button" id="submit-button" type="submit"></button>
-        </form>
+        <div id="error-message"></div>
         <br>
-        <button class="button" id="login-or-register"></button>
-
+        <div id="login-container">
+            <form onsubmit="sendLogin(event)">
+                <label class="input-label">Username:</label>
+                <input autocomplete="username" id="login-username" maxlength="16" oninput="asciiOnly(event)" required>
+                <br>
+                <label class="input-label">Password:</label>
+                <input autocomplete="current-password" id="login-password" type="password" maxlength="64" required>
+                <br>
+                <button class="button" type="submit">Login</button>
+            </form>
+            <br>
+            <button class="button" onclick="toRegister()">No account?</button>
+        </div>
+        <div id="register-container" style="display: none;">
+            <form onsubmit="sendRegister(event)">
+                <label class="input-label">Username:</label>
+                <input autocomplete="username" id="register-username" maxlength="16" oninput="asciiOnly(event)"
+                    required>
+                <br>
+                <label class="input-label">Password:</label>
+                <input autocomplete="new-password" type="password" id="register-password-first" maxlength="64" required>
+                <br>
+                <label class="input-label">Password again:</label>
+                <input autocomplete="new-password" type="password" id="register-password-second" maxlength="64"
+                    required>
+                <br>
+                <button class="button" type="submit">Register</button>
+            </form>
+            <br>
+            <button class="button" onclick="toLogin()">Login instead</button>
+        </div>
+        <br>
     </div>
     <script>
-        let loginOrRegister = 'login'
+        const errorMessage = document.getElementById("error-message")
 
-        const errorMessage = document.getElementById('error-message')
-        const button = document.getElementById('login-or-register')
-        const secondPassword = document.getElementById('second-password')
-        const invitationCode = document.getElementById('invitation-code')
-        const submitButton = document.getElementById('submit-button')
+        function toLogin() {
+            errorMessage.textContent = ""
+            document.getElementById("register-container").style.display = "none"
+            document.getElementById("login-container").style.display = "block"
+        }
 
-        // set prewritten strings
-        const loginText = 'Login'
-        const registerText = 'Register'
-        const accountText = 'To login'
-        const noAccountText = 'To register'
+        function toRegister() {
+            errorMessage.textContent = ""
+            document.getElementById("register-container").style.display = "block"
+            document.getElementById("login-container").style.display = "none"
+        }
 
-        // sets names in script initially
-        button.textContent = noAccountText
-        submitButton.textContent = loginText
+        async function sendLogin(event) {
+            event.preventDefault()
 
-        button.addEventListener('click', () => {
-            if (loginOrRegister === 'login') {
-                secondPassword.style.visibility = 'visible'
-                invitationCode.style.visibility = 'visible'
-                button.textContent = accountText
-                submitButton.textContent = registerText
-                loginOrRegister = 'register'
-            } else {
-                secondPassword.style.visibility = 'hidden'
-                invitationCode.style.visibility = 'hidden'
-                button.textContent = noAccountText
-                submitButton.textContent = loginText
-                loginOrRegister = 'login'
+            const username = document.getElementById("login-username").value
+            const password = document.getElementById("login-password").value
+
+            const json = {
+                Username: username,
+                Password: await hashPassword(password)
             }
 
-        })
-
-        async function submit() {
-            const username = document.getElementById('username-input').value
-            const password = document.getElementById('first-password-input').value
-
-            // convert password to sha512 in base64 format
-            const passwordBuffer = new TextEncoder().encode(password)
-            const hashedPassword = await crypto.subtle.digest('SHA-512', passwordBuffer);
-            const base64Password = btoa(String.fromCharCode.apply(null, new Uint8Array(hashedPassword)));
-
-            let dataToSend
-            let url
-            if (loginOrRegister === 'login') {
-                dataToSend = {
-                    Username: username,
-                    Password: base64Password,
-                }
-                url = window.location.origin + '/login'
-            } else {
-                dataToSend = {
-                    Username: username,
-                    Password: base64Password,
-                }
-                url = window.location.origin + '/register'
-            }
-
-            const response = await fetch(url, {
+            const response = await fetch("/login", {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify(dataToSend)
+                body: JSON.stringify(json)
             })
-            const result = await response.json()
-
-            errorMessage.textContent = result.Message
-            if (result.Success) {
-                errorMessage.style.color = '#adff2f'
-                window.location.href = "/chat.html";
-            } else {
-                errorMessage.textContent = result.Message
+            if (response.ok) {
+                if (response.redirected) {
+                    window.location.href = response.url
+                } else {
+                    errorMessage.textContent = await response.text()
+                }
             }
         }
 
-        document.getElementById('login-register-form').addEventListener('submit', function (event) {
+        async function sendRegister(event) {
             event.preventDefault()
-            submit().then(r => { })
-        })
+
+            const username = document.getElementById("register-username").value
+            const firstPassword = document.getElementById("register-password-first").value
+            const secondPassword = document.getElementById("register-password-second").value
+
+            if (firstPassword !== secondPassword) {
+                errorMessage.textContent = "Passwords don't match"
+                return
+            }
+
+            const json = {
+                Username: username,
+                Password: await hashPassword(firstPassword)
+            }
+
+            const response = await fetch("/register", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(json)
+            })
+            if (response.ok) {
+                console.log(response)
+                if (response.redirected) {
+                    window.location.href = response.url
+                } else {
+                    errorMessage.textContent = await response.text()
+                }
+            }
+        }
+
+        async function hashPassword(password) {
+            const passwordBuffer = new TextEncoder().encode(password)
+            const hashedPassword = await crypto.subtle.digest('SHA-512', passwordBuffer)
+            return btoa(String.fromCharCode.apply(null, new Uint8Array(hashedPassword)))
+        }
+
+        function asciiOnly(event) {
+            event.target.value = event.target.value.replace(/[^\x00-\x7F]/g, '')
+        }
+
     </script>
 </body>
+
 </html>

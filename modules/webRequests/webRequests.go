@@ -60,8 +60,10 @@ func MainHandler(w http.ResponseWriter, r *http.Request) {
 
 	} else if r.Method == "POST" {
 		switch r.URL.Path {
-		case "/login", "/register":
+		case "/login":
 			loginRequestHandler(w, r)
+		case "/register":
+			registerRequestHandler(w, r)
 		case "/upload-pfp":
 			uploadProfilePicHandler(w, r)
 		case "/upload-attachment":
