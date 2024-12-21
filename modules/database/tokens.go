@@ -1,18 +1,19 @@
 package database
 
 import (
-	"database/sql"
 	log "proto-chat/modules/logging"
 	"proto-chat/modules/macros"
+	"time"
 )
 
 type Token struct {
-	Token      []byte `gorm:"type:binary(128)"`
-	UserID     uint64 `gorm:"not null"`
-	Expiration uint64 `gorm:"not null"`
+	Token      []byte
+	UserID     uint64
+	Expiration int64
 }
 
 const insertTokenQuery = "INSERT INTO tokens (token, user_id, expiration) VALUES (?, ?, ?)"
+const deleteTokenQuery = "DELETE FROM tokens WHERE token = ? AND user_id = ?"
 
 func CreateTokensTable() {
 	_, err := Conn.Exec(`CREATE TABLE IF NOT EXISTS tokens (
@@ -25,40 +26,42 @@ func CreateTokensTable() {
 		log.FatalError(err.Error(), "Error creating tokens table")
 	}
 }
-func ConfirmToken(tokenBytes []byte) (uint64, uint64) {
-	log.Debug("Searching for token in database...")
-
+func ConfirmToken(tokenBytes []byte) Token {
+	start := time.Now().UnixMicro()
 	const query string = "SELECT user_id, expiration FROM tokens WHERE token = ?"
+	log.Query(query, macros.ShortenToken(tokenBytes))
 
-	var userID uint64
-	var expiration uint64
-
-	err := Conn.QueryRow(query, tokenBytes).Scan(&userID, &expiration)
-	if err != nil {
-		log.Error(err.Error())
-		if err == sql.ErrNoRows { // token was not found
-			log.Debug("Token was not found in database: [%s]", macros.ShortenToken(tokenBytes))
-			return 0, 0
-		}
-		log.Fatal("Error retrieving token [%s] from database", macros.ShortenToken(tokenBytes))
+	token := Token{
+		Token: tokenBytes,
 	}
-	log.Debug("Given token was successfully found in database, it belongs to user ID [%d], expires at [%d]", userID, expiration)
-	return userID, expiration
+
+	err := Conn.QueryRow(query, tokenBytes).Scan(&token.UserID, &token.Expiration)
+	DatabaseErrorCheck(err)
+
+	if token.UserID == 0 || token.Expiration == 0 {
+		log.Debug("Failed getting token [%s] in database", macros.ShortenToken(tokenBytes))
+	} else {
+		et := time.Unix(token.Expiration, 0)
+		formattedDate := et.Format("2006-01-02 15:04:05")
+		log.Debug("Token [%s] was found in database, it belongs to user ID [%d], expires at [%s]", macros.ShortenToken(tokenBytes), token.UserID, formattedDate)
+	}
+
+	measureTime(start)
+	return token
 }
 
-func RenewTokenExpiration(newExpiration uint64, tokenBytes []byte) {
-	log.Debug("Updating expiration date for token [%s] as [%d]...", macros.ShortenToken(tokenBytes), newExpiration)
-
+func RenewTokenExpiration(newExpiration int64, tokenBytes []byte) {
 	const query string = "UPDATE tokens SET expiration = ? WHERE token = ?"
+	log.Query(query, newExpiration, macros.ShortenToken(tokenBytes))
 
 	result, err := Conn.Exec(query, newExpiration, tokenBytes)
 	if err != nil {
-		log.FatalError(err.Error(), "Couldn't update token expiration timestamp for token [%s] in database", macros.ShortenToken(tokenBytes))
+		DatabaseErrorCheck(err)
 	}
 
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		log.FatalError(err.Error(), "Error getting rowsAffected after updating token expiration timestamp for token [%s] in database", macros.ShortenToken(tokenBytes))
+		DatabaseErrorCheck(err)
 	}
 
 	if rowsAffected == 1 {

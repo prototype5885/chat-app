@@ -14,11 +14,6 @@ type Server struct {
 	Picture  string
 }
 
-type ServerDeletion struct {
-	ServerID uint64
-	UserID   uint64
-}
-
 const insertServerQuery = "INSERT INTO servers (server_id, user_id, name, picture) VALUES (?, ?, ?, ?)"
 const deleteServerQuery = "DELETE FROM servers WHERE server_id = ? AND user_id = ?"
 

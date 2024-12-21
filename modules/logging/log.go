@@ -88,12 +88,6 @@ func Query(format string, v ...any) {
 	}
 }
 
-func QueryTx(query string) {
-	if logLevel >= 4 {
-		logMsg(queryStr, query)
-	}
-}
-
 func Trace(format string, v ...any) {
 	if logLevel >= 4 {
 		logMsg(traceStr, format, v...)

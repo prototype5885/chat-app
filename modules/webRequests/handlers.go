@@ -61,7 +61,7 @@ func chatHandler(w http.ResponseWriter, r *http.Request) {
 
 	// check if user requesting login/registration already has a token
 	userID := CheckIfTokenIsValid(w, r)
-	if userID == 0 { // if user tries to use the chat but has no token
+	if userID == 0 { // if user tries to use the chat but has no token or expired
 		log.Trace("Someone is trying to access /chat without authorized token, redirecting to / ...")
 		redirect(w, r, "/")
 	} else {

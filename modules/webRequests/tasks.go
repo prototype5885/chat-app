@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"proto-chat/modules/database"
 	log "proto-chat/modules/logging"
+	"proto-chat/modules/macros"
 	"time"
 
 	"github.com/pquerna/otp"
@@ -73,8 +74,8 @@ func GenerateTOTP(userID uint64) (*otp.Key, image.Image) {
 	return totpKey, image
 }
 
-func newTokenExpiration() uint64 {
-	return uint64(time.Now().Add(30 * 24 * time.Hour).Unix()) // 30 days from current time
+func newTokenExpiration() int64 {
+	return time.Now().Add(30 * 24 * time.Hour).Unix() // 30 days from current time
 }
 
 func newTokenCookie(userID uint64) http.Cookie {
@@ -127,15 +128,25 @@ func CheckIfTokenIsValid(w http.ResponseWriter, r *http.Request) uint64 {
 			return 0
 		}
 
-		userID, _ := database.ConfirmToken(tokenBytes)
+		token := database.ConfirmToken(tokenBytes)
 
-		// check if expired already
-		// log.Debug("%d", expiration)
+		// check if token expired
+		currentTime := time.Now().Unix()
+		if token.Expiration != 0 && currentTime > token.Expiration {
+			difference := currentTime - token.Expiration
+			daysPassed := difference / 60 / 60 / 24
+			log.Trace("Token [%s] of user ID [%d] expired [%d] days ago", macros.ShortenToken(tokenBytes), token.UserID, daysPassed)
+			success := database.Delete(token)
+			if !success {
+				log.Impossible("How did deleting a confirmed token fail?")
+			}
+			return 0
+		}
 
-		// renew the token
-		if userID != 0 {
-			log.Trace("Renewing cookie for user ID [%d]", userID)
-			var newExpiration uint64 = newTokenExpiration()
+		// renew the token if token was found
+		if token.UserID != 0 {
+			log.Trace("Renewing cookie for user ID [%d]", token.UserID)
+			var newExpiration int64 = newTokenExpiration()
 			database.RenewTokenExpiration(newExpiration, tokenBytes)
 			var cookie = http.Cookie{
 				Name:     "token",
@@ -144,12 +155,12 @@ func CheckIfTokenIsValid(w http.ResponseWriter, r *http.Request) uint64 {
 				HttpOnly: true,
 				SameSite: http.SameSiteStrictMode,
 				Secure:   true,
-				Expires:  time.Unix(int64(newExpiration), 0),
+				Expires:  time.Unix(newExpiration, 0),
 			}
 			http.SetCookie(w, &cookie)
 		}
 		// check if token exists in the database
-		return userID
+		return token.UserID
 	}
 	return 0
 }

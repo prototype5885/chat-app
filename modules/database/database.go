@@ -3,8 +3,10 @@ package database
 import (
 	"database/sql"
 	"fmt"
+	"math/rand/v2"
 	"os"
 	log "proto-chat/modules/logging"
+	"proto-chat/modules/macros"
 	"strings"
 	"time"
 
@@ -162,57 +164,50 @@ func Insert(structs any) bool {
 func Delete(structo any) bool {
 	start := time.Now().UnixMicro()
 
-	var typeName string
-	var tableName string
-	var deletedItemOwnerID uint64 // deleted item's owner
-	var deletedItemID uint64      // deleted item
-
-	printDeletingMsg := func() {
-		tableName = typeName + "s"
-		log.Trace("Deleting row from Conn table [%s]", tableName)
-	}
+	var deletionID uint32 = rand.Uint32()
+	strID := fmt.Sprintf("ID: [%d], ", deletionID)
 
 	var err error
 	var result sql.Result
 	switch s := structo.(type) {
 	case Channel:
-	case ServerDeletion:
-		typeName = "server"
-		deletedItemID = s.ServerID
-		deletedItemOwnerID = s.UserID
-		printDeletingMsg()
+	case Server:
+		log.Query(strID+deleteServerQuery, s.ServerID, s.UserID)
 		result, err = Conn.Exec(deleteServerQuery, s.ServerID, s.UserID)
 	case Token:
+		log.Query(strID+deleteTokenQuery, macros.ShortenToken(s.Token), s.UserID)
+		result, err = Conn.Exec(deleteTokenQuery, s.Token, s.UserID)
 	case User:
 	case ServerMember:
-		typeName = "user"
-		deletedItemID = s.UserID
-		deletedItemOwnerID = s.ServerID
-		printDeletingMsg()
+		log.Query(strID+deleteServerMemberQuery, s.ServerID, s.UserID)
 		result, err = Conn.Exec(deleteServerMemberQuery, s.ServerID, s.UserID)
 	default:
-		log.Fatal("Unknown type in Conn Insert: [%T]", s)
+		log.Fatal("Unknown type in database deletion ID [%d]: [%T]", deletionID, s)
 	}
 
 	if err != nil {
-		log.FatalError(err.Error(), "Error deleting [%s] ID [%d] requested by user ID [%d]", typeName, deletedItemID, deletedItemOwnerID)
+		log.FatalError(err.Error(), "Fatal error at deletion ID [%d]", deletionID)
+		// if sqlite {
+
+		// } else {
+
+		// }
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		log.FatalError(err.Error(), "Error getting rowsAffected at deletion ID [%d]", deletionID)
 	}
 
 	measureTime(start)
 
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		log.FatalError(err.Error(), "Error getting rowsAffected while deleting %s ID [%d] requested by user ID [%d]", typeName, deletedItemID, deletedItemOwnerID)
-	}
-
 	if rowsAffected == 1 {
-		log.Trace("[%s] ID [%d] owned by ID [%d] was deleted from database", typeName, deletedItemID, deletedItemOwnerID)
 		return true
 	} else if rowsAffected == 0 {
-		log.Hack("User ID [%d] doesn't own any [%s] with ID [%d]", deletedItemOwnerID, typeName, deletedItemID)
+		log.Trace("No rows were deleted at deletion ID [%d]", deletionID)
 		return false
 	} else {
-		log.Impossible("Multiple [%s] were found and deleted", typeName)
+		log.Impossible("Multiple rows were found and deleted at deletion ID [%d]", deletionID)
 		return false
 	}
 }
