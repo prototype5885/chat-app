@@ -79,6 +79,16 @@ function setDisplayName(userID, name) {
     changeDisplayNameInChatMessageList(userID, name)
 }
 
+function setButtonActive(button, active) {
+    if (active) {
+        button.classList.remove("noHover")
+        button.disabled = false
+    } else {
+        button.classList.add("noHover")
+        button.disabled = true
+    }
+}
+
 function fixJson(jsonString) {
     const valueNames = ["ChannelID", "UserID", "MessageID", "ServerID", "IDm", "IDu"]
     for (let i = 0; i < valueNames.length; i++) {

@@ -22,6 +22,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/disintegration/imaging"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -281,7 +282,6 @@ func inviteHandler(w http.ResponseWriter, r *http.Request) {
 					respondText(w, "Successfully joined server ID [%d]", serverID)
 					log.Trace("User ID [%d] successfully joined server ID [%d]", userID, serverID)
 					redirect(w, r, "/chat.html")
-					return
 				} else {
 					respondText(w, "Failed joining server")
 				}
@@ -306,42 +306,113 @@ func uploadProfilePicHandler(w http.ResponseWriter, r *http.Request) {
 	err := r.ParseMultipartForm(100 << 10)
 	if err != nil {
 		log.WarnError(err.Error(), "Received profile picture from user ID [%d] is too big in size", userID)
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "Uploaded picture is too big", http.StatusBadRequest)
 		return
 	}
 
-	formFile, handler, err := r.FormFile("pfp")
+	// parse formfile
+	formFile, _, err := r.FormFile("pfp")
 	if err != nil {
 		log.WarnError(err.Error(), "Error parsing multipart form 2")
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "error", http.StatusInternalServerError)
 		return
 	}
 	defer formFile.Close()
 
-	var pfpPath = "./public/content/avatars/" + handler.Filename
-
-	pfp, err := os.Create(pfpPath)
+	// read bytes from received profile pic
+	imageData, err := io.ReadAll(formFile)
 	if err != nil {
-		log.WarnError(err.Error(), "Error creating formFile of profile pic from user ID [%d]", userID)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.WarnError(err.Error(), "Error reading formFile of profile pic from user ID [%d]", userID)
+		http.Error(w, "error", http.StatusInternalServerError)
 		return
 	}
-	defer pfp.Close()
 
-	if _, err := io.Copy(pfp, formFile); err != nil {
-		log.WarnError(err.Error(), "Error copying profile pic to avatars folder from user ID [%d]", userID)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	// decode
+	img, _, err := image.Decode(bytes.NewReader(imageData))
+	if err != nil {
+		log.Error("%s", err.Error())
+		log.Hack("Received profile pic from user ID [%d] is not a profile pic", userID)
+		http.Error(w, "Not a picture", http.StatusBadRequest)
+		return
+	}
+
+	// check if picture is too small
+	if img.Bounds().Dx() < 64 || img.Bounds().Dy() < 64 {
+		log.Trace("Received profile pic from user ID [%d] is too small", userID)
+		http.Error(w, "Picture is too small, minimum 64x64", http.StatusBadRequest)
+		return
+	}
+
+	// check if picture is either too wide or too tall
+	widthRatio := float64(img.Bounds().Dx()) / float64(img.Bounds().Dy())
+	heightRatio := float64(img.Bounds().Dy()) / float64(img.Bounds().Dx())
+	if widthRatio > 2 {
+		log.Trace("Received profile pic from user ID [%d] is too wide", userID)
+		http.Error(w, "Picture is too wide, must be less than 1:2 ratio", http.StatusBadRequest)
+		return
+	} else if heightRatio > 2 {
+		log.Trace("Received profile pic from user ID [%d] is too tall", userID)
+		http.Error(w, "Picture is too tall, must be less than 1:2 ratio", http.StatusBadRequest)
+		return
+	}
+
+	// if height is larger than width, crop height to same size as width,
+	// else if width is larger than height, crop width to the same size as height
+	if img.Bounds().Dy() > img.Bounds().Dx() {
+		img = imaging.CropCenter(img, img.Bounds().Dx(), img.Bounds().Dx())
+	} else if img.Bounds().Dx() > img.Bounds().Dy() {
+		img = imaging.CropCenter(img, img.Bounds().Dy(), img.Bounds().Dy())
+	}
+
+	// check if picture is in square dimension
+	if img.Bounds().Dx() != img.Bounds().Dy() {
+		log.Impossible("Profile pic of user ID [%d] cropped isnt in square dimension: [%dx%d]", userID, img.Bounds().Dx(), img.Bounds().Dy())
+		return
+	}
+
+	// resize to 256px width if wider
+	if img.Bounds().Dx() > 256 && img.Bounds().Dy() > 256 {
+		img = imaging.Resize(img, 256, 256, imaging.Lanczos)
+	}
+
+	// recompress into jpg
+	var buf bytes.Buffer
+	err = jpeg.Encode(&buf, img, &jpeg.Options{Quality: 90})
+	if err != nil {
+		log.FatalError(err.Error(), "Error compressing profile pic from user ID [%d]", userID)
+		http.Error(w, "error", http.StatusInternalServerError)
+		return
+	}
+
+	hash := sha256.Sum256(buf.Bytes())
+	fileName := hex.EncodeToString(hash[:]) + ".jpg"
+	var pfpPath = "./public/content/avatars/" + fileName
+
+	// create profile pic file
+	pfpFile, err := os.Create(pfpPath)
+	if err != nil {
+		log.FatalError(err.Error(), "Error creating file for profile pic from user ID [%d]", userID)
+		http.Error(w, "error", http.StatusInternalServerError)
+		return
+	}
+	defer pfpFile.Close()
+
+	// write bytes into that file
+	_, err = pfpFile.Write(buf.Bytes())
+	if err != nil {
+		log.FatalError(err.Error(), "Error writing bytes to profile pic file from user ID [%d]", userID)
+		http.Error(w, "error", http.StatusInternalServerError)
 		return
 
 	}
 
-	// success := database.UpdateUserRow(database.User{Picture: handler.Filename}, userID)
-	// if !success {
-	// 	log.Warn("Failed updating profile picture of user ID [%d]", userID)
-	// 	return
-	// }
+	success := database.UpdateProfilePic(userID, fileName)
+	if !success {
+		log.Warn("Failed updating profile picture of user ID [%d] in database", userID)
+		return
+	}
 
-	websocket.OnProfilePicChanged(userID, handler.Filename)
+	websocket.OnProfilePicChanged(userID, fileName)
 }
 
 func uploadAttachmentHandler(w http.ResponseWriter, r *http.Request) {
@@ -379,21 +450,26 @@ func uploadAttachmentHandler(w http.ResponseWriter, r *http.Request) {
 		if part.FileName() != "" {
 			img, _, err := image.Decode(part)
 			if err != nil {
+				log.Error("%s", err.Error())
+				log.Hack("Received attachment from user ID [%d] is not a picture", userID)
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
 
+			resizedImg := imaging.Resize(img, 2048, 0, imaging.Lanczos)
+
 			buf := new(bytes.Buffer)
 			opt := jpeg.Options{Quality: 75}
-			err = jpeg.Encode(buf, img, &opt)
+			err = jpeg.Encode(buf, resizedImg, &opt)
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+				http.Error(w, "error", http.StatusInternalServerError)
 				log.FatalError(err.Error(), "Error encoding image sent by user ID [%d]", userID)
+				return
 			}
 
 			hash := sha256.Sum256(buf.Bytes())
-
 			fileName := hex.EncodeToString(hash[:]) + ".jpg"
+
 			fileNames = append(fileNames, fileName)
 
 			var filePath = "./public/content/attachments/" + fileName

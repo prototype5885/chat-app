@@ -79,7 +79,27 @@ func newTokenExpiration() int64 {
 }
 
 func newTokenCookie(userID uint64) http.Cookie {
-	var token database.Token = newToken(userID)
+	log.Debug("Generating new token for user ID [%d]...", userID)
+
+	// generate new token
+	tokenBytes := make([]byte, 128)
+	_, err := io.ReadFull(rand.Reader, tokenBytes)
+	if err != nil {
+		log.FatalError(err.Error(), "Error generating token for user ID [%d]", userID)
+	}
+
+	token := database.Token{
+		Token:      tokenBytes,
+		UserID:     userID,
+		Expiration: newTokenExpiration(),
+	}
+
+	// add the newly generated token into the database
+	success := database.Insert(token)
+	if !success {
+		log.Fatal("Failed inserting new generated token for user ID [%d] into database", userID)
+	}
+
 	cookie := http.Cookie{
 		Name:     "token",
 		Value:    hex.EncodeToString(token.Token),
@@ -90,32 +110,6 @@ func newTokenCookie(userID uint64) http.Cookie {
 		Expires:  time.Unix(int64(token.Expiration), 0),
 	}
 	return cookie
-}
-
-func newToken(userID uint64) database.Token {
-	log.Debug("Generating new token for user ID [%d]...", userID)
-
-	// generate new token
-	var tokenBytes []byte = make([]byte, 128)
-	_, err := io.ReadFull(rand.Reader, tokenBytes)
-	if err != nil {
-		log.FatalError(err.Error(), "Error generating token for user ID [%d]", userID)
-	}
-
-	var token = database.Token{
-		Token:      tokenBytes,
-		UserID:     userID,
-		Expiration: newTokenExpiration(),
-	}
-
-	// add the newly generated token into the database
-	success := database.Insert(token)
-	if !success {
-		return token
-	}
-
-	// return the new token
-	return token
 }
 
 func CheckIfTokenIsValid(w http.ResponseWriter, r *http.Request) uint64 {
@@ -147,7 +141,11 @@ func CheckIfTokenIsValid(w http.ResponseWriter, r *http.Request) uint64 {
 		if token.UserID != 0 {
 			log.Trace("Renewing cookie for user ID [%d]", token.UserID)
 			var newExpiration int64 = newTokenExpiration()
-			database.RenewTokenExpiration(newExpiration, tokenBytes)
+			success := database.RenewTokenExpiration(newExpiration, tokenBytes)
+			if !success {
+				log.Error("Failed renewing token for user ID [%d]", token.UserID)
+				return 0
+			}
 			var cookie = http.Cookie{
 				Name:     "token",
 				Value:    cookieToken.Value,

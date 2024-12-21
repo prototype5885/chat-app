@@ -3,7 +3,6 @@ package database
 import (
 	"database/sql"
 	"fmt"
-	"math/rand/v2"
 	"os"
 	log "proto-chat/modules/logging"
 	"proto-chat/modules/macros"
@@ -131,27 +130,27 @@ func Insert(structs any) bool {
 	if err != nil {
 		if sqlite { // sqlite
 			if strings.Contains(err.Error(), "1555") { // duplicate primary key
-				log.Error("%s", err.Error())
+				log.FatalError(err.Error(), "%s", "duplicate primary key")
 				return false
 			} else if strings.Contains(err.Error(), "2067") { // duplicate unique value
-				log.Error("%s", err.Error())
+				log.FatalError(err.Error(), "%s", "duplicate unique value")
 				return false
 			} else if strings.Contains(err.Error(), "787") { // no foreign key, no owner
-				log.Error("%s", err.Error())
+				log.FatalError(err.Error(), "%s", "foreign key/owner doesn't exist")
 				return false
 			} else { // unknown error
-				log.FatalError(err.Error(), "")
+				log.FatalError(err.Error(), "%s", "fatal error")
 				return false
 			}
 		} else { // mariadb or mysql
 			if strings.Contains(err.Error(), "1452") { // no foreign key, no owner
-				log.Error("%s", err.Error())
+				log.FatalError(err.Error(), "%s", "foreign key/owner doesn't exist")
 				return false
 			} else if strings.Contains(err.Error(), "1062") { // duplicate primary key or unique value
-				log.Error("%s", err.Error())
+				log.FatalError(err.Error(), "%s", "duplicate primary key or unique value")
 				return false
 			} else { // unknown error
-				log.Error("%s", err.Error())
+				log.FatalError(err.Error(), "%s", "fatal error")
 				return false
 			}
 		}
@@ -164,29 +163,26 @@ func Insert(structs any) bool {
 func Delete(structo any) bool {
 	start := time.Now().UnixMicro()
 
-	var deletionID uint32 = rand.Uint32()
-	strID := fmt.Sprintf("ID: [%d], ", deletionID)
-
 	var err error
 	var result sql.Result
 	switch s := structo.(type) {
 	case Channel:
 	case Server:
-		log.Query(strID+deleteServerQuery, s.ServerID, s.UserID)
+		log.Query(deleteServerQuery, s.ServerID, s.UserID)
 		result, err = Conn.Exec(deleteServerQuery, s.ServerID, s.UserID)
 	case Token:
-		log.Query(strID+deleteTokenQuery, macros.ShortenToken(s.Token), s.UserID)
+		log.Query(deleteTokenQuery, macros.ShortenToken(s.Token), s.UserID)
 		result, err = Conn.Exec(deleteTokenQuery, s.Token, s.UserID)
 	case User:
 	case ServerMember:
-		log.Query(strID+deleteServerMemberQuery, s.ServerID, s.UserID)
+		log.Query(deleteServerMemberQuery, s.ServerID, s.UserID)
 		result, err = Conn.Exec(deleteServerMemberQuery, s.ServerID, s.UserID)
 	default:
-		log.Fatal("Unknown type in database deletion ID [%d]: [%T]", deletionID, s)
+		log.Fatal("Unknown type in database [%T]", s)
 	}
 
 	if err != nil {
-		log.FatalError(err.Error(), "Fatal error at deletion ID [%d]", deletionID)
+		log.FatalError(err.Error(), "%s", "fatal error")
 		// if sqlite {
 
 		// } else {
@@ -196,7 +192,7 @@ func Delete(structo any) bool {
 
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		log.FatalError(err.Error(), "Error getting rowsAffected at deletion ID [%d]", deletionID)
+		log.FatalError(err.Error(), "%s", "error getting RowsAffected")
 	}
 
 	measureTime(start)
@@ -204,10 +200,10 @@ func Delete(structo any) bool {
 	if rowsAffected == 1 {
 		return true
 	} else if rowsAffected == 0 {
-		log.Trace("No rows were deleted at deletion ID [%d]", deletionID)
+		log.Trace("%s", "no rows were deleted")
 		return false
 	} else {
-		log.Impossible("Multiple rows were found and deleted at deletion ID [%d]", deletionID)
+		log.Impossible("%s", "multiple rows were deleted")
 		return false
 	}
 }

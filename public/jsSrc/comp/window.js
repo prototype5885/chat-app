@@ -325,7 +325,9 @@ function createSettingsLeftSide(windowMain, type) {
                                 <input type="file" name="image" class="pfp-uploader" accept="image/*" style="display: none">
                                 <button class="select-pfp" style="background-image: url(${ownProfilePic})"></button>
                                 <br>
-                                <button class="button send-pfp">Apply Picture</button>
+                                <button class="button send-pfp-button noHover" disabled>Apply Picture</button>
+                                <br>
+                                <label class="pfp-response-label"></label>
                             </div>`
 
                         // applying username, pronouns, etc
@@ -337,6 +339,7 @@ function createSettingsLeftSide(windowMain, type) {
                             const newPronouns = firstPronoun + "/" + secondPronoun
 
                             const newStatusText = profileSettings.querySelector(".change-status").value
+
 
                             if (newDisplayName === ownDisplayName && newPronouns === ownPronouns && newStatusText === ownStatusText) {
                                 console.warn("No user settings was changed")
@@ -352,6 +355,8 @@ function createSettingsLeftSide(windowMain, type) {
                             requestUpdateUserData(updatedUserData)
                         })
 
+                        const sendButon = profileSettings.querySelector(".send-pfp-button")
+
                         // clicked on profile pic
                         profileSettings.querySelector(".select-pfp").addEventListener("click", async (event) => {
                             profileSettings.querySelector(".pfp-uploader").click()
@@ -360,6 +365,7 @@ function createSettingsLeftSide(windowMain, type) {
                         // added a profile pic
                         const profilePicUploader = profileSettings.querySelector(".pfp-uploader")
                         profilePicUploader.addEventListener("change", async (event) => {
+                            setButtonActive(sendButon, true)
                             console.log("pic added")
                             const reader = new FileReader()
                             reader.readAsDataURL(profilePicUploader.files[0])
@@ -372,7 +378,7 @@ function createSettingsLeftSide(windowMain, type) {
                         })
 
                         // upload the profile pic
-                        profileSettings.querySelector(".send-pfp").addEventListener("click", async (event) => {
+                        sendButon.addEventListener("click", async (event) => {
                             console.log("Uploading profile pic...")
                             event.preventDefault()
 
@@ -390,10 +396,18 @@ function createSettingsLeftSide(windowMain, type) {
                                 body: formData
                             })
 
+                            const respText = await response.text()
+
+                            const pfpRespLabel = profileSettings.querySelector(".pfp-response-label")
                             if (response.ok) {
-                                console.log("Profile pic was uploaded successfully")
+                                const successText = "Profile pic was uploaded successfully"
+                                console.log(successText)
+                                pfpRespLabel.style.color = "green"
+                                pfpRespLabel.textContent = successText
                             } else {
-                                console.error("Profile pic upload failed")
+                                console.error(respText)
+                                pfpRespLabel.style.color = "red"
+                                pfpRespLabel.textContent = respText
                             }
                         })
                         break

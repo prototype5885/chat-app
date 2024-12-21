@@ -30,6 +30,10 @@ button {
     color: #C5C7CB;
 }
 
+.noHover {
+    pointer-events: none;
+}
+
 button:hover {
     cursor: pointer;
     color: #fff;
@@ -64,11 +68,15 @@ button:hover {
     text-align: center;
     text-decoration: none;
     cursor: pointer;
-    transition: background-color 0.3s;
+    transition: background-color 0.3s, opacity 0.5s;
 }
 
 .button:hover {
     background-color: #0056b3;
+}
+
+.button:disabled {
+    opacity: 0.35;
 }
 
 input {

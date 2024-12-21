@@ -78,7 +78,7 @@ func ConfirmServerMembership(userID uint64, serverID uint64) bool {
 
 func GetJoinedServersList(userID uint64) []uint64 {
 	start := time.Now().UnixMicro()
-	const query string = "SELECT s.server_idFROM servers sJOIN server_members m ON s.server_id = m.server_idWHERE m.user_id = ?"
+	const query string = "SELECT s.server_id FROM servers s JOIN server_members m ON s.server_id = m.server_id WHERE m.user_id = ?"
 	log.Query(query, userID)
 
 	rows, err := Conn.Query(query, userID)

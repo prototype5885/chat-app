@@ -50,25 +50,21 @@ func ConfirmToken(tokenBytes []byte) Token {
 	return token
 }
 
-func RenewTokenExpiration(newExpiration int64, tokenBytes []byte) {
+func RenewTokenExpiration(newExpiration int64, tokenBytes []byte) bool {
 	const query string = "UPDATE tokens SET expiration = ? WHERE token = ?"
 	log.Query(query, newExpiration, macros.ShortenToken(tokenBytes))
 
 	result, err := Conn.Exec(query, newExpiration, tokenBytes)
-	if err != nil {
-		DatabaseErrorCheck(err)
-	}
+	DatabaseErrorCheck(err)
 
 	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		DatabaseErrorCheck(err)
-	}
+	DatabaseErrorCheck(err)
 
 	if rowsAffected == 1 {
 		log.Debug("Updated expiration timestamp for token [%s] in database", macros.ShortenToken(tokenBytes))
-	} else if rowsAffected == 0 {
-		log.Debug("No changes were made for expiration timestamp for token [%s] in database", macros.ShortenToken(tokenBytes))
+		return true
 	} else {
-		log.Impossible("Multiple expiration timestamps of token [%s] were updated, this is not supposed to be possible at all", macros.ShortenToken(tokenBytes))
+		log.Debug("No changes were made for expiration timestamp for token [%s] in database", macros.ShortenToken(tokenBytes))
+		return false
 	}
 }

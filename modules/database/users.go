@@ -154,3 +154,22 @@ func GetUserData(userID uint64) (string, string) {
 
 	return displayName, picture
 }
+
+func UpdateProfilePic(userID uint64, filename string) bool {
+	const query = "UPDATE users SET picture = ? WHERE user_id = ?"
+	log.Query(query, filename, userID)
+
+	result, err := Conn.Exec(query, filename, userID)
+	DatabaseErrorCheck(err)
+
+	rowsAffected, err := result.RowsAffected()
+	DatabaseErrorCheck(err)
+
+	if rowsAffected == 1 {
+		log.Debug("Updated profile picture of user ID [%d] in database", userID)
+		return true
+	} else {
+		log.Debug("No changes were made for profile picture row of user ID [%d] in database", userID)
+		return false
+	}
+}
