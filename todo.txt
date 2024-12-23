@@ -26,3 +26,5 @@ add more stuff to userChanges.go
 check if user can send message to server or request messages from server they are not in
 cache joined servers too next to database
     DONE // check if username is already taken
+make attachment token expire after a time
+fix userdata updating, separating broadcast and reply

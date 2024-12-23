@@ -46,7 +46,7 @@ func ConfirmToken(tokenBytes []byte) Token {
 		log.Debug("Token [%s] was found in database, it belongs to user ID [%d], expires at [%s]", macros.ShortenToken(tokenBytes), token.UserID, formattedDate)
 	}
 
-	measureTime(start)
+	measureDbTime(start)
 	return token
 }
 

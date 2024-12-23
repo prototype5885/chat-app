@@ -42,6 +42,6 @@ func ConfirmServerInviteID(inviteID uint64) uint64 {
 		log.Debug("Invite ID [%d] was found in database, it belongs to server ID [%d]", inviteID, serverID)
 	}
 
-	measureTime(start)
+	measureDbTime(start)
 	return serverID
 }

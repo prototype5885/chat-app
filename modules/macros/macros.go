@@ -13,12 +13,14 @@ import (
 
 const maxUsernameLength = 16
 
-func GetTimestamp() int64 {
-	return time.Now().UnixMilli()
-}
+// func GetTimestamp() int64 {
+// 	return time.Now().UnixMilli()
+// }
 
 func MeasureTime(start int64, msg string) {
-	log.Time("%s took [%d ms]", msg, GetTimestamp()-start)
+	duration := time.Now().UnixMicro() - start
+	durationMs := duration / 1000
+	log.Time("%s took [%d μs] [%d ms]", msg, duration, durationMs)
 }
 
 func ErrorDeserializing(errStr string, jsonType string, userID uint64) []byte {

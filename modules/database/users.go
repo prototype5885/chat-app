@@ -24,6 +24,7 @@ func CreateUsersTable() {
 		display_name VARCHAR(64) NOT NULL,
 		status TINYINT UNSIGNED	NOT NULL DEFAULT 1,
 		status_text VARCHAR(32) NOT NULL DEFAULT '',
+		pronouns VARCHAR(17) NOT NULL DEFAULT '',
 		picture VARCHAR(255) NOT NULL DEFAULT '',
 		password BINARY(60) NOT NULL,
 		totp CHAR(32) NOT NULL DEFAULT '',
@@ -169,7 +170,26 @@ func UpdateProfilePic(userID uint64, filename string) bool {
 		log.Debug("Updated profile picture of user ID [%d] in database", userID)
 		return true
 	} else {
-		log.Debug("No changes were made for profile picture row of user ID [%d] in database", userID)
+		log.Debug("No changes were made for profile picture of user ID [%d] in database", userID)
+		return false
+	}
+}
+
+func UpdateUserData(userID uint64, displayName string, pronouns string, statusText string) bool {
+	const query = "UPDATE users SET display_name = ?, pronouns = ?, status_text = ? WHERE user_id = ?"
+	log.Query(query, displayName, pronouns, statusText, userID)
+
+	result, err := Conn.Exec(query, displayName, pronouns, statusText, userID)
+	DatabaseErrorCheck(err)
+
+	rowsAffected, err := result.RowsAffected()
+	DatabaseErrorCheck(err)
+
+	if rowsAffected == 1 {
+		log.Debug("Updated user data of user ID [%d] in database", userID)
+		return true
+	} else {
+		log.Debug("No changes were made for user data of user ID [%d] in database", userID)
 		return false
 	}
 }

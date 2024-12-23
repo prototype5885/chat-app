@@ -50,9 +50,9 @@ async function connectToWebsocket() {
     }
 
     // wsClient.onerror = async function (_event) {
-        // console.log("Error in websocket")
-        // wsConnected = false
-        // await reconnectToWebsocket()
+    // console.log("Error in websocket")
+    // wsConnected = false
+    // await reconnectToWebsocket()
     // }
 
     // when server sends a message
@@ -165,11 +165,11 @@ async function connectToWebsocket() {
                 break
             case 51: // Server sent that a user changed display name
                 if (json.UserID === ownUserID) {
-                    console.log("My new display name:", json.NewName)
+                    console.log("My new display name:", json.DisplayName)
                 } else {
-                    console.log(`User ID [${json.UserID}] changed their name to [${json.NewName}]`)
+                    console.log(`User ID [${json.UserID}] changed their name to [${json.DisplayName}]`)
                 }
-                setDisplayName(json.UserID, json.NewName)
+                setDisplayName(json.UserID, json.DisplayName)
                 break
             case 52: // Server sent that a user changed profile pic
                 if (json.UserID === ownUserID) {

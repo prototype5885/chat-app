@@ -16,6 +16,7 @@ import (
 	"proto-chat/modules/database"
 	log "proto-chat/modules/logging"
 	"proto-chat/modules/macros"
+	"proto-chat/modules/pictures"
 	"proto-chat/modules/snowflake"
 	"proto-chat/modules/websocket"
 	"strconv"
@@ -320,71 +321,22 @@ func uploadProfilePicHandler(w http.ResponseWriter, r *http.Request) {
 	defer formFile.Close()
 
 	// read bytes from received profile pic
-	imageData, err := io.ReadAll(formFile)
+	imgBytes, err := io.ReadAll(formFile)
 	if err != nil {
 		log.WarnError(err.Error(), "Error reading formFile of profile pic from user ID [%d]", userID)
 		http.Error(w, "error", http.StatusInternalServerError)
 		return
 	}
 
-	// decode
-	img, _, err := image.Decode(bytes.NewReader(imageData))
-	if err != nil {
-		log.Error("%s", err.Error())
-		log.Hack("Received profile pic from user ID [%d] is not a profile pic", userID)
-		http.Error(w, "Not a picture", http.StatusBadRequest)
+	// check if received profile pic is in correct format
+	var issue string
+	imgBytes, issue = pictures.CheckProfilePic(imgBytes, userID)
+	if issue != "" {
+		http.Error(w, issue, http.StatusBadRequest)
 		return
 	}
 
-	// check if picture is too small
-	if img.Bounds().Dx() < 64 || img.Bounds().Dy() < 64 {
-		log.Trace("Received profile pic from user ID [%d] is too small", userID)
-		http.Error(w, "Picture is too small, minimum 64x64", http.StatusBadRequest)
-		return
-	}
-
-	// check if picture is either too wide or too tall
-	widthRatio := float64(img.Bounds().Dx()) / float64(img.Bounds().Dy())
-	heightRatio := float64(img.Bounds().Dy()) / float64(img.Bounds().Dx())
-	if widthRatio > 2 {
-		log.Trace("Received profile pic from user ID [%d] is too wide", userID)
-		http.Error(w, "Picture is too wide, must be less than 1:2 ratio", http.StatusBadRequest)
-		return
-	} else if heightRatio > 2 {
-		log.Trace("Received profile pic from user ID [%d] is too tall", userID)
-		http.Error(w, "Picture is too tall, must be less than 1:2 ratio", http.StatusBadRequest)
-		return
-	}
-
-	// if height is larger than width, crop height to same size as width,
-	// else if width is larger than height, crop width to the same size as height
-	if img.Bounds().Dy() > img.Bounds().Dx() {
-		img = imaging.CropCenter(img, img.Bounds().Dx(), img.Bounds().Dx())
-	} else if img.Bounds().Dx() > img.Bounds().Dy() {
-		img = imaging.CropCenter(img, img.Bounds().Dy(), img.Bounds().Dy())
-	}
-
-	// check if picture is in square dimension
-	if img.Bounds().Dx() != img.Bounds().Dy() {
-		log.Impossible("Profile pic of user ID [%d] cropped isnt in square dimension: [%dx%d]", userID, img.Bounds().Dx(), img.Bounds().Dy())
-		return
-	}
-
-	// resize to 256px width if wider
-	if img.Bounds().Dx() > 256 && img.Bounds().Dy() > 256 {
-		img = imaging.Resize(img, 256, 256, imaging.Lanczos)
-	}
-
-	// recompress into jpg
-	var buf bytes.Buffer
-	err = jpeg.Encode(&buf, img, &jpeg.Options{Quality: 90})
-	if err != nil {
-		log.FatalError(err.Error(), "Error compressing profile pic from user ID [%d]", userID)
-		http.Error(w, "error", http.StatusInternalServerError)
-		return
-	}
-
-	hash := sha256.Sum256(buf.Bytes())
+	hash := sha256.Sum256(imgBytes)
 	fileName := hex.EncodeToString(hash[:]) + ".jpg"
 	var pfpPath = "./public/content/avatars/" + fileName
 
@@ -398,7 +350,7 @@ func uploadProfilePicHandler(w http.ResponseWriter, r *http.Request) {
 	defer pfpFile.Close()
 
 	// write bytes into that file
-	_, err = pfpFile.Write(buf.Bytes())
+	_, err = pfpFile.Write(imgBytes)
 	if err != nil {
 		log.FatalError(err.Error(), "Error writing bytes to profile pic file from user ID [%d]", userID)
 		http.Error(w, "error", http.StatusInternalServerError)

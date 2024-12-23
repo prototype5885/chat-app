@@ -97,6 +97,6 @@ func GetJoinedServersList(userID uint64) []uint64 {
 	} else {
 		log.Trace("Successfully retrieved list of servers where user ID [%d] is joined", userID)
 	}
-	measureTime(start)
+	measureDbTime(start)
 	return serverIDs
 }

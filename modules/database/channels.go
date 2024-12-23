@@ -55,7 +55,7 @@ func GetChannelList(serverID uint64) []byte {
 		macros.ErrorSerializing(err.Error(), "channel list", serverID)
 	}
 
-	measureTime(start)
+	measureDbTime(start)
 	return jsonResult
 }
 
@@ -74,6 +74,6 @@ func GetServerIdOfChannel(channelID uint64) uint64 {
 		log.Trace("Channel ID [%d] belongs to server ID [%d]", channelID, serverID)
 	}
 
-	measureTime(start)
+	measureDbTime(start)
 	return serverID
 }

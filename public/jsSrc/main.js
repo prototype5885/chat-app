@@ -22,7 +22,8 @@ let ownUserID // this will be the first thing server will send
 let ownDisplayName // and this too
 let ownProfilePic
 let ownPronouns
-let ownStatusText;
+let ownStatusText
+
 let receivedOwnUserData = false // don't continue loading until own user ID is received
 let receivedImageHostAddress = false // don't continue loading until host address of image server arrived
 let memberListLoaded = false // don't add chat history until server member list is received

@@ -196,7 +196,8 @@ body {
 .select-pfp {
     width: 128px;
     height: 128px;
-    background-size: 128px 128px;
+    background-size: cover;
+    background-position: center;
     border-radius: 50%;
 }
 

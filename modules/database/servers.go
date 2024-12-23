@@ -51,7 +51,7 @@ func GetServerList(userID uint64) []byte {
 
 	jsonResult, _ := json.Marshal(servers)
 
-	measureTime(start)
+	measureDbTime(start)
 	return jsonResult
 }
 func GetServerOwner(serverID uint64) uint64 {
@@ -69,7 +69,7 @@ func GetServerOwner(serverID uint64) uint64 {
 		log.Trace("Owner of server ID [%d] is: [%d]", serverID, ownerID)
 	}
 
-	measureTime(start)
+	measureDbTime(start)
 	return ownerID
 }
 

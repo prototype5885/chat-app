@@ -99,7 +99,7 @@ func GetChatHistory(channelID uint64, fromMessageID uint64, older bool, userID u
 
 	jsonResult, _ := json.Marshal(chatMessageHistory)
 
-	measureTime(start)
+	measureDbTime(start)
 	return jsonResult
 }
 
@@ -117,6 +117,6 @@ func DeleteChatMessage(messageID uint64, userID uint64) uint64 {
 		log.Hack("There is no message ID [%d] owned by user ID [%d]", messageID, userID)
 	}
 
-	measureTime(start)
+	measureDbTime(start)
 	return channelID
 }

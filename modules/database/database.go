@@ -69,7 +69,7 @@ func CreateTables() {
 	CreateChatMessagesTable()
 	//CreateAttachmentsTable()
 	CreateServerInvitesTable()
-	measureTime(start)
+	measureDbTime(start)
 }
 
 func DatabaseErrorCheck(err error) {
@@ -88,10 +88,8 @@ func transactionErrorCheck(err error) {
 	}
 }
 
-func measureTime(start int64) {
-	duration := time.Now().UnixMicro() - start
-	durationMs := duration / 1000
-	log.Time("Database statement took [%d μs] [%d ms]", duration, durationMs)
+func measureDbTime(start int64) {
+	macros.MeasureTime(start, "Database statement")
 }
 
 func Insert(structs any) bool {
@@ -156,7 +154,7 @@ func Insert(structs any) bool {
 		}
 
 	}
-	measureTime(start)
+	measureDbTime(start)
 	return true
 }
 
@@ -195,7 +193,7 @@ func Delete(structo any) bool {
 		log.FatalError(err.Error(), "%s", "error getting RowsAffected")
 	}
 
-	measureTime(start)
+	measureDbTime(start)
 
 	if rowsAffected == 1 {
 		return true

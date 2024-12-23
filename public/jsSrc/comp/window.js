@@ -340,7 +340,6 @@ function createSettingsLeftSide(windowMain, type) {
 
                             const newStatusText = profileSettings.querySelector(".change-status").value
 
-
                             if (newDisplayName === ownDisplayName && newPronouns === ownPronouns && newStatusText === ownStatusText) {
                                 console.warn("No user settings was changed")
                                 return
@@ -360,21 +359,29 @@ function createSettingsLeftSide(windowMain, type) {
                         // clicked on profile pic
                         profileSettings.querySelector(".select-pfp").addEventListener("click", async (event) => {
                             profileSettings.querySelector(".pfp-uploader").click()
+                            pfpRespLabel.style.color = ""
+                            pfpRespLabel.textContent = ""
                         })
+
+                        const pfpRespLabel = profileSettings.querySelector(".pfp-response-label")
 
                         // added a profile pic
                         const profilePicUploader = profileSettings.querySelector(".pfp-uploader")
                         profilePicUploader.addEventListener("change", async (event) => {
-                            setButtonActive(sendButon, true)
-                            console.log("pic added")
-                            const reader = new FileReader()
-                            reader.readAsDataURL(profilePicUploader.files[0])
+                            const pfpPreview = profileSettings.querySelector(".select-pfp")
+                            if (profilePicUploader.files.length === 0) {
+                                console.log("No profile pic has been selected")
+                                pfpPreview.style.backgroundImage = `url(${ownProfilePic})`
+                            } else {
+                                setButtonActive(sendButon, true)
+                                console.log("Profile pic selected")
+                                const reader = new FileReader()
+                                reader.readAsDataURL(profilePicUploader.files[0])
 
-                            reader.onload = function (e) {
-                                const pfpPreview = profileSettings.querySelector(".select-pfp")
-                                pfpPreview.style.backgroundImage = `url(${e.target.result})`
+                                reader.onload = function (e) {
+                                    pfpPreview.style.backgroundImage = `url(${e.target.result})`
+                                }
                             }
-
                         })
 
                         // upload the profile pic
@@ -398,7 +405,6 @@ function createSettingsLeftSide(windowMain, type) {
 
                             const respText = await response.text()
 
-                            const pfpRespLabel = profileSettings.querySelector(".pfp-response-label")
                             if (response.ok) {
                                 const successText = "Profile pic was uploaded successfully"
                                 console.log(successText)

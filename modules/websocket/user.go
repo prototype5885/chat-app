@@ -4,36 +4,36 @@ import (
 	"encoding/json"
 	"proto-chat/modules/database"
 	"proto-chat/modules/macros"
-	"strconv"
 )
 
 func (c *Client) onUpdateUserDataRequest(packetJson []byte) (BroadcastData, []byte) {
-	const jsonType string = "change display name"
+	const jsonType string = "change user data"
 
 	type UpdateUserDataRequest struct {
 		DisplayName string
 		Pronouns    string
+		StatusText  string
 	}
 
-	var updateUserDataRequest UpdateUserDataRequest
+	var req UpdateUserDataRequest
 
-	if err := json.Unmarshal(packetJson, &updateUserDataRequest); err != nil {
+	if err := json.Unmarshal(packetJson, &req); err != nil {
 		return BroadcastData{}, macros.ErrorDeserializing(err.Error(), jsonType, c.UserID)
 	}
 
 	// change name in database
-	// if !setUserDisplayName(c.UserID, updateUserDataRequest.DisplayName) {
-	// 	return BroadcastData{}, macros.RespondFailureReason("Failed changing display name")
-	// }
-
-	type NewDisplayName struct {
-		UserID  string
-		NewName string
+	if !database.UpdateUserData(c.UserID, req.DisplayName, req.Pronouns, req.StatusText) {
+		return BroadcastData{}, macros.RespondFailureReason("Failed changing display name")
 	}
 
-	var newDisplayName = NewDisplayName{
-		UserID:  strconv.FormatUint(c.UserID, 10),
-		NewName: updateUserDataRequest.DisplayName,
+	type UserData struct {
+		UserID      uint64
+		DisplayName string
+	}
+
+	var newDisplayName = UserData{
+		UserID:      c.UserID,
+		DisplayName: req.DisplayName,
 	}
 
 	jsonBytes, err := json.Marshal(newDisplayName)
@@ -48,12 +48,6 @@ func (c *Client) onUpdateUserDataRequest(packetJson []byte) (BroadcastData, []by
 		return BroadcastData{}, macros.PreparePacket(updateUserData, jsonBytes)
 	}
 
-	// deserialize the server ID list
-	//var serverIDs []uint64
-	//if err := json.Unmarshal(serverIDsJson, &serverIDs); err != nil {
-	//	macros.ErrorDeserializing(err.Error(), jsonType, c.userID)
-	//}
-
 	// prepare broadcast data that will be sent to affected users
 	var broadcastData = BroadcastData{
 		MessageBytes:    macros.PreparePacket(updateUserData, jsonBytes),
@@ -61,7 +55,7 @@ func (c *Client) onUpdateUserDataRequest(packetJson []byte) (BroadcastData, []by
 		AffectedServers: serverIDs,
 	}
 
-	// workaround so it also sends self if not in any server
+	// workaround so it also sends to user itself if user not in any server
 	if c.currentServerID == 0 {
 		c.WriteChan <- macros.PreparePacket(updateUserData, jsonBytes)
 	}
