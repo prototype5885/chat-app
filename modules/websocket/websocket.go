@@ -8,7 +8,6 @@ import (
 	log "proto-chat/modules/logging"
 	"proto-chat/modules/macros"
 	"proto-chat/modules/snowflake"
-	"strconv"
 	"sync"
 	"time"
 
@@ -18,25 +17,26 @@ import (
 //const sessionTokenLength = 16
 
 const (
-	addChatMessage     byte = 1
-	chatHistory        byte = 2
-	deleteChatMessage  byte = 3
-	addServer          byte = 21
-	serverList         byte = 22
-	deleteServer       byte = 23
-	serverInviteLink   byte = 24
-	addChannel         byte = 31
-	channelList        byte = 32
-	deleteChannel      byte = 33
-	addServerMember    byte = 41
-	serverMemberList   byte = 42
-	deleteServerMember byte = 43
-	updateUserData     byte = 51
-	updateProfilePic   byte = 52
-	updateStatus       byte = 53
-	updateStatusText   byte = 54
-	updateOnline       byte = 55
-	imageHostAddress   byte = 242
+	addChatMessage          byte = 1
+	chatHistory             byte = 2
+	deleteChatMessage       byte = 3
+	addServer               byte = 21
+	serverList              byte = 22
+	deleteServer            byte = 23
+	serverInviteLink        byte = 24
+	addChannel              byte = 31
+	channelList             byte = 32
+	deleteChannel           byte = 33
+	addServerMember         byte = 41
+	serverMemberList        byte = 42
+	deleteServerMember      byte = 43
+	updateMemberDisplayName byte = 44
+	updateMemberProfilePic  byte = 45
+	updateStatus            byte = 53
+	updateOnline            byte = 55
+	imageHostAddress        byte = 242
+	updateUserData          byte = 243
+	updateUserProfilePic    byte = 244
 )
 
 const (
@@ -59,6 +59,7 @@ type BroadcastData struct {
 	Type            byte
 	AffectedServers []uint64
 	AffectedChannel uint64
+	AffectedUserID  uint64
 }
 
 type Client struct {
@@ -74,10 +75,12 @@ type Client struct {
 	CloseChan        chan bool
 }
 
-type UserData struct {
-	UserID      string
+type InitialUserData struct {
+	UserID      uint64
 	DisplayName string
 	ProfilePic  string
+	Pronouns    string
+	StatusText  string
 }
 
 var broadcastChan = make(chan BroadcastData, 100)
@@ -140,12 +143,14 @@ func AcceptWsClient(userID uint64, w http.ResponseWriter, r *http.Request) {
 	log.Info("Session ID [%d] as user ID [%d] has connected to websocket", sessionToken, userID)
 
 	// sends the client its own user ID and display name
-	displayName, profilePic := database.GetUserData(userID)
+	displayName, profilePic, statusText, pronouns := database.GetUserData(userID)
 
-	var userData UserData = UserData{
-		UserID:      strconv.FormatUint(userID, 10),
+	var userData InitialUserData = InitialUserData{
+		UserID:      userID,
 		DisplayName: displayName,
 		ProfilePic:  profilePic,
+		Pronouns:    pronouns,
+		StatusText:  statusText,
 	}
 
 	jsonUserID, err := json.Marshal(userData)
@@ -318,29 +323,19 @@ func (c *Client) readMessages(wg *sync.WaitGroup) {
 				broadcastChan <- broadcastData
 				c.WriteChan <- broadcastData.MessageBytes
 			}
-		case updateUserData: // user wants to update their account data
-			log.Debug("User ID [%d] is requesting to update their account data", c.UserID)
-			broadcastData, failData := c.onUpdateUserDataRequest(packetJson)
-			if failData != nil {
-				c.WriteChan <- failData
-			} else {
-				broadcastChan <- broadcastData
-			}
 		case updateStatus: // user wants to update their status value
 			log.Debug("User ID [%d] is requesting to update their status value", c.UserID)
 			c.onUpdateUserStatusValue(packetJson)
-		case updateStatusText:
-			log.Debug("User ID [%d] is requesting to update their status text", c.UserID)
-		//case onlineStatuses:
-		//	log.Debug("User ID [%d] is requesting online statuses of server members", c.userID)
-		//	c.writeChan <- c.onMemberOnlineStatusesRequest(packetJson)
 		case imageHostAddress:
 			log.Debug("User ID [%d] is requesting address of image host server", c.UserID)
 			imageHostJson, err := json.Marshal(ImageHost)
 			if err != nil {
 				log.FatalError(err.Error(), "Error serializing ImageHost [%s]", ImageHost)
 			}
-			c.WriteChan <- macros.PreparePacket(242, imageHostJson)
+			c.WriteChan <- macros.PreparePacket(imageHostAddress, imageHostJson)
+		case updateUserData: // user wants to update their account data
+			log.Debug("User ID [%d] is requesting to update their account data", c.UserID)
+			c.onUpdateUserDataRequest(packetJson)
 
 		default: // if unknown
 			log.Hack("User ID [%d] sent invalid packet type: [%d]", c.UserID, packetType)
@@ -369,7 +364,7 @@ func (c *Client) writeMessages(wg *sync.WaitGroup) {
 				errorWriting(err.Error())
 				return
 			}
-			log.Trace("Wrote to user ID [%d]", c.UserID)
+			log.Trace("Wrote to user ID [%d] session token [%d]", c.UserID, c.SessionToken)
 		case <-ticker.C:
 			// log.Trace("Pinging:", c.userID)
 			c.WsConn.SetWriteDeadline(time.Now().Add(timeoutWrite))
@@ -387,40 +382,43 @@ func (c *Client) writeMessages(wg *sync.WaitGroup) {
 }
 
 func broadCastChannel() {
-	broadcastLog := func(typ byte, userID uint64) {
-		log.Trace("Broadcasting message type [%d] to user ID [%d]", typ, userID)
+	broadcastLog := func(typ byte, userID uint64, session uint64) {
+		log.Trace("Broadcasting message type [%d] to user ID [%d] session token [%d]", typ, userID, session)
 	}
 
 	for {
 		select {
 		case broadcastData := <-broadcastChan:
 			switch broadcastData.Type {
-			case addChatMessage, deleteChatMessage: // chat messages
+			case addChatMessage, deleteChatMessage: // things that only affect a single channel
 				for _, client := range Clients {
 					if client.CurrentChannelID == broadcastData.AffectedChannel { // if client is in affected channel
-						broadcastLog(broadcastData.Type, client.UserID)
+						broadcastLog(broadcastData.Type, client.UserID, client.SessionToken)
 						client.WriteChan <- broadcastData.MessageBytes
 					}
 				}
-			//case addServer: // servers
-			//	for _, client := range Clients {
-			//		broadcastLog(broadcastData.Type, client.userID)
-			//		client.writeChan <- broadcastData.MessageBytes
-			//	}
-			case addChannel, deleteChannel, addServerMember, deleteServerMember, updateOnline:
+			case addChannel, deleteChannel, addServerMember, deleteServerMember, updateOnline: // things that only affect a single server
 				for _, client := range Clients {
 					if client.currentServerID == broadcastData.AffectedServers[0] { // if client is currently in that server
-						broadcastLog(broadcastData.Type, client.UserID)
+						broadcastLog(broadcastData.Type, client.UserID, client.SessionToken)
 						client.WriteChan <- broadcastData.MessageBytes
 					}
 				}
-			case updateUserData, updateProfilePic, updateStatus, updateStatusText, deleteServer: // user updating account stuff
+
+			case updateMemberProfilePic, updateStatus, updateMemberDisplayName, deleteServer: // things that affect multiple servers
 				for _, client := range Clients {
 					for i := 0; i < len(broadcastData.AffectedServers); i++ {
 						if client.currentServerID == broadcastData.AffectedServers[i] { // if client is member of any affected server
-							broadcastLog(broadcastData.Type, client.UserID)
+							broadcastLog(broadcastData.Type, client.UserID, client.SessionToken)
 							client.WriteChan <- broadcastData.MessageBytes
 						}
+					}
+				}
+			case updateUserData, updateUserProfilePic: // things that only affect a single user, sending to all connected devices
+				for _, client := range Clients {
+					if client.UserID == broadcastData.AffectedUserID {
+						broadcastLog(broadcastData.Type, client.UserID, client.SessionToken)
+						client.WriteChan <- broadcastData.MessageBytes
 					}
 				}
 			}

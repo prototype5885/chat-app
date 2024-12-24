@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-var jsFilePaths []string = []string{
+var jsFilePaths [16]string = [16]string{
 	"main.js",
 	"notification.js",
 	"localStorage.js",
@@ -31,19 +31,14 @@ var jsFilePaths []string = []string{
 
 var jsFiles = make(map[string][20]byte)
 
-// type JsFile struct {
-// 	FilePath string
-// 	SHA1 [20]byte
-// }
-
 const jsHashesFilename string = "jsHashes.bin"
 
 const DynamicMergedJsGeneration = true // so script.js regenerates when a script is changed
 
 func Init() {
-	//if !DynamicMergedJsGeneration {
-	//	return
-	//}
+	if !DynamicMergedJsGeneration {
+		return
+	}
 
 	_, err := os.Stat("./public/script.js")
 	if os.IsNotExist(err) {
@@ -56,9 +51,9 @@ func Init() {
 }
 
 func CheckForChanges() {
-	//if !DynamicMergedJsGeneration {
-	//	return
-	//}
+	if !DynamicMergedJsGeneration {
+		return
+	}
 
 	var changed bool = false
 	for i := 0; i < len(jsFilePaths); i++ {
@@ -76,11 +71,8 @@ func CheckForChanges() {
 		}
 		sha1 := sha1.Sum(data)
 
-		if jsFiles[jsFilePaths[i]] == sha1 {
-			// if checksum matches with the one in hashmap
-			log.Trace("SHA1 of [%s] matches with the one in hashmap", jsFilePaths[i])
-		} else {
-			// if doesn't match, overwrite with new one
+		// if one doesn't match, overwrite with new one
+		if jsFiles[jsFilePaths[i]] != sha1 {
 			log.Warn("SHA1 of [%s] doesn't match with the one in hashmap, overwriting...", jsFilePaths[i])
 			jsFiles[jsFilePaths[i]] = sha1
 			changed = true

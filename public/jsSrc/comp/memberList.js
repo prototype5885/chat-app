@@ -117,9 +117,9 @@ function changeDisplayNameInMemberList(userID, newDisplayName) {
 function changeProfilePicInMemberList(userID, pic) {
     try {
         const user = document.getElementById(userID)
-        user.querySelector(".profile-pic").src = getAvatarFullPath(pic)
+        user.querySelector(".profile-pic").src = pic
     } catch {
-        console.error(`Failed changing profile pic of member ID [${userID}]`)
+        console.error(`Failed changing profile pic of member ID [${userID}], there is no member list loaded`)
     }
 }
 

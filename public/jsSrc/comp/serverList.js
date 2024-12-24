@@ -29,7 +29,6 @@ function addServer(serverID, userID, serverName, picture, className) {
     button.setAttribute("name", serverName)
     li.append(button)
 
-    console.log(picture)
     // set picture of server
     if (picture !== "") {
         if (serverID !== "2000") {

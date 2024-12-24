@@ -1,6 +1,7 @@
 package database
 
 import (
+	"fmt"
 	log "proto-chat/modules/logging"
 )
 
@@ -21,10 +22,10 @@ func CreateUsersTable() {
 	_, err := Conn.Exec(`CREATE TABLE IF NOT EXISTS users (
 		user_id BIGINT UNSIGNED PRIMARY KEY NOT NULL,
 		username VARCHAR(32) NOT NULL,
-		display_name VARCHAR(64) NOT NULL,
+		display_name VARCHAR(32) NOT NULL,
 		status TINYINT UNSIGNED	NOT NULL DEFAULT 1,
 		status_text VARCHAR(32) NOT NULL DEFAULT '',
-		pronouns VARCHAR(17) NOT NULL DEFAULT '',
+		pronouns VARCHAR(16) NOT NULL DEFAULT '',
 		picture VARCHAR(255) NOT NULL DEFAULT '',
 		password BINARY(60) NOT NULL,
 		totp CHAR(32) NOT NULL DEFAULT '',
@@ -138,58 +139,41 @@ func CheckIfUsernameExists(username string) bool {
 	return taken
 }
 
-func GetUserData(userID uint64) (string, string) {
-	const query = "SELECT display_name, picture FROM users WHERE user_id = ?"
+func GetUserData(userID uint64) (string, string, string, string) {
+	const query = "SELECT display_name, picture, status_text, pronouns FROM users WHERE user_id = ?"
 	log.Query(query, userID)
 
 	var displayName string
 	var picture string
-	err := Conn.QueryRow(query, userID).Scan(&displayName, &picture)
+	var statusText string
+	var pronouns string
+	err := Conn.QueryRow(query, userID).Scan(&displayName, &picture, &statusText, &pronouns)
 	DatabaseErrorCheck(err)
 
 	if displayName == "" || picture == "" {
-		log.Trace("Failed to find username [%d] in database", userID)
+		log.Trace("Failed to find username [%d] for user data in database", userID)
 	} else {
-		log.Trace("Successfully retrieved display name and profile pic of user ID [%d]", userID)
+		log.Trace("Successfully retrieved user data of user ID [%d]", userID)
 	}
 
-	return displayName, picture
+	return displayName, picture, statusText, pronouns
 }
 
-func UpdateProfilePic(userID uint64, filename string) bool {
-	const query = "UPDATE users SET picture = ? WHERE user_id = ?"
-	log.Query(query, filename, userID)
+func UpdateUserValue(userID uint64, value string, column string) bool {
+	var query = fmt.Sprintf("UPDATE users SET %s = ? WHERE user_id = ?", column)
+	log.Query(query, value, userID)
 
-	result, err := Conn.Exec(query, filename, userID)
+	result, err := Conn.Exec(query, value, userID)
 	DatabaseErrorCheck(err)
 
 	rowsAffected, err := result.RowsAffected()
 	DatabaseErrorCheck(err)
 
 	if rowsAffected == 1 {
-		log.Debug("Updated profile picture of user ID [%d] in database", userID)
+		log.Debug("Updated [%s] of user ID [%d] in database", column, userID)
 		return true
 	} else {
-		log.Debug("No changes were made for profile picture of user ID [%d] in database", userID)
-		return false
-	}
-}
-
-func UpdateUserData(userID uint64, displayName string, pronouns string, statusText string) bool {
-	const query = "UPDATE users SET display_name = ?, pronouns = ?, status_text = ? WHERE user_id = ?"
-	log.Query(query, displayName, pronouns, statusText, userID)
-
-	result, err := Conn.Exec(query, displayName, pronouns, statusText, userID)
-	DatabaseErrorCheck(err)
-
-	rowsAffected, err := result.RowsAffected()
-	DatabaseErrorCheck(err)
-
-	if rowsAffected == 1 {
-		log.Debug("Updated user data of user ID [%d] in database", userID)
-		return true
-	} else {
-		log.Debug("No changes were made for user data of user ID [%d] in database", userID)
+		log.Debug("No changes were made to [%s] of user ID [%d] in database", column, userID)
 		return false
 	}
 }

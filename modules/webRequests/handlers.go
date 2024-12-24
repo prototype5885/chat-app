@@ -358,7 +358,7 @@ func uploadProfilePicHandler(w http.ResponseWriter, r *http.Request) {
 
 	}
 
-	success := database.UpdateProfilePic(userID, fileName)
+	success := database.UpdateUserValue(userID, fileName, "picture")
 	if !success {
 		log.Warn("Failed updating profile picture of user ID [%d] in database", userID)
 		return

@@ -18,17 +18,17 @@ const AttachmentInput = document.getElementById("attachment-input")
 const AttachmentContainer = document.getElementById("attachment-container")
 const AttachmentList = document.getElementById("attachment-list")
 
-let ownUserID // this will be the first thing server will send
-let ownDisplayName // and this too
-let ownProfilePic
-let ownPronouns
-let ownStatusText
+let ownUserID = ""
+let ownDisplayName = ""
+let ownProfilePic = ""
+let ownPronouns = ""
+let ownStatusText = ""
 
-let receivedOwnUserData = false // don't continue loading until own user ID is received
+let receivedInitialUserData = false // don't continue loading until own user data is received
 let receivedImageHostAddress = false // don't continue loading until host address of image server arrived
 let memberListLoaded = false // don't add chat history until server member list is received
 
-let currentServerID
+let currentServerID = 2000
 let currentChannelID
 let lastChannelID
 let reachedBeginningOfChannel = false
@@ -49,35 +49,69 @@ function waitUntilBoolIsTrue(checkFunction, interval = 10) {
 }
 
 function getAvatarFullPath(pic) {
-    return imageHost + "/content/avatars/" + pic
-}
-
-function setProfilePic(userID, pic) {
-    if (pic === "") {
-        pic = defaultProfilePic
+    if (pic === "" || pic === undefined || pic == null) {
+        return defaultProfilePic
     } else {
-        pic = getAvatarFullPath(pic)
+        return imageHost + "/content/avatars/" + pic
     }
-
-    if (userID === ownUserID) {
-        ownProfilePic = pic
-        setUserPanelPic(pic)
-    }
-
-    changeProfilePicInMemberList(userID, pic)
 }
 
-function setDisplayName(userID, name) {
-    if (name === "") {
-        name = userID
+function checkDisplayName(displayName) {
+    if (displayName === "" || displayName === undefined || displayName === null) {
+        return ""
+    } else {
+        return displayName
+    }
+}
+
+function setMemberDisplayName(userID, displayName) {
+    displayName = checkDisplayName(displayName)
+
+    if (displayName === "") {
+        displayName = userID
     }
 
-    if (userID === ownUserID) {
-        ownDisplayName = name
-        setUserPanelName(name)
+    changeDisplayNameInMemberList(userID, displayName)
+    changeDisplayNameInChatMessageList(userID, displayName)
+}
+
+function setMemberProfilePic(userID, pic) {
+    pic = getAvatarFullPath(pic)
+    changeProfilePicInMemberList(userID, pic)
+    changeProfilePicInChatMessageList(userID, pic)
+    console.log(`User ID [${userID}] changed profile pic to [${pic}]`)
+}
+
+function setOwnDisplayName(displayName) {
+    displayName = checkDisplayName(displayName)
+    ownDisplayName = displayName
+
+    if (displayName === "") {
+        setUserPanelName(ownUserID)
+    } else {
+        setUserPanelName(displayName)
     }
-    changeDisplayNameInMemberList(userID, name)
-    changeDisplayNameInChatMessageList(userID, name)
+
+    console.log(`Own display name has been set to [${ownDisplayName}]`)
+}
+
+function setOwnPronouns(pronouns) {
+    ownPronouns = pronouns
+    console.log(`Own pronouns have been set to [${ownPronouns}]`)
+}
+
+function setOwnStatusText(statusText) {
+    ownStatusText = statusText
+    console.log(`Own status text has been changed to [${ownStatusText}]`)
+}
+
+function setOwnProfilePic(pic) {
+    pic = getAvatarFullPath(pic)
+
+    ownProfilePic = pic
+    setUserPanelPic(pic)
+    console.log(`Own profile pic has been set to [${ownProfilePic}]`)
+
 }
 
 function setButtonActive(button, active) {
@@ -118,7 +152,7 @@ function main() {
 
         // waits until server sends user's own ID and display name
         console.log("Waiting for server to send own user ID and display name...")
-        await waitUntilBoolIsTrue(() => receivedOwnUserData)
+        await waitUntilBoolIsTrue(() => receivedInitialUserData)
 
         // request http address of image hosting server
         requestImageHostAddress()

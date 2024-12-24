@@ -3,64 +3,99 @@ package websocket
 import (
 	"encoding/json"
 	"proto-chat/modules/database"
+	log "proto-chat/modules/logging"
 	"proto-chat/modules/macros"
 )
 
-func (c *Client) onUpdateUserDataRequest(packetJson []byte) (BroadcastData, []byte) {
-	const jsonType string = "change user data"
-
+func (c *Client) onUpdateUserDataRequest(packetJson []byte) {
 	type UpdateUserDataRequest struct {
 		DisplayName string
 		Pronouns    string
 		StatusText  string
+		NewDN       bool
+		NewP        bool
+		NewST       bool
 	}
 
 	var req UpdateUserDataRequest
 
-	if err := json.Unmarshal(packetJson, &req); err != nil {
-		return BroadcastData{}, macros.ErrorDeserializing(err.Error(), jsonType, c.UserID)
-	}
-
-	// change name in database
-	if !database.UpdateUserData(c.UserID, req.DisplayName, req.Pronouns, req.StatusText) {
-		return BroadcastData{}, macros.RespondFailureReason("Failed changing display name")
-	}
-
-	type UserData struct {
-		UserID      uint64
-		DisplayName string
-	}
-
-	var newDisplayName = UserData{
-		UserID:      c.UserID,
-		DisplayName: req.DisplayName,
-	}
-
-	jsonBytes, err := json.Marshal(newDisplayName)
+	err := json.Unmarshal(packetJson, &req)
 	if err != nil {
-		macros.ErrorSerializing(err.Error(), jsonType, c.UserID)
+		c.WriteChan <- macros.ErrorDeserializing(err.Error(), "change user data", c.UserID)
 	}
 
-	// get what servers are the user part of, so message will broadcast to members of these servers
-	// this should make sure users who don't have visual on the user who changed display name won't get the message
-	serverIDs := database.GetJoinedServersList(c.UserID)
-	if len(serverIDs) == 0 {
-		return BroadcastData{}, macros.PreparePacket(updateUserData, jsonBytes)
+	response := UpdateUserDataRequest{
+		NewDN: false,
+		NewP:  false,
+		NewST: false,
 	}
 
-	// prepare broadcast data that will be sent to affected users
-	var broadcastData = BroadcastData{
-		MessageBytes:    macros.PreparePacket(updateUserData, jsonBytes),
-		Type:            updateUserData,
-		AffectedServers: serverIDs,
+	// if display name was changed
+	if req.NewDN {
+		log.Trace("Changing display name of user ID [%d] to [%s]", c.UserID, req.DisplayName)
+		success := database.UpdateUserValue(c.UserID, req.DisplayName, "display_name")
+		if !success {
+			c.WriteChan <- macros.RespondFailureReason("Failed changing display name")
+			return
+		} else {
+			type DisplayName struct {
+				UserID      uint64
+				DisplayName string
+			}
+
+			var newDisplayName = DisplayName{
+				UserID:      c.UserID,
+				DisplayName: req.DisplayName,
+			}
+
+			jsonBytes, err := json.Marshal(newDisplayName)
+			if err != nil {
+				macros.ErrorSerializing(err.Error(), "change member display name", c.UserID)
+			}
+
+			// get what servers are the user part of, so message will broadcast to members of these servers
+			// this should make sure users who don't have visual on the user who changed display name won't get the message
+			serverIDs := database.GetJoinedServersList(c.UserID)
+			if len(serverIDs) != 0 {
+				// if user is in servers
+				broadcastChan <- BroadcastData{
+					MessageBytes:    macros.PreparePacket(updateMemberDisplayName, jsonBytes),
+					Type:            updateMemberDisplayName,
+					AffectedServers: serverIDs,
+				}
+			}
+			response.NewDN = true
+			response.DisplayName = req.DisplayName
+		}
+	}
+	// if pronouns were changed
+	if req.NewP {
+		log.Trace("Changing pronouns of user ID [%d] to [%s]", c.UserID, req.Pronouns)
+		success := database.UpdateUserValue(c.UserID, req.Pronouns, "pronouns")
+		if !success {
+			c.WriteChan <- macros.RespondFailureReason("Failed changing pronouns")
+		} else {
+			response.NewP = true
+			response.Pronouns = req.Pronouns
+		}
+	}
+	// if status text was changed
+	if req.NewST {
+		// setUserStatusText(c.UserID, req.StatusText)
 	}
 
-	// workaround so it also sends to user itself if user not in any server
-	if c.currentServerID == 0 {
-		c.WriteChan <- macros.PreparePacket(updateUserData, jsonBytes)
-	}
+	if req.NewDN || req.NewP || req.NewST {
+		jsonBytes, err := json.Marshal(response)
+		if err != nil {
+			macros.ErrorSerializing(err.Error(), "change user data response", c.UserID)
+		}
 
-	return broadcastData, nil
+		broadcastChan <- BroadcastData{
+			MessageBytes:   macros.PreparePacket(updateUserData, jsonBytes),
+			Type:           updateUserData,
+			AffectedUserID: c.UserID,
+		}
+	}
 }
 
 func (c *Client) onUpdateUserStatusValue(packetJson []byte) {
@@ -76,5 +111,5 @@ func (c *Client) onUpdateUserStatusValue(packetJson []byte) {
 		macros.ErrorDeserializing(err.Error(), jsonType, c.UserID)
 		c.WriteChan <- macros.ErrorDeserializing(err.Error(), jsonType, c.UserID)
 	}
-	setUserStatus(c.UserID, updateUserStatusRequest.Status)
+	// setUserStatus(c.UserID, updateUserStatusRequest.Status)
 }

@@ -28,3 +28,4 @@ cache joined servers too next to database
     DONE // check if username is already taken
 make attachment token expire after a time
 fix userdata updating, separating broadcast and reply
+when switching channel or server, ignore all packages from previous one

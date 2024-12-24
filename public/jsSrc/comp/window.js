@@ -307,17 +307,13 @@ function createSettingsLeftSide(windowMain, type) {
                         profileSettings.innerHTML = `
                             <div>
                                 <label class="input-label">Display name:</label>
-                                <input class="change-display-name" maxlength="64" value="${ownDisplayName}">
+                                <input class="change-display-name" maxlength="32" value="${ownDisplayName}">
                                 <br>
                                 <label class="input-label">Pronouns:</label>
-                                <div class="double-input">
-                                    <input class="change-pronoun-first" placeholder="they" maxlength="8">
-                                    <div>/</div>
-                                    <input class="change-pronoun-second" placeholder="them" maxlength="8">
-                                </div>
+                                <input class="change-pronoun" placeholder="they/them" maxlength="16" value="${ownPronouns}">
                                 <br>
                                 <label class="input-label">Status:</label>
-                                <input class="change-status" placeholder="Was passiert?">
+                                <input class="change-status" placeholder="Was passiert?" value="${ownStatusText}">
                                 <br>
                                 <button class="button update-account-data">Apply</button>
                             </div>
@@ -333,12 +329,23 @@ function createSettingsLeftSide(windowMain, type) {
                         // applying username, pronouns, etc
                         profileSettings.querySelector(".update-account-data").addEventListener('click', function () {
                             const newDisplayName = profileSettings.querySelector(".change-display-name").value
+                            let displayNameChanged = true
+                            if (newDisplayName === ownDisplayName) {
+                                displayNameChanged = false
+                            }
 
-                            const firstPronoun = profileSettings.querySelector(".change-pronoun-first").value
-                            const secondPronoun = profileSettings.querySelector(".change-pronoun-second").value
-                            const newPronouns = firstPronoun + "/" + secondPronoun
+                            const newPronouns = profileSettings.querySelector(".change-pronoun").value
+                            let pronounsChanged = true
+                            if (newPronouns === ownPronouns) {
+                                pronounsChanged = false
+                            }
 
                             const newStatusText = profileSettings.querySelector(".change-status").value
+                            let statusTextChanged = true
+
+                            if (newStatusText === ownStatusText) {
+                                statusTextChanged = false
+                            }
 
                             if (newDisplayName === ownDisplayName && newPronouns === ownPronouns && newStatusText === ownStatusText) {
                                 console.warn("No user settings was changed")
@@ -348,7 +355,10 @@ function createSettingsLeftSide(windowMain, type) {
                             const updatedUserData = {
                                 DisplayName: newDisplayName,
                                 Pronouns: newPronouns,
-                                StatusText: newStatusText
+                                StatusText: newStatusText,
+                                NewDN: displayNameChanged,
+                                NewP: pronounsChanged,
+                                NewST: statusTextChanged
                             }
 
                             requestUpdateUserData(updatedUserData)

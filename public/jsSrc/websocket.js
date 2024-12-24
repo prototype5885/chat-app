@@ -132,7 +132,6 @@ async function connectToWebsocket() {
                 }
                 for (let i = 0; i < json.length; i++) {
                     addChannel(json[i].ChannelID, json[i].Name)
-                    console.log(json[i])
                 }
                 selectLastChannels(json[0].ChannelID)
                 break
@@ -153,7 +152,7 @@ async function connectToWebsocket() {
                 }
                 memberListLoaded = true
                 break
-            case 43: // Server sent user which user left a server
+            case 43: // a member left the server
                 if (json.UserID === ownUserID) {
                     console.log(`Left server ID [${json.ServerID}], deleting it from list`)
                     deleteServer(json.ServerID)
@@ -163,21 +162,25 @@ async function connectToWebsocket() {
                     removeMember(json.UserID)
                 }
                 break
-            case 51: // Server sent that a user changed display name
-                if (json.UserID === ownUserID) {
-                    console.log("My new display name:", json.DisplayName)
-                } else {
-                    console.log(`User ID [${json.UserID}] changed their name to [${json.DisplayName}]`)
-                }
-                setDisplayName(json.UserID, json.DisplayName)
+            case 44: // a member changed their display name
+                setMemberDisplayName(json.UserID, json.DisplayName)
                 break
-            case 52: // Server sent that a user changed profile pic
-                if (json.UserID === ownUserID) {
-                    console.log("My new profile pic:", json.Pic)
-                } else {
-                    console.log(`User ID [${json.UserID}] changed profile pic to [${json.Pic}]`)
+            case 45: // a member changed their profile pic
+                setMemberProfilePic(json.UserID, json.Pic)
+                break
+            case 243: // replied to user data change
+                if (json.NewDN) {
+                    setOwnDisplayName(json.DisplayName)
                 }
-                setProfilePic(json.UserID, json.Pic)
+                if (json.NewP) {
+                    setOwnPronouns(json.Pronouns)
+                }
+                if (json.NewST) {
+                    setOwnStatusText(json.StatusText)
+                }
+                break
+            case 244: // replied to profile pic change
+                setOwnProfilePic(json.Pic)
                 break
             case 53: // Server sent that a user changed their status value
                 if (json.UserID === ownUserID) {
@@ -187,15 +190,15 @@ async function connectToWebsocket() {
                 }
                 changeStatusValueInMemberList(json.UserID, json.Status)
                 break
-            case 54: // Server sent that a user changed their status text
-                if (json.UserID === ownUserID) {
-                    console.log("My new status text:", json.StatusText)
-                    setUserPanelStatusText(json.StatusText)
-                } else {
-                    console.log(`User ID [${json.UserID}] changed their status text to [${json.StatusText}]`)
-                }
-                setMemberOnlineStatusText(json.UserID, json.StatusText)
-                break
+            // case 54: // Server sent that a user changed their status text
+            //     if (json.UserID === ownUserID) {
+            //         console.log("My new status text:", json.StatusText)
+            //         setUserPanelStatusText(json.StatusText)
+            //     } else {
+            //         console.log(`User ID [${json.UserID}] changed their status text to [${json.StatusText}]`)
+            //     }
+            //     setMemberOnlineStatusText(json.UserID, json.StatusText)
+            //     break
             case 55: // Server sent that someone went on or offline
                 if (json.UserID === ownUserID) {
 
@@ -203,11 +206,15 @@ async function connectToWebsocket() {
                     setMemberOnline(json.UserID, json.Online)
                 }
                 break
+            case 56: // Server sent new pronouns
+                setOwnPronouns(json.Pronouns)
             case 241: // Server sent the client's own user ID and display name
                 ownUserID = json.UserID
-                setProfilePic(ownUserID, json.ProfilePic)
-                setDisplayName(ownUserID, json.DisplayName)
-                receivedOwnUserData = true
+                setOwnProfilePic(json.ProfilePic)
+                setOwnDisplayName(json.DisplayName)
+                setOwnPronouns(json.Pronouns)
+                setOwnStatusText(json.StatusText)
+                receivedInitialUserData = true
                 console.log(`Received own user ID [${ownUserID}] and display name: [${ownDisplayName}]:`)
                 break
             case 242: // Server sent image host address
@@ -367,9 +374,11 @@ function requestLeaveServer(serverID) {
     })
 }
 
-function requestUpdateUserData(updatedUserData) {
-    console.log("Requesting to update account data")
-    preparePacket(51, [], updatedUserData)
+function requestStatusChange(newStatus) {
+    console.log("Requesting to change status")
+    preparePacket(53, [], {
+        Status: newStatus
+    })
 }
 
 function requestImageHostAddress() {
@@ -377,9 +386,9 @@ function requestImageHostAddress() {
     preparePacket(242, [], {})
 }
 
-function requestStatusChange(newStatus) {
-    console.log("Requesting to change status")
-    preparePacket(53, [], {
-        Status: newStatus
-    })
+function requestUpdateUserData(updatedUserData) {
+    console.log("Requesting to update account data")
+    preparePacket(243, [], updatedUserData)
 }
+
+

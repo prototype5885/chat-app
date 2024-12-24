@@ -219,13 +219,13 @@ function changeProfilePicInChatMessageList(userID, pic) {
     const chatMessages = ChatMessagesList.querySelectorAll(".msg")
     chatMessages.forEach((chatMessage) => {
         if (chatMessage.getAttribute("user-id") === userID) {
-            chatMessage.querySelector(".msg-profile-pic").src = getAvatarFullPath(pic)
+            chatMessage.querySelector(".msg-profile-pic").src = pic
         }
     })
 }
 
 function scrolledOnChat(event) {
-    if (!waitingForHistory && !reachedBeginningOfChannel && ChatMessagesList.scrollTop < 200 && amountOfMessagesLoaded >= 50 ) {
+    if (!waitingForHistory && !reachedBeginningOfChannel && ChatMessagesList.scrollTop < 200 && amountOfMessagesLoaded >= 50) {
         const chatMessage = ChatMessagesList.querySelector("li")
         if (chatMessage != null) {
             requestChatHistory(currentChannelID, chatMessage.id)
