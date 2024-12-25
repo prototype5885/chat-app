@@ -7,7 +7,7 @@ import (
 	"proto-chat/modules/macros"
 )
 
-func (c *Client) onUpdateUserDataRequest(packetJson []byte) {
+func (c *WsClient) onUpdateUserDataRequest(packetJson []byte) {
 	type UpdateUserDataRequest struct {
 		DisplayName string
 		Pronouns    string
@@ -98,7 +98,7 @@ func (c *Client) onUpdateUserDataRequest(packetJson []byte) {
 	}
 }
 
-func (c *Client) onUpdateUserStatusValue(packetJson []byte) {
+func (c *WsClient) onUpdateUserStatusValue(packetJson []byte) {
 	const jsonType string = "change status value"
 
 	type UpdateUserStatusRequest struct {

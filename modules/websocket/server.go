@@ -10,7 +10,7 @@ import (
 )
 
 // when client is requesting to add a new server, type 21
-func (c *Client) onAddServerRequest(packetJson []byte) []byte {
+func (c *WsClient) onAddServerRequest(packetJson []byte) []byte {
 	const jsonType string = "add new server"
 
 	type AddServerRequest struct {
@@ -54,7 +54,7 @@ func (c *Client) onAddServerRequest(packetJson []byte) []byte {
 // }
 
 // when client wants to delete a server, type 23
-func (c *Client) onServerDeleteRequest(jsonBytes []byte, packetType byte) BroadcastData {
+func (c *WsClient) onServerDeleteRequest(jsonBytes []byte, packetType byte) BroadcastData {
 	const jsonType string = "server deletion"
 
 	type ServerToDelete struct {
@@ -91,7 +91,7 @@ func (c *Client) onServerDeleteRequest(jsonBytes []byte, packetType byte) Broadc
 	}
 }
 
-func (c *Client) onServerInviteRequest(packetJson []byte) []byte {
+func (c *WsClient) onServerInviteRequest(packetJson []byte) []byte {
 	const jsonType string = "server invite"
 
 	type ServerInviteRequest struct {

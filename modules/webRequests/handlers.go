@@ -340,22 +340,22 @@ func uploadProfilePicHandler(w http.ResponseWriter, r *http.Request) {
 	fileName := hex.EncodeToString(hash[:]) + ".jpg"
 	var pfpPath = "./public/content/avatars/" + fileName
 
-	// create profile pic file
-	pfpFile, err := os.Create(pfpPath)
-	if err != nil {
+	// check if profile pic file exists already, otherwise save as new
+	_, err = os.Stat(pfpPath)
+	if os.IsNotExist(err) {
+		log.Trace("Profile pic [%s] doesn't exist yet, creating...", fileName)
+		err = os.WriteFile(pfpPath, imgBytes, 0644)
+		if err != nil {
+			log.FatalError(err.Error(), "Error writing bytes to profile pic file from user ID [%d]", userID)
+			http.Error(w, "error", http.StatusInternalServerError)
+			return
+		}
+	} else if err != nil {
 		log.FatalError(err.Error(), "Error creating file for profile pic from user ID [%d]", userID)
 		http.Error(w, "error", http.StatusInternalServerError)
 		return
-	}
-	defer pfpFile.Close()
-
-	// write bytes into that file
-	_, err = pfpFile.Write(imgBytes)
-	if err != nil {
-		log.FatalError(err.Error(), "Error writing bytes to profile pic file from user ID [%d]", userID)
-		http.Error(w, "error", http.StatusInternalServerError)
-		return
-
+	} else {
+		log.Trace("Profile pic [%s] of same hash already exists, using that one...", fileName)
 	}
 
 	success := database.UpdateUserValue(userID, fileName, "picture")
@@ -433,11 +433,11 @@ func uploadAttachmentHandler(w http.ResponseWriter, r *http.Request) {
 				log.Trace("Attachment at path [%s] doesn't exist, creating...", filePath)
 				err = os.WriteFile(filePath, buf.Bytes(), 0644)
 				if err != nil {
-					log.FatalError(err.Error(), "Error writing to file:")
+					log.FatalError(err.Error(), "Error writing to file [%s]", filePath)
 					return
 				}
 			} else {
-				fmt.Println("Error checking file:", err)
+				log.FatalError(err.Error(), "Error checking file [%s]", filePath)
 			}
 		}
 	}

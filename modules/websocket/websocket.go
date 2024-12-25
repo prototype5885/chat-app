@@ -4,10 +4,10 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"net/http"
+	"proto-chat/modules/clients"
 	"proto-chat/modules/database"
 	log "proto-chat/modules/logging"
 	"proto-chat/modules/macros"
-	"proto-chat/modules/snowflake"
 	"sync"
 	"time"
 
@@ -62,17 +62,12 @@ type BroadcastData struct {
 	AffectedUserID  uint64
 }
 
-type Client struct {
-	DisplayName      string
-	WsConn           *websocket.Conn
-	SessionToken     uint64
-	UserID           uint64
-	CurrentChannelID uint64
-	currentServerID  uint64
-	Status           byte
-	StatusText       string
-	WriteChan        chan []byte
-	CloseChan        chan bool
+type WsClient struct {
+	SessionID uint64
+	UserID    uint64
+	WsConn    *websocket.Conn
+	WriteChan chan []byte
+	CloseChan chan bool
 }
 
 type InitialUserData struct {
@@ -85,62 +80,69 @@ type InitialUserData struct {
 
 var broadcastChan = make(chan BroadcastData, 100)
 
-var mu sync.Mutex // used so only 1 goroutine can access the Clients hashmap at one time
+var mu sync.RWMutex // used so only 1 goroutine can access the Clients hashmap at one time
 
-var Clients = make(map[uint64]*Client)
+// var wsClients = make(map[uint64]WsClient)
+
+var wsClients []WsClient
 
 func Init() {
 	go broadCastChannel()
 }
 
+func checkClient(sessionID uint64, issue string, returnedID uint64) bool {
+	if issue != "" {
+		removeWsClient(sessionID)
+		log.Impossible("%s", issue)
+		return true
+	} else if returnedID == 0 {
+		removeWsClient(sessionID)
+		log.Impossible("Couldn't get current server or channel ID of session ID [%d] because session was not found", sessionID)
+		return true
+	} else {
+		return false
+	}
+}
+
 // client is connecting to the websocket
 func AcceptWsClient(userID uint64, w http.ResponseWriter, r *http.Request) {
-	// session ID is used as key value for Clients hashmap to make it possible
-	// for a single user to connect to chat from multiple devices/browsers
-
 	wsConn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.WarnError(err.Error(), "Error upgrading connection of user ID [%d] to websocket protocol", userID)
 		return
 	}
-	username := database.GetUsername(userID)
-	if username == "" {
-		// no idea why this would happen
-		log.Impossible("After accepting websocket client, user ID [%d] has no username set in the database", userID)
-		return
-	}
+
+	// session ID is used as key value for Clients hashmap to make it possible
+	// for a single user to connect to chat from multiple devices/browsers
+
+	// add client
+	sessionID := clients.AddClient(userID)
 
 	// sending and reading messages are two separate goroutines
 	// it's so they cant block each other
 	// they communicate using channels
-
-	var sessionToken uint64 = snowflake.Generate()
-
-	client := &Client{
-		DisplayName:      username,
-		WsConn:           wsConn,
-		SessionToken:     sessionToken,
-		UserID:           userID,
-		CurrentChannelID: 0,
-		Status:           1,
-		StatusText:       "custom status",
-		WriteChan:        make(chan []byte, 10),
-		CloseChan:        make(chan bool),
+	wsClient := WsClient{
+		SessionID: sessionID,
+		UserID:    userID,
+		WsConn:    wsConn,
+		WriteChan: make(chan []byte, 10),
+		CloseChan: make(chan bool),
 	}
 
-	// add to Clients hashmap
+	// add to wsClients
 	mu.Lock()
-	Clients[sessionToken] = client
+	// wsClients[sessionID] = wsClient
+	wsClients = append(wsClients, wsClient)
 	mu.Unlock()
 
 	// create 2 goroutines for reading and writing messages
 	var wg sync.WaitGroup
 	wg.Add(2)
 
-	go client.readMessages(&wg)
-	go client.writeMessages(&wg)
+	go wsClient.readMessages(&wg)
+	go wsClient.writeMessages(&wg)
 
-	log.Info("Session ID [%d] as user ID [%d] has connected to websocket", sessionToken, userID)
+	log.Trace("Session ID [%d] as user ID [%d] has been added to WsClients", sessionID, userID)
 
 	// sends the client its own user ID and display name
 	displayName, profilePic, statusText, pronouns := database.GetUserData(userID)
@@ -155,61 +157,47 @@ func AcceptWsClient(userID uint64, w http.ResponseWriter, r *http.Request) {
 
 	jsonUserID, err := json.Marshal(userData)
 	if err != nil {
-		macros.ErrorSerializing(err.Error(), "userID", client.UserID)
+		macros.ErrorSerializing(err.Error(), "userID", userID)
 	}
 
-	client.WriteChan <- macros.PreparePacket(241, jsonUserID)
+	wsClient.WriteChan <- macros.PreparePacket(241, jsonUserID)
 
 	//setUserStatusText(client.userID, "Online")
-	setUserOnline(client.UserID, true)
+	setUserOnline(userID, true)
 
 	// this will block here while both the reading and writing goroutine are running
 	// if one stops, the other should stop too
 	wg.Wait()
 
 	//setUserStatusText(client.userID, "Offline")
-	setUserOnline(client.UserID, false)
+	setUserOnline(userID, false)
 
 	// close websocket connection
 	// if err := wsConn.Close(); err != nil {
 	// 	log.WarnError(err.Error(), "Error closing websocket connection for user ID [%d]", userID)
 	// }
 
-	// lastly remove the client from hashmap
-	mu.Lock()
-	delete(Clients, sessionToken)
-	mu.Unlock()
-	log.Info("Removed session ID [%d] as user ID [%d] from the connected Clients", sessionToken, userID)
+	// lastly remove the client
+	removeWsClient(sessionID)
+	clients.RemoveClient(sessionID)
 }
 
-func (c *Client) CheckIfUserIsOnline() bool {
-	for i := range Clients {
-		if Clients[i].UserID == c.UserID {
-			return true
+func removeWsClient(sessionID uint64) {
+	mu.Lock()
+	defer mu.Unlock()
+	log.Trace("Removing session ID [%d] from WsClients, len: [%d], cap: [%d]", sessionID, len(wsClients), cap(wsClients))
+	// delete(wsClients, sessionID)
+	for i := 0; i < len(wsClients); i++ {
+		if wsClients[i].SessionID == sessionID {
+			wsClients = append(wsClients[:i], wsClients[i+1:]...)
+			log.Trace("Successfully removed session ID [%d] from WsClients, len: [%d], cap: [%d]", sessionID, len(wsClients), cap(wsClients))
+			return
 		}
 	}
-	return false
+	log.Impossible("Couldnt remove session ID [%d] from WsClients", sessionID)
 }
 
-func GetSessionTokens(userID uint64) []uint64 {
-	var sessionTokens []uint64
-	for _, client := range Clients {
-		sessionTokens = append(sessionTokens, client.SessionToken)
-	}
-	return sessionTokens
-}
-
-func (c *Client) setCurrentChannelID(channelID uint64) {
-	c.CurrentChannelID = channelID
-	log.Trace("User ID [%d] is now on channel ID [%d]", c.UserID, channelID)
-}
-
-func (c *Client) setCurrentServerID(serverID uint64) {
-	c.currentServerID = serverID
-	log.Trace("User ID [%d] is now on server ID [%d]", c.UserID, c.currentServerID)
-}
-
-func (c *Client) readMessages(wg *sync.WaitGroup) {
+func (c *WsClient) readMessages(wg *sync.WaitGroup) {
 	defer func() { // this will run when readMessages goroutine returns
 		c.CloseChan <- true // tells the writing goroutine to stop too
 		wg.Done()
@@ -221,7 +209,7 @@ func (c *Client) readMessages(wg *sync.WaitGroup) {
 	for {
 		_, receivedBytes, err := c.WsConn.ReadMessage()
 		if err != nil {
-			log.WarnError(err.Error(), "Failed reading message from session ID [%d] as user ID [%d]", c.SessionToken, c.UserID)
+			log.WarnError(err.Error(), "Failed reading message from session ID [%d] of user ID [%d]", c.SessionID, c.UserID)
 			break
 		}
 
@@ -230,7 +218,7 @@ func (c *Client) readMessages(wg *sync.WaitGroup) {
 		// this func would throw an index out of range exception
 		// not supposed to happen in normal cases
 		if len(receivedBytes) < 5 {
-			log.Hack("Session ID [%d] as user ID [%d] sent a byte array shorter than 5 length", c.SessionToken, c.UserID)
+			log.Hack("Session ID [%d] as user ID [%d] sent a byte array shorter than 5 length", c.SessionID, c.UserID)
 			c.WriteChan <- macros.RespondFailureReason("Sent byte array length is less than 5")
 			continue
 		}
@@ -268,7 +256,10 @@ func (c *Client) readMessages(wg *sync.WaitGroup) {
 
 		case chatHistory: // user entered a channel, requesting chat history
 			log.Debug("User ID [%d] is asking for a chat history", c.UserID)
-			c.WriteChan <- c.onChatHistoryRequest(packetJson, packetType)
+			chatHistoryBytes := c.onChatHistoryRequest(packetJson, packetType)
+			if chatHistoryBytes != nil {
+				c.WriteChan <- chatHistoryBytes
+			}
 
 		case deleteChatMessage: // user deleting a chat message
 			log.Debug("User ID [%d] wants to delete a chat message", c.UserID)
@@ -306,23 +297,24 @@ func (c *Client) readMessages(wg *sync.WaitGroup) {
 
 		case channelList: // user entered a server, requesting channel list
 			log.Debug("User ID [%d] is requesting channel list of a server", c.UserID)
-			c.WriteChan <- c.onChannelListRequest(packetJson)
-
+			channelListbytes := c.onChannelListRequest(packetJson)
+			if channelListbytes != nil {
+				c.WriteChan <- channelListbytes
+			}
 		case addServerMember: // a new user connected to the server
 
 		case serverMemberList: // user entered a server, requesting member list
-			log.Debug("User ID [%d] is requesting list of members of server ID [%d]", c.UserID, c.currentServerID)
 			c.WriteChan <- c.onServerMemberListRequest(packetJson)
 
 		case deleteServerMember: // a user left a server
 			log.Debug("User ID [%d] is requesting to leave from a server", c.UserID)
-			broadcastData, failData := c.onLeaveServerRequest(packetJson)
-			if failData != nil {
-				c.WriteChan <- failData
-			} else {
-				broadcastChan <- broadcastData
-				c.WriteChan <- broadcastData.MessageBytes
-			}
+			// broadcastData, failData := c.onLeaveServerRequest(packetJson)
+			// if failData != nil {
+			// 	c.WriteChan <- failData
+			// } else {
+			// 	broadcastChan <- broadcastData
+			// 	c.WriteChan <- broadcastData.MessageBytes
+			// }
 		case updateStatus: // user wants to update their status value
 			log.Debug("User ID [%d] is requesting to update their status value", c.UserID)
 			c.onUpdateUserStatusValue(packetJson)
@@ -344,7 +336,7 @@ func (c *Client) readMessages(wg *sync.WaitGroup) {
 	}
 }
 
-func (c *Client) writeMessages(wg *sync.WaitGroup) {
+func (c *WsClient) writeMessages(wg *sync.WaitGroup) {
 	ticker := time.NewTicker(pingPeriod) // client will be pinged in intervals using this
 
 	defer func() { // this will run when writeMessages goroutine returns
@@ -353,7 +345,7 @@ func (c *Client) writeMessages(wg *sync.WaitGroup) {
 	}()
 
 	errorWriting := func(errMsg string) {
-		log.WarnError(errMsg, "Error writing message to session ID [%d] as user ID [%d]", c.SessionToken, c.UserID)
+		log.WarnError(errMsg, "Error writing message to session ID [%d] as user ID [%d]", c.SessionID, c.UserID)
 	}
 
 	for {
@@ -364,7 +356,7 @@ func (c *Client) writeMessages(wg *sync.WaitGroup) {
 				errorWriting(err.Error())
 				return
 			}
-			log.Trace("Wrote to user ID [%d] session token [%d]", c.UserID, c.SessionToken)
+			log.Trace("Wrote to user ID [%d] session token [%d]", c.UserID, c.SessionID)
 		case <-ticker.C:
 			// log.Trace("Pinging:", c.userID)
 			c.WsConn.SetWriteDeadline(time.Now().Add(timeoutWrite))
@@ -374,7 +366,7 @@ func (c *Client) writeMessages(wg *sync.WaitGroup) {
 			}
 		case closed := <-c.CloseChan:
 			if closed {
-				log.Debug("Session ID [%d] as user ID [%d] received a signal to close writeMessages goroutine", c.SessionToken, c.UserID)
+				log.Debug("Session ID [%d] as user ID [%d] received a signal to close writeMessages goroutine", c.SessionID, c.UserID)
 				return
 			}
 		}
@@ -391,34 +383,46 @@ func broadCastChannel() {
 		case broadcastData := <-broadcastChan:
 			switch broadcastData.Type {
 			case addChatMessage, deleteChatMessage: // things that only affect a single channel
-				for _, client := range Clients {
-					if client.CurrentChannelID == broadcastData.AffectedChannel { // if client is in affected channel
-						broadcastLog(broadcastData.Type, client.UserID, client.SessionToken)
-						client.WriteChan <- broadcastData.MessageBytes
+				for i := 0; i < len(wsClients); i++ {
+					channelID := clients.GetCurrentChannelID(wsClients[i].SessionID)
+					if checkClient(wsClients[i].SessionID, "", channelID) {
+						return
+					}
+					if channelID == broadcastData.AffectedChannel { // if client is in affected channel
+						broadcastLog(broadcastData.Type, wsClients[i].UserID, wsClients[i].SessionID)
+						wsClients[i].WriteChan <- broadcastData.MessageBytes
 					}
 				}
 			case addChannel, deleteChannel, addServerMember, deleteServerMember, updateOnline: // things that only affect a single server
-				for _, client := range Clients {
-					if client.currentServerID == broadcastData.AffectedServers[0] { // if client is currently in that server
-						broadcastLog(broadcastData.Type, client.UserID, client.SessionToken)
-						client.WriteChan <- broadcastData.MessageBytes
+				for i := 0; i < len(wsClients); i++ {
+					serverID := clients.GetCurrentServerID(wsClients[i].SessionID)
+					if checkClient(wsClients[i].SessionID, "", serverID) {
+						return
+					}
+					if serverID == broadcastData.AffectedServers[0] { // if client is currently in that server
+						broadcastLog(broadcastData.Type, wsClients[i].UserID, wsClients[i].SessionID)
+						wsClients[i].WriteChan <- broadcastData.MessageBytes
 					}
 				}
 
 			case updateMemberProfilePic, updateStatus, updateMemberDisplayName, deleteServer: // things that affect multiple servers
-				for _, client := range Clients {
-					for i := 0; i < len(broadcastData.AffectedServers); i++ {
-						if client.currentServerID == broadcastData.AffectedServers[i] { // if client is member of any affected server
-							broadcastLog(broadcastData.Type, client.UserID, client.SessionToken)
-							client.WriteChan <- broadcastData.MessageBytes
+				for i := 0; i < len(wsClients); i++ {
+					for s := 0; s < len(broadcastData.AffectedServers); s++ {
+						serverID := clients.GetCurrentServerID(wsClients[i].SessionID)
+						if checkClient(wsClients[i].SessionID, "", serverID) {
+							return
+						}
+						if serverID == broadcastData.AffectedServers[s] { // if client is member of any affected server
+							broadcastLog(broadcastData.Type, wsClients[i].UserID, wsClients[i].SessionID)
+							wsClients[i].WriteChan <- broadcastData.MessageBytes
 						}
 					}
 				}
 			case updateUserData, updateUserProfilePic: // things that only affect a single user, sending to all connected devices
-				for _, client := range Clients {
-					if client.UserID == broadcastData.AffectedUserID {
-						broadcastLog(broadcastData.Type, client.UserID, client.SessionToken)
-						client.WriteChan <- broadcastData.MessageBytes
+				for i := 0; i < len(wsClients); i++ {
+					if wsClients[i].UserID == broadcastData.AffectedUserID {
+						broadcastLog(broadcastData.Type, wsClients[i].UserID, wsClients[i].SessionID)
+						wsClients[i].WriteChan <- broadcastData.MessageBytes
 					}
 				}
 			}

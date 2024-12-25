@@ -25,7 +25,7 @@ async function readChatInput() {
         console.log("http response to uploading attachment:", attachmentToken)
     }
 
-    if (ChatInput.value) {
+    if (ChatInput.value || attachmentToken !== null) {
         if (attachmentToken !== null) {
             await sendChatMessage(ChatInput.value, currentChannelID, attachmentToken.AttToken)
         } else {

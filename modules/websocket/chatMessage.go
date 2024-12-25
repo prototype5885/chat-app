@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"proto-chat/modules/attachments"
+	"proto-chat/modules/clients"
 	"proto-chat/modules/database"
 	log "proto-chat/modules/logging"
 	"proto-chat/modules/macros"
@@ -37,7 +38,7 @@ func SerializeChatMessage(messageID uint64, userID uint64, message string, attac
 }
 
 // when client sent a chat message, type 1
-func (c *Client) onChatMessageRequest(packetJson []byte, packetType byte) (BroadcastData, []byte) {
+func (c *WsClient) onChatMessageRequest(packetJson []byte, packetType byte) (BroadcastData, []byte) {
 	const jsonType string = "received chat message"
 
 	type ClientChatMsg struct {
@@ -57,16 +58,16 @@ func (c *Client) onChatMessageRequest(packetJson []byte, packetType byte) (Broad
 	// check if user is member of the server which the channel belongs to
 	var serverID uint64 = database.GetServerIdOfChannel(chatMessageRequest.ChannelID)
 	if serverID == 0 {
-		return BroadcastData{}, macros.RespondFailureReason(rejectMessage)
+		return BroadcastData{}, macros.RespondFailureReason("%s", rejectMessage)
 	}
 	if !database.ConfirmServerMembership(c.UserID, serverID) {
-		return BroadcastData{}, macros.RespondFailureReason(rejectMessage)
+		return BroadcastData{}, macros.RespondFailureReason("%s", rejectMessage)
 	}
 
 	attachmentToken, err := base64.StdEncoding.DecodeString(chatMessageRequest.AttTok)
 	if err != nil {
 		log.Hack("User ID [%d] sent an attachmentToken base64 string that can't be decoded", c.UserID)
-		return BroadcastData{}, macros.RespondFailureReason(rejectMessage)
+		return BroadcastData{}, macros.RespondFailureReason("%s", rejectMessage)
 	}
 
 	var fileNames []string
@@ -78,7 +79,7 @@ func (c *Client) onChatMessageRequest(packetJson []byte, packetType byte) (Broad
 
 	success := database.AddChatMessage(c.UserID, chatMessageRequest.ChannelID, chatMessageRequest.Message, fileNames)
 	if !success {
-		return BroadcastData{}, macros.RespondFailureReason(rejectMessage)
+		return BroadcastData{}, macros.RespondFailureReason("%s", rejectMessage)
 	}
 
 	jsonBytes := SerializeChatMessage(messageID, c.UserID, chatMessageRequest.Message, fileNames)
@@ -91,7 +92,7 @@ func (c *Client) onChatMessageRequest(packetJson []byte, packetType byte) (Broad
 }
 
 // when client is requesting chat history for a channel, type 2
-func (c *Client) onChatHistoryRequest(packetJson []byte, packetType byte) []byte {
+func (c *WsClient) onChatHistoryRequest(packetJson []byte, packetType byte) []byte {
 	type ChatHistoryRequest struct {
 		ChannelID     uint64
 		FromMessageID uint64
@@ -102,6 +103,11 @@ func (c *Client) onChatHistoryRequest(packetJson []byte, packetType byte) []byte
 
 	if err := json.Unmarshal(packetJson, &req); err != nil {
 		return macros.ErrorDeserializing(err.Error(), "chat history", c.UserID)
+	}
+
+	issue := clients.SetCurrentChannelID(c.SessionID, req.ChannelID)
+	if checkClient(c.SessionID, issue, 1) {
+		return nil
 	}
 
 	const rejectionMessage = "Denied chat history request"
@@ -119,13 +125,11 @@ func (c *Client) onChatHistoryRequest(packetJson []byte, packetType byte) []byte
 		return macros.RespondFailureReason(rejectionMessage)
 	}
 
-	c.setCurrentChannelID(req.ChannelID)
-
 	return macros.PreparePacket(packetType, jsonBytes)
 }
 
 // when client wants to delete a message they own, type 3
-func (c *Client) onChatMessageDeleteRequest(packetJson []byte, packetType byte) (BroadcastData, []byte) {
+func (c *WsClient) onChatMessageDeleteRequest(packetJson []byte, packetType byte) (BroadcastData, []byte) {
 	const jsonType string = "chat message deletion"
 
 	type MessageToDelete struct {

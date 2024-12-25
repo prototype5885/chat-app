@@ -3,17 +3,17 @@ package websocket
 import (
 	"encoding/json"
 	"fmt"
+	"proto-chat/modules/clients"
 	"proto-chat/modules/database"
 	log "proto-chat/modules/logging"
 	"proto-chat/modules/macros"
 	"proto-chat/modules/snowflake"
-	"strconv"
 )
 
 // when client is requesting to add a new channel, type 31
-func (c *Client) onAddChannelRequest(packetJson []byte, packetType byte) (BroadcastData, []byte) {
-	const jsonType string = "add channel"
-
+func (c *WsClient) onAddChannelRequest(packetJson []byte, packetType byte) (BroadcastData, []byte) {
+	log.Trace("Add channel request received from user ID [%d]", c.UserID)
+	jsonType := "add channel"
 	type AddChannelRequest struct {
 		Name     string
 		ServerID uint64
@@ -31,7 +31,7 @@ func (c *Client) onAddChannelRequest(packetJson []byte, packetType byte) (Broadc
 	var ownerID uint64 = database.GetServerOwner(channelRequest.ServerID)
 	if ownerID != c.UserID {
 		log.Hack("User [%d] is trying to add a channel to server ID [%d] that they dont own", c.UserID, channelRequest.ServerID)
-		return BroadcastData{}, macros.RespondFailureReason(errorMessage)
+		return BroadcastData{}, macros.RespondFailureReason("%s", errorMessage)
 	}
 
 	var channelID uint64 = snowflake.Generate()
@@ -45,17 +45,17 @@ func (c *Client) onAddChannelRequest(packetJson []byte, packetType byte) (Broadc
 
 	success := database.Insert(channel)
 	if !success {
-		return BroadcastData{}, macros.RespondFailureReason(errorMessage)
+		return BroadcastData{}, macros.RespondFailureReason("%s", errorMessage)
 	}
 
 	type ChannelResponse struct { // this is what's sent to the client when client requests channel
-		ChannelID string
+		ChannelID uint64
 		Name      string
 	}
 
 	// serialize response about success
 	var channelResponse = ChannelResponse{
-		ChannelID: strconv.FormatUint(channelID, 10),
+		ChannelID: channelID,
 		Name:      channelRequest.Name,
 	}
 
@@ -72,7 +72,7 @@ func (c *Client) onAddChannelRequest(packetJson []byte, packetType byte) (Broadc
 }
 
 // when client requests list of server they are in, type 32
-func (c *Client) onChannelListRequest(packetJson []byte) []byte {
+func (c *WsClient) onChannelListRequest(packetJson []byte) []byte {
 	const jsonType string = "channel list"
 
 	type ChannelListRequest struct {
@@ -89,7 +89,10 @@ func (c *Client) onChannelListRequest(packetJson []byte) []byte {
 
 	var isMember bool = database.ConfirmServerMembership(c.UserID, serverID)
 	if isMember {
-		c.setCurrentServerID(serverID)
+		issue := clients.SetCurrentServerID(c.SessionID, serverID)
+		if checkClient(c.SessionID, issue, 1) {
+			return nil
+		}
 		var jsonBytes []byte = database.GetChannelList(serverID)
 		return macros.PreparePacket(32, jsonBytes)
 	} else {

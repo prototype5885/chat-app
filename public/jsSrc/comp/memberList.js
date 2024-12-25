@@ -22,8 +22,6 @@ function addMember(userID, displayName, picture, online, status, statusText) {
     img.width = 32
     img.height = 32
 
-    console.log(getAvatarFullPath(picture))
-
     // create a <div> that will be a circle in the corner of profile pic to show online status
     const statusDiv = document.createElement("div")
     statusDiv.className = "user-status"
