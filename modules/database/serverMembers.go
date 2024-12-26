@@ -5,12 +5,12 @@ import (
 	"time"
 )
 
-type ServerMember struct {
+type ServerMemberShort struct {
 	ServerID uint64
 	UserID   uint64
 }
 
-type MemberInfo struct {
+type ServerMember struct {
 	UserID     uint64
 	Name       string
 	Pic        string
@@ -28,23 +28,23 @@ func CreateServerMembersTable() {
 			user_id BIGINT UNSIGNED NOT NULL,
 			FOREIGN KEY (server_id) REFERENCES servers(server_id) ON DELETE CASCADE,
 			FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
-			UNIQUE (server_id, user_id)
+			PRIMARY KEY (server_id, user_id)
 		)`)
 	if err != nil {
 		log.FatalError(err.Error(), "Error creating server_members table")
 	}
 }
 
-func GetServerMembersList(serverID uint64) []MemberInfo {
+func GetServerMembersList(serverID uint64) []ServerMember {
 	const query = "SELECT u.user_id, u.display_name, u.picture, u.status, u.status_text FROM users u JOIN server_members sm ON u.user_id = sm.user_id WHERE sm.server_id = ?"
 	log.Query(query, serverID)
 
 	rows, err := Conn.Query(query, serverID)
 	DatabaseErrorCheck(err)
 
-	var members []MemberInfo
+	var members []ServerMember
 	for rows.Next() {
-		var m MemberInfo
+		var m ServerMember
 
 		err := rows.Scan(&m.UserID, &m.Name, &m.Pic, &m.Status, &m.StatusText)
 		DatabaseErrorCheck(err)

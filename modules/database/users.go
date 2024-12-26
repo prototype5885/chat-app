@@ -43,8 +43,8 @@ func RegisterUser(userID uint64, username string, passwordHash []byte) bool {
 		Password: passwordHash,
 	}
 
-	success := Insert(user)
-	if !success {
+	err := Insert(user)
+	if err != nil {
 		log.Trace("Failed to register username [%s] into database", username)
 		return false
 	}

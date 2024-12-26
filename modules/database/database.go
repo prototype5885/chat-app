@@ -6,11 +6,10 @@ import (
 	"os"
 	log "proto-chat/modules/logging"
 	"proto-chat/modules/macros"
-	"strings"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
-	_ "modernc.org/sqlite"
+	"github.com/mattn/go-sqlite3"
 )
 
 var Conn *sql.DB
@@ -25,7 +24,7 @@ func ConnectSqlite() {
 	}
 
 	var err error
-	Conn, err = sql.Open("sqlite", "./database/sqlite.db")
+	Conn, err = sql.Open("sqlite3", "./database/sqlite.db")
 	if err != nil {
 		log.FatalError(err.Error(), "Error connecting to sqlite database")
 	}
@@ -67,7 +66,8 @@ func CreateTables() {
 	CreateServerMembersTable()
 	CreateChannelsTable()
 	CreateChatMessagesTable()
-	//CreateAttachmentsTable()
+	CreateFriendshipsTable()
+	CreateBlockListTable()
 	CreateServerInvitesTable()
 	measureDbTime(start)
 }
@@ -92,7 +92,7 @@ func measureDbTime(start int64) {
 	macros.MeasureTime(start, "Database statement")
 }
 
-func Insert(structs any) bool {
+func Insert(structs any) error {
 	start := time.Now().UnixMicro()
 
 	var err error
@@ -115,47 +115,63 @@ func Insert(structs any) bool {
 	case User:
 		log.Query(insertUserQuery, s.UserID, s.Username, s.Username, s.Password)
 		_, err = Conn.Exec(insertUserQuery, s.UserID, s.Username, s.Username, s.Password)
-	case ServerMember:
+	case ServerMemberShort:
 		log.Query(insertServerMemberQuery, s.ServerID, s.UserID)
 		_, err = Conn.Exec(insertServerMemberQuery, s.ServerID, s.UserID)
 	case ServerInvite:
 		log.Query(insertServerInviteQuery, s.InviteID, s.ServerID, s.SingleUse, s.Expiration)
 		_, err = Conn.Exec(insertServerInviteQuery, s.InviteID, s.ServerID, s.SingleUse, s.Expiration)
+	case Friendship:
+		log.Query(insertFriendshipQuery, s.FirstUserID, s.SecondUserID, s.FriendsSince)
+		_, err = Conn.Exec(insertFriendshipQuery, s.FirstUserID, s.SecondUserID, s.FriendsSince)
+	case BlockUser:
+		log.Query(insertBlockListQuery, s.UserID, s.BlockedUserID)
+		_, err = Conn.Exec(insertBlockListQuery, s.UserID, s.BlockedUserID)
 	default:
-		log.Fatal("Unknown type in database Insert: %T", s)
+		log.Fatal("Unknown struct type in database Insert: %T", s)
 	}
 
 	if err != nil {
 		if sqlite { // sqlite
-			if strings.Contains(err.Error(), "1555") { // duplicate primary key
-				log.FatalError(err.Error(), "%s", "duplicate primary key")
-				return false
-			} else if strings.Contains(err.Error(), "2067") { // duplicate unique value
-				log.FatalError(err.Error(), "%s", "duplicate unique value")
-				return false
-			} else if strings.Contains(err.Error(), "787") { // no foreign key, no owner
-				log.FatalError(err.Error(), "%s", "foreign key/owner doesn't exist")
-				return false
-			} else { // unknown error
-				log.FatalError(err.Error(), "%s", "fatal error")
-				return false
-			}
+			fmt.Printf("SQLite Error Code: %d\n", err.(sqlite3.Error).Code)
+			fmt.Printf("SQLite Error Message: %s\n", err.(sqlite3.Error).Error())
+			return err
+			// if strings.Contains(err.Error(), "275") { // constraint check failed, 2 or more values are duplicates
+			// 	log.Error(err.Error(), "%s", "duplicate values where it's enforced to not have")
+			// 	return err
+			// } else if strings.Contains(err.Error(), "1555") { // duplicate primary key
+			// 	log.Error(err.Error(), "%s", "duplicate primary key")
+			// 	return err
+			// } else if strings.Contains(err.Error(), "2067") { // duplicate unique value
+			// 	log.Error(err.Error(), "%s", "duplicate unique value")
+			// 	return err
+			// } else if strings.Contains(err.Error(), "787") { // no foreign key, no owner
+			// 	log.Error(err.Error(), "%s", "foreign key/owner doesn't exist")
+			// 	return err
+			// } else { // unknown error
+			// 	log.FatalError(err.Error(), "%s", "fatal error")
+			// 	return err
+			// }
 		} else { // mariadb or mysql
-			if strings.Contains(err.Error(), "1452") { // no foreign key, no owner
-				log.FatalError(err.Error(), "%s", "foreign key/owner doesn't exist")
-				return false
-			} else if strings.Contains(err.Error(), "1062") { // duplicate primary key or unique value
-				log.FatalError(err.Error(), "%s", "duplicate primary key or unique value")
-				return false
-			} else { // unknown error
-				log.FatalError(err.Error(), "%s", "fatal error")
-				return false
-			}
+			// if strings.Contains(err.Error(), "4025") { // constraint check failed, 2 or more values are duplicates
+			// 	log.Error(err.Error(), "%s", "duplicate values where it's enforced to not have")
+			// 	return err
+			// } else if strings.Contains(err.Error(), "1452") { // no foreign key, no owner
+			// 	log.Error(err.Error(), "%s", "foreign key/owner doesn't exist")
+			// 	return err
+			// } else if strings.Contains(err.Error(), "1062") { // duplicate primary key or unique value
+			// 	log.Error(err.Error(), "%s", "duplicate primary key or unique value")
+			// 	return err
+			// } else { // unknown error
+			// 	log.Error(err.Error(), "%s", "fatal error")
+			// 	return err
+			// }
+			return err
 		}
 
 	}
 	measureDbTime(start)
-	return true
+	return nil
 }
 
 func Delete(structo any) bool {
@@ -172,9 +188,15 @@ func Delete(structo any) bool {
 		log.Query(deleteTokenQuery, macros.ShortenToken(s.Token), s.UserID)
 		result, err = Conn.Exec(deleteTokenQuery, s.Token, s.UserID)
 	case User:
-	case ServerMember:
+	case ServerMemberShort:
 		log.Query(deleteServerMemberQuery, s.ServerID, s.UserID)
 		result, err = Conn.Exec(deleteServerMemberQuery, s.ServerID, s.UserID)
+	case Friendship:
+		log.Query(deleteFriendshipQuery, s.FirstUserID, s.SecondUserID)
+		result, err = Conn.Exec(deleteFriendshipQuery, s.FirstUserID, s.SecondUserID)
+	case BlockUser:
+		log.Query(deleteBlockListQuery, s.UserID, s.BlockedUserID)
+		result, err = Conn.Exec(deleteBlockListQuery, s.UserID, s.BlockedUserID)
 	default:
 		log.Fatal("Unknown type in database [%T]", s)
 	}

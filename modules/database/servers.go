@@ -29,6 +29,7 @@ func CreateServersTable() {
 		log.FatalError(err.Error(), "Error creating servers table")
 	}
 }
+
 func GetServerList(userID uint64) []byte {
 	start := time.Now().UnixMicro()
 	const query = "SELECT s.* FROM servers s JOIN server_members m ON s.server_id = m.server_id WHERE m.user_id = ?"

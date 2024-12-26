@@ -97,10 +97,6 @@ function channelCtxMenu(channelID, pageX, pageY) {
 }
 
 function userCtxMenu(userID, pageX, pageY) {
-    function addFriend(userID) {
-        console.log("Adding friend", userID)
-    }
-
     function reportUser(userID) {
         console.log("Reporting user", userID)
     }
@@ -115,7 +111,8 @@ function userCtxMenu(userID, pageX, pageY) {
     }
 
     const actions = [
-        { text: "Add friend", func: () => addFriend(userID) },
+        { text: "Add friend", func: () => requestAddFriend(userID) },
+        { text: "Block", func: () => requestBlockUser(userID) },
         { text: "Report user", color: "red", func: () => reportUser(userID) },
         { text: "Remove friend", color: "red", func: () => removeFriend(userID) },
         { text: "Copy user ID", func: () => copyUserID(userID) }

@@ -19,21 +19,21 @@ func OnProfilePicChanged(userID uint64, fileName string) {
 
 	jsonBytes, err := json.Marshal(changedProfilePic)
 	if err != nil {
-		macros.ErrorSerializing(err.Error(), "change profile pic", userID)
+		macros.ErrorSerializing(err.Error(), UPDATE_MEMBER_PROFILE_PIC, userID)
 	}
 
 	serverIDs := database.GetJoinedServersList(userID)
 	if len(serverIDs) > 0 {
 		broadcastChan <- BroadcastData{
-			MessageBytes:    macros.PreparePacket(updateMemberProfilePic, jsonBytes),
-			Type:            updateMemberProfilePic,
+			MessageBytes:    macros.PreparePacket(UPDATE_MEMBER_PROFILE_PIC, jsonBytes),
+			Type:            UPDATE_MEMBER_PROFILE_PIC,
 			AffectedServers: serverIDs,
 		}
 	}
 
 	broadcastChan <- BroadcastData{
-		MessageBytes:   macros.PreparePacket(updateUserProfilePic, jsonBytes),
-		Type:           updateUserProfilePic,
-		AffectedUserID: userID,
+		MessageBytes:   macros.PreparePacket(UPDATE_USER_PROFILE_PIC, jsonBytes),
+		Type:           UPDATE_USER_PROFILE_PIC,
+		AffectedUserID: []uint64{userID},
 	}
 }

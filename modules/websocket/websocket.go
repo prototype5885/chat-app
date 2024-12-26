@@ -17,26 +17,35 @@ import (
 //const sessionTokenLength = 16
 
 const (
-	addChatMessage          byte = 1
-	chatHistory             byte = 2
-	deleteChatMessage       byte = 3
-	addServer               byte = 21
-	serverList              byte = 22
-	deleteServer            byte = 23
-	serverInviteLink        byte = 24
-	addChannel              byte = 31
-	channelList             byte = 32
-	deleteChannel           byte = 33
-	addServerMember         byte = 41
-	serverMemberList        byte = 42
-	deleteServerMember      byte = 43
-	updateMemberDisplayName byte = 44
-	updateMemberProfilePic  byte = 45
-	updateStatus            byte = 53
-	updateOnline            byte = 55
-	imageHostAddress        byte = 242
-	updateUserData          byte = 243
-	updateUserProfilePic    byte = 244
+	ADD_CHAT_MESSAGE    byte = 1
+	CHAT_HISTORY        byte = 2
+	DELETE_CHAT_MESSAGE byte = 3
+
+	ADD_SERVER         byte = 21
+	SERVER_LIST        byte = 22
+	DELETE_SERVER      byte = 23
+	SERVER_INVITE_LINK byte = 24
+
+	ADD_CHANNEL    byte = 31
+	CHANNEL_LIST   byte = 32
+	DELETE_CHANNEL byte = 33
+
+	ADD_SERVER_MEMBER          byte = 41
+	SERVER_MEMBER_LIST         byte = 42
+	DELETE_SERVER_MEMBER       byte = 43
+	UPDATE_MEMBER_DISPLAY_NAME byte = 44
+	UPDATE_MEMBER_PROFILE_PIC  byte = 45
+
+	UPDATE_STATUS byte = 53
+	UPDATE_ONLINE byte = 55
+
+	ADD_FRIEND byte = 61
+	BLOCK_USER byte = 62
+
+	INITIAL_USER_DATA       byte = 241
+	IMAGE_HOST_ADDRESS      byte = 242
+	UPDATE_USER_DATA        byte = 243
+	UPDATE_USER_PROFILE_PIC byte = 244
 )
 
 const (
@@ -59,7 +68,7 @@ type BroadcastData struct {
 	Type            byte
 	AffectedServers []uint64
 	AffectedChannel uint64
-	AffectedUserID  uint64
+	AffectedUserID  []uint64
 }
 
 type WsClient struct {
@@ -80,28 +89,10 @@ type InitialUserData struct {
 
 var broadcastChan = make(chan BroadcastData, 100)
 
-var mu sync.RWMutex // used so only 1 goroutine can access the Clients hashmap at one time
-
-// var wsClients = make(map[uint64]WsClient)
-
-var wsClients []WsClient
+var wsClients sync.Map
 
 func Init() {
 	go broadCastChannel()
-}
-
-func checkClient(sessionID uint64, issue string, returnedID uint64) bool {
-	if issue != "" {
-		removeWsClient(sessionID)
-		log.Impossible("%s", issue)
-		return true
-	} else if returnedID == 0 {
-		removeWsClient(sessionID)
-		log.Impossible("Couldn't get current server or channel ID of session ID [%d] because session was not found", sessionID)
-		return true
-	} else {
-		return false
-	}
 }
 
 // client is connecting to the websocket
@@ -121,7 +112,7 @@ func AcceptWsClient(userID uint64, w http.ResponseWriter, r *http.Request) {
 	// sending and reading messages are two separate goroutines
 	// it's so they cant block each other
 	// they communicate using channels
-	wsClient := WsClient{
+	wsClient := &WsClient{
 		SessionID: sessionID,
 		UserID:    userID,
 		WsConn:    wsConn,
@@ -130,10 +121,7 @@ func AcceptWsClient(userID uint64, w http.ResponseWriter, r *http.Request) {
 	}
 
 	// add to wsClients
-	mu.Lock()
-	// wsClients[sessionID] = wsClient
-	wsClients = append(wsClients, wsClient)
-	mu.Unlock()
+	wsClients.Store(sessionID, wsClient)
 
 	// create 2 goroutines for reading and writing messages
 	var wg sync.WaitGroup
@@ -157,44 +145,26 @@ func AcceptWsClient(userID uint64, w http.ResponseWriter, r *http.Request) {
 
 	jsonUserID, err := json.Marshal(userData)
 	if err != nil {
-		macros.ErrorSerializing(err.Error(), "userID", userID)
+		macros.ErrorSerializing(err.Error(), INITIAL_USER_DATA, userID)
 	}
 
 	wsClient.WriteChan <- macros.PreparePacket(241, jsonUserID)
 
-	//setUserStatusText(client.userID, "Online")
+	setUserStatusText(userID, "Online")
 	setUserOnline(userID, true)
 
 	// this will block here while both the reading and writing goroutine are running
 	// if one stops, the other should stop too
 	wg.Wait()
 
-	//setUserStatusText(client.userID, "Offline")
+	setUserStatusText(userID, "Offline")
 	setUserOnline(userID, false)
 
-	// close websocket connection
-	// if err := wsConn.Close(); err != nil {
-	// 	log.WarnError(err.Error(), "Error closing websocket connection for user ID [%d]", userID)
-	// }
-
 	// lastly remove the client
-	removeWsClient(sessionID)
-	clients.RemoveClient(sessionID)
-}
+	wsClients.Delete(sessionID)
+	log.Trace("Successfully removed session ID [%d] from WsClients", sessionID)
 
-func removeWsClient(sessionID uint64) {
-	mu.Lock()
-	defer mu.Unlock()
-	log.Trace("Removing session ID [%d] from WsClients, len: [%d], cap: [%d]", sessionID, len(wsClients), cap(wsClients))
-	// delete(wsClients, sessionID)
-	for i := 0; i < len(wsClients); i++ {
-		if wsClients[i].SessionID == sessionID {
-			wsClients = append(wsClients[:i], wsClients[i+1:]...)
-			log.Trace("Successfully removed session ID [%d] from WsClients, len: [%d], cap: [%d]", sessionID, len(wsClients), cap(wsClients))
-			return
-		}
-	}
-	log.Impossible("Couldnt remove session ID [%d] from WsClients", sessionID)
+	clients.RemoveClient(sessionID)
 }
 
 func (c *WsClient) readMessages(wg *sync.WaitGroup) {
@@ -245,69 +215,68 @@ func (c *WsClient) readMessages(wg *sync.WaitGroup) {
 
 		log.Trace("Received packet: endIndex [%d], type [%d], json [%s]", endIndex, packetType, string(packetJson))
 		switch packetType {
-		case addChatMessage: // user sent a chat message on x channel
-			log.Debug("User ID [%d] sent a chat message", c.UserID)
-			broadcastData, failData := c.onChatMessageRequest(packetJson, packetType)
+		case ADD_CHAT_MESSAGE: // user sent a chat message on x channel
+			log.Trace("User ID [%d] sent a chat message", c.UserID)
+			broadcastData, failData := c.onChatMessageRequest(packetJson)
 			if failData != nil {
 				c.WriteChan <- failData
 			} else {
 				broadcastChan <- broadcastData
 			}
 
-		case chatHistory: // user entered a channel, requesting chat history
-			log.Debug("User ID [%d] is asking for a chat history", c.UserID)
-			chatHistoryBytes := c.onChatHistoryRequest(packetJson, packetType)
+		case CHAT_HISTORY: // user entered a channel, requesting chat history
+			log.Trace("User ID [%d] is asking for a chat history", c.UserID)
+			chatHistoryBytes := c.onChatHistoryRequest(packetJson)
 			if chatHistoryBytes != nil {
 				c.WriteChan <- chatHistoryBytes
 			}
 
-		case deleteChatMessage: // user deleting a chat message
-			log.Debug("User ID [%d] wants to delete a chat message", c.UserID)
-			broadcastData, failData := c.onChatMessageDeleteRequest(packetJson, packetType)
+		case DELETE_CHAT_MESSAGE: // user deleting a chat message
+			log.Trace("User ID [%d] wants to delete a chat message", c.UserID)
+			broadcastData, failData := c.onChatMessageDeleteRequest(packetJson)
 			if failData != nil {
 				c.WriteChan <- failData
 			} else {
 				broadcastChan <- broadcastData
 			}
 
-		case addServer: // user adding a server
-			log.Debug("User ID [%d] wants to create a server", c.UserID)
+		case ADD_SERVER: // user adding a server
+			log.Trace("User ID [%d] wants to create a server", c.UserID)
 			c.WriteChan <- c.onAddServerRequest(packetJson)
 
-		case serverList: // user requesting their server list
-			log.Debug("User ID [%d] is requesting their joined server list", c.UserID)
+		case SERVER_LIST: // user requesting their server list
+			log.Trace("User ID [%d] is requesting their joined server list", c.UserID)
 			c.WriteChan <- macros.PreparePacket(22, database.GetServerList(c.UserID))
 
-		case deleteServer: // user deleting a server
-			log.Debug("User ID [%d] wants to delete a server", c.UserID)
-			broadcastChan <- c.onServerDeleteRequest(packetJson, packetType)
+		case DELETE_SERVER: // user deleting a server
+			log.Trace("User ID [%d] wants to delete a server", c.UserID)
+			broadcastChan <- c.onServerDeleteRequest(packetJson)
 
-		case serverInviteLink: // user requested an invite link for a server
-			log.Debug("User ID [%d] is requesting an invite link for a server", c.UserID)
+		case SERVER_INVITE_LINK: // user requested an invite link for a server
 			c.WriteChan <- c.onServerInviteRequest(packetJson)
 
-		case addChannel: // user added a channel to their server
-			log.Debug("User ID [%d] wants to add a channel", c.UserID)
-			broadcastData, failData := c.onAddChannelRequest(packetJson, packetType)
+		case ADD_CHANNEL: // user added a channel to their server
+			log.Trace("User ID [%d] wants to add a channel", c.UserID)
+			broadcastData, failData := c.onAddChannelRequest(packetJson)
 			if failData != nil {
 				c.WriteChan <- failData
 			} else {
 				broadcastChan <- broadcastData
 			}
 
-		case channelList: // user entered a server, requesting channel list
-			log.Debug("User ID [%d] is requesting channel list of a server", c.UserID)
+		case CHANNEL_LIST: // user entered a server, requesting channel list
+			log.Trace("User ID [%d] is requesting channel list of a server", c.UserID)
 			channelListbytes := c.onChannelListRequest(packetJson)
 			if channelListbytes != nil {
 				c.WriteChan <- channelListbytes
 			}
-		case addServerMember: // a new user connected to the server
+		case ADD_SERVER_MEMBER: // a new user connected to the server
 
-		case serverMemberList: // user entered a server, requesting member list
+		case SERVER_MEMBER_LIST: // user entered a server, requesting member list
 			c.WriteChan <- c.onServerMemberListRequest(packetJson)
 
-		case deleteServerMember: // a user left a server
-			log.Debug("User ID [%d] is requesting to leave from a server", c.UserID)
+		case DELETE_SERVER_MEMBER: // a user left a server
+			log.Trace("User ID [%d] is requesting to leave from a server", c.UserID)
 			// broadcastData, failData := c.onLeaveServerRequest(packetJson)
 			// if failData != nil {
 			// 	c.WriteChan <- failData
@@ -315,18 +284,22 @@ func (c *WsClient) readMessages(wg *sync.WaitGroup) {
 			// 	broadcastChan <- broadcastData
 			// 	c.WriteChan <- broadcastData.MessageBytes
 			// }
-		case updateStatus: // user wants to update their status value
-			log.Debug("User ID [%d] is requesting to update their status value", c.UserID)
+		case UPDATE_STATUS: // user wants to update their status value
+			log.Trace("User ID [%d] is requesting to update their status value", c.UserID)
 			c.onUpdateUserStatusValue(packetJson)
-		case imageHostAddress:
-			log.Debug("User ID [%d] is requesting address of image host server", c.UserID)
+		case ADD_FRIEND: // user wants to add an other user as friend
+			c.AddFriend(packetJson)
+		case BLOCK_USER: // user wants to block a user
+			c.BlockUser(packetJson)
+		case IMAGE_HOST_ADDRESS:
+			log.Trace("User ID [%d] is requesting address of image host server", c.UserID)
 			imageHostJson, err := json.Marshal(ImageHost)
 			if err != nil {
 				log.FatalError(err.Error(), "Error serializing ImageHost [%s]", ImageHost)
 			}
-			c.WriteChan <- macros.PreparePacket(imageHostAddress, imageHostJson)
-		case updateUserData: // user wants to update their account data
-			log.Debug("User ID [%d] is requesting to update their account data", c.UserID)
+			c.WriteChan <- macros.PreparePacket(IMAGE_HOST_ADDRESS, imageHostJson)
+		case UPDATE_USER_DATA: // user wants to update their account data
+			log.Trace("User ID [%d] is requesting to update their account data", c.UserID)
 			c.onUpdateUserDataRequest(packetJson)
 
 		default: // if unknown
@@ -382,49 +355,88 @@ func broadCastChannel() {
 		select {
 		case broadcastData := <-broadcastChan:
 			switch broadcastData.Type {
-			case addChatMessage, deleteChatMessage: // things that only affect a single channel
-				for i := 0; i < len(wsClients); i++ {
-					channelID := clients.GetCurrentChannelID(wsClients[i].SessionID)
-					if checkClient(wsClients[i].SessionID, "", channelID) {
-						return
+			case ADD_CHAT_MESSAGE, DELETE_CHAT_MESSAGE: // things that only affect a single channel
+				wsClients.Range(func(key, value interface{}) bool {
+					wsClient, ok := value.(*WsClient)
+					if !ok {
+						log.Warn("Invalid WsClient")
+						return true
+					}
+					channelID, found := clients.GetCurrentChannelID(wsClient.SessionID)
+					if !found {
+						return true
 					}
 					if channelID == broadcastData.AffectedChannel { // if client is in affected channel
-						broadcastLog(broadcastData.Type, wsClients[i].UserID, wsClients[i].SessionID)
-						wsClients[i].WriteChan <- broadcastData.MessageBytes
+						broadcastLog(broadcastData.Type, wsClient.UserID, wsClient.SessionID)
+						wsClient.WriteChan <- broadcastData.MessageBytes
 					}
-				}
-			case addChannel, deleteChannel, addServerMember, deleteServerMember, updateOnline: // things that only affect a single server
-				for i := 0; i < len(wsClients); i++ {
-					serverID := clients.GetCurrentServerID(wsClients[i].SessionID)
-					if checkClient(wsClients[i].SessionID, "", serverID) {
-						return
+					return true
+				})
+			case ADD_CHANNEL, DELETE_CHANNEL, ADD_SERVER_MEMBER, DELETE_SERVER_MEMBER, UPDATE_ONLINE: // things that only affect a single server
+				wsClients.Range(func(key, value interface{}) bool {
+					wsClient, ok := value.(*WsClient)
+					if !ok {
+						log.Warn("Invalid WsClient")
+						return true
+					}
+					serverID, found := clients.GetCurrentServerID(wsClient.SessionID)
+					if !found {
+						return true
 					}
 					if serverID == broadcastData.AffectedServers[0] { // if client is currently in that server
-						broadcastLog(broadcastData.Type, wsClients[i].UserID, wsClients[i].SessionID)
-						wsClients[i].WriteChan <- broadcastData.MessageBytes
+						broadcastLog(broadcastData.Type, wsClient.UserID, wsClient.SessionID)
+						wsClient.WriteChan <- broadcastData.MessageBytes
 					}
-				}
+					return true
+				})
 
-			case updateMemberProfilePic, updateStatus, updateMemberDisplayName, deleteServer: // things that affect multiple servers
-				for i := 0; i < len(wsClients); i++ {
+			case UPDATE_MEMBER_PROFILE_PIC, UPDATE_STATUS, UPDATE_MEMBER_DISPLAY_NAME, DELETE_SERVER: // things that affect multiple servers
+				wsClients.Range(func(key, value interface{}) bool {
+					wsClient, ok := value.(*WsClient)
+					if !ok {
+						log.Warn("Invalid WsClient")
+						return true
+					}
 					for s := 0; s < len(broadcastData.AffectedServers); s++ {
-						serverID := clients.GetCurrentServerID(wsClients[i].SessionID)
-						if checkClient(wsClients[i].SessionID, "", serverID) {
-							return
+						serverID, found := clients.GetCurrentServerID(wsClient.SessionID)
+						if !found {
+							return true
 						}
 						if serverID == broadcastData.AffectedServers[s] { // if client is member of any affected server
-							broadcastLog(broadcastData.Type, wsClients[i].UserID, wsClients[i].SessionID)
-							wsClients[i].WriteChan <- broadcastData.MessageBytes
+							broadcastLog(broadcastData.Type, wsClient.UserID, wsClient.SessionID)
+							wsClient.WriteChan <- broadcastData.MessageBytes
 						}
 					}
-				}
-			case updateUserData, updateUserProfilePic: // things that only affect a single user, sending to all connected devices
-				for i := 0; i < len(wsClients); i++ {
-					if wsClients[i].UserID == broadcastData.AffectedUserID {
-						broadcastLog(broadcastData.Type, wsClients[i].UserID, wsClients[i].SessionID)
-						wsClients[i].WriteChan <- broadcastData.MessageBytes
+					return true
+				})
+			case UPDATE_USER_DATA, UPDATE_USER_PROFILE_PIC: // things that only affect a single user, sending to all connected sessions/devices
+				wsClients.Range(func(key, value interface{}) bool {
+					wsClient, ok := value.(*WsClient)
+					if !ok {
+						log.Warn("Invalid WsClient")
+						return true
 					}
-				}
+					if wsClient.UserID == broadcastData.AffectedUserID[0] {
+						broadcastLog(broadcastData.Type, wsClient.UserID, wsClient.SessionID)
+						wsClient.WriteChan <- broadcastData.MessageBytes
+					}
+					return true
+				})
+			case ADD_FRIEND, BLOCK_USER: // things that affect multiple users
+				wsClients.Range(func(key, value interface{}) bool {
+					wsClient, ok := value.(*WsClient)
+					if !ok {
+						log.Warn("Invalid WsClient")
+						return true
+					}
+					for u := 0; u < len(broadcastData.AffectedUserID); u++ {
+						if wsClient.UserID == broadcastData.AffectedUserID[u] {
+							broadcastLog(broadcastData.Type, wsClient.UserID, wsClient.SessionID)
+							wsClient.WriteChan <- broadcastData.MessageBytes
+						}
+					}
+					return true
+				})
 			}
 		}
 	}

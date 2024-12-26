@@ -46,18 +46,21 @@ func AddChatMessage(userID uint64, channelID uint64, chatMessage string, filenam
 		var err error
 		filenamesJson, err = json.Marshal(filenames)
 		if err != nil {
-			macros.ErrorSerializing(err.Error(), "add chat chatMessage", userID)
+			macros.ErrorSerializing(err.Error(), 1, userID)
 		}
 	}
-	success := Insert(Message{
+	err := Insert(Message{
 		MessageID:   snowflake.Generate(),
 		ChannelID:   channelID,
 		UserID:      userID,
 		Message:     chatMessage,
 		Attachments: filenamesJson,
 	})
-
-	return success
+	if err != nil {
+		return false
+	} else {
+		return true
+	}
 }
 
 func GetChatHistory(channelID uint64, fromMessageID uint64, older bool, userID uint64) []byte {
@@ -97,7 +100,10 @@ func GetChatHistory(channelID uint64, fromMessageID uint64, older bool, userID u
 		log.Trace("Retrieved [%d] messages from channel ID [%d]", counter, channelID)
 	}
 
-	jsonResult, _ := json.Marshal(chatMessageHistory)
+	jsonResult, err := json.Marshal(chatMessageHistory)
+	if err != nil {
+		macros.ErrorSerializing(err.Error(), 2, userID)
+	}
 
 	measureDbTime(start)
 	return jsonResult

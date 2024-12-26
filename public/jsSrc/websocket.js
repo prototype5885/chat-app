@@ -1,5 +1,37 @@
+const REJECTION_MESSAGE = 0
+
+const ADD_CHAT_MESSAGE = 1
+const CHAT_HISTORY = 2
+const DELETE_CHAT_MESSAGE = 3
+
+const ADD_SERVER = 21
+const SERVER_LIST = 22
+const DELETE_SERVER = 23
+const SERVER_INVITE_LINK = 24
+
+const ADD_CHANNEL = 31
+const CHANNEL_LIST = 32
+const DELETE_CHANNEL = 33
+
+const ADD_SERVER_MEMBER = 41
+const SERVER_MEMBER_LIST = 42
+const DELETE_SERVER_MEMBER = 43
+const UPDATE_MEMBER_DISPLAY_NAME = 44
+const UPDATE_MEMBER_PROFILE_PIC = 45
+
+const UPDATE_STATUS = 53
+const UPDATE_ONLINE = 55
+
+const ADD_FRIEND = 61
+const BLOCK_USER = 62
+
+const INITIAL_USER_DATA = 241
+const IMAGE_HOST_ADDRESS = 242
+const UPDATE_USER_DATA = 243
+const UPDATE_USER_PROFILE_PIC = 244
+
 let wsClient
-let wsConnected
+let wsConnected = false
 let reconnectAttempts = 0
 
 function refreshWebsocketContent() {
@@ -68,32 +100,38 @@ async function connectToWebsocket() {
         const packetType = receivedBytes[4]
 
         // get the json string from the 6th byte to the end
-        const packetJson = String.fromCharCode.apply(null, receivedBytes.slice(5, endIndex))
+        let packetJson = String.fromCharCode.apply(null, receivedBytes.slice(5, endIndex))
 
         console.log("Received packet:", endIndex, packetType, packetJson)
         console.log(`Received packet size: [${receivedBytes.length} bytes] index: [${endIndex}] packetType: [${packetType}] json: ${packetJson}`)
 
-        const json = fixJson(packetJson)
-        // const json = JSON.parse(packetJson)
+        // this turns 64 bit unsigned integers into string
+        // const json = fixJson(packetJson)
+        const valueNames = ["ChannelID", "UserID", "MessageID", "ServerID", "IDm", "IDu"]
+        for (let i = 0; i < valueNames.length; i++) {
+            packetJson = packetJson.replace(new RegExp(`"${valueNames[i]}":(\\d+)`, 'g'), (match, p1) => `"${valueNames[i]}":"${p1}"`)
+        }
+        const json = JSON.parse(packetJson)
+
         switch (packetType) {
-            case 0: // Server sent rejection message
-                console.warn(json.Reason)
+            case REJECTION_MESSAGE: // Server sent rejection message
+                console.warn("Server response:", json.Reason)
                 break
-            case 1: // Server sent a chat message
+            case ADD_CHAT_MESSAGE: // Server sent a chat message
                 await chatMessageReceived(json)
                 break
-            case 2: // Server sent the requested chat history
+            case CHAT_HISTORY: // Server sent the requested chat history
                 await chatHistoryReceived(json)
                 break
-            case 3: // Server sent which message was deleted
+            case DELETE_CHAT_MESSAGE: // Server sent which message was deleted
                 deleteChatMessage(json)
                 break
-            case 21: // Server responded to the add server request
+            case ADD_SERVER: // Server responded to the add server request
                 console.log("Add server request response arrived")
                 addServer(json.ServerID, json.UserID, json.Name, imageHost + json.Picture, "server")
                 selectServer(json.ServerID)
                 break
-            case 22: // Server sent the requested server list
+            case SERVER_LIST: // Server sent the requested server list
                 console.log("Requested server list arrived")
                 if (json != null) {
                     for (let i = 0; i < json.length; i++) {
@@ -105,7 +143,7 @@ async function connectToWebsocket() {
                 }
                 lookForDeletedServersInLastChannels()
                 break
-            case 23: // Server sent which server was deleted
+            case DELETE_SERVER: // Server sent which server was deleted
                 console.log(`Server ID [${json.ServerID}] has been deleted`)
                 const serverID = json.ServerID
                 deleteServer(serverID)
@@ -114,17 +152,17 @@ async function connectToWebsocket() {
                     selectServer("2000")
                 }
                 break
-            case 24: // Server sent the requested invite link to the chat server
+            case SERVER_INVITE_LINK: // Server sent the requested invite link to the chat server
                 console.log("Requested invite link to the chat server arrived, adding to clipboard")
                 const inviteLink = `${window.location.protocol}//${window.location.host}/invite/${json}`
                 console.log(inviteLink)
                 await navigator.clipboard.writeText(inviteLink)
                 break
-            case 31: // Server responded to the add channel request
+            case ADD_CHANNEL: // Server responded to the add channel request
                 console.log(`Adding new channel called [${json.Name}]`)
                 addChannel(json.ChannelID, json.Name)
                 break
-            case 32: // Server sent the requested channel list
+            case CHANNEL_LIST: // Server sent the requested channel list
                 console.log("Requested channel list arrived")
                 if (json == null) {
                     console.warn("No channels on server ID", currentServerID)
@@ -135,13 +173,13 @@ async function connectToWebsocket() {
                 }
                 selectLastChannels(json[0].ChannelID)
                 break
-            case 41: // A user connected to the server
+            case ADD_SERVER_MEMBER: // A user connected to the server
                 console.log("A user connected to the server")
                 if (json.UserID !== ownUserID) {
                     addMember(json.UserID, json.Name, json.Picture, json.Status, json.StatusText)
                 }
                 break
-            case 42: // Server sent the requested member list
+            case SERVER_MEMBER_LIST: // Server sent the requested member list
                 console.log("Requested member list arrived")
                 if (json == null) {
                     console.warn("No members on server ID", currentServerID)
@@ -152,7 +190,7 @@ async function connectToWebsocket() {
                 }
                 memberListLoaded = true
                 break
-            case 43: // a member left the server
+            case DELETE_SERVER_MEMBER: // a member left the server
                 if (json.UserID === ownUserID) {
                     console.log(`Left server ID [${json.ServerID}], deleting it from list`)
                     deleteServer(json.ServerID)
@@ -162,13 +200,13 @@ async function connectToWebsocket() {
                     removeMember(json.UserID)
                 }
                 break
-            case 44: // a member changed their display name
+            case UPDATE_MEMBER_DISPLAY_NAME: // a member changed their display name
                 setMemberDisplayName(json.UserID, json.DisplayName)
                 break
-            case 45: // a member changed their profile pic
+            case UPDATE_MEMBER_PROFILE_PIC: // a member changed their profile pic
                 setMemberProfilePic(json.UserID, json.Pic)
                 break
-            case 243: // replied to user data change
+            case UPDATE_USER_DATA: // replied to user data change
                 if (json.NewDN) {
                     setOwnDisplayName(json.DisplayName)
                 }
@@ -179,10 +217,7 @@ async function connectToWebsocket() {
                     setOwnStatusText(json.StatusText)
                 }
                 break
-            case 244: // replied to profile pic change
-                setOwnProfilePic(json.Pic)
-                break
-            case 53: // Server sent that a user changed their status value
+            case UPDATE_STATUS: // Server sent that a user changed their status value
                 if (json.UserID === ownUserID) {
                     console.log("My new status:", json.Status)
                 } else {
@@ -199,16 +234,16 @@ async function connectToWebsocket() {
             //     }
             //     setMemberOnlineStatusText(json.UserID, json.StatusText)
             //     break
-            case 55: // Server sent that someone went on or offline
+            case UPDATE_ONLINE: // Server sent that someone went on or offline
                 if (json.UserID === ownUserID) {
 
                 } else {
                     setMemberOnline(json.UserID, json.Online)
                 }
                 break
-            case 56: // Server sent new pronouns
-                setOwnPronouns(json.Pronouns)
-            case 241: // Server sent the client's own user ID and display name
+            // case 56: // Server sent new pronouns
+            //     setOwnPronouns(json.Pronouns)
+            case INITIAL_USER_DATA: // Server sent the client's own user ID and display name
                 ownUserID = json.UserID
                 setOwnProfilePic(json.ProfilePic)
                 setOwnDisplayName(json.DisplayName)
@@ -217,7 +252,7 @@ async function connectToWebsocket() {
                 receivedInitialUserData = true
                 console.log(`Received own user ID [${ownUserID}] and display name: [${ownDisplayName}]:`)
                 break
-            case 242: // Server sent image host address
+            case IMAGE_HOST_ADDRESS: // Server sent image host address
                 if (json === "") {
                     console.log("Received image host address, server did not set any external")
                 } else {
@@ -226,6 +261,9 @@ async function connectToWebsocket() {
                 imageHost = json
                 receivedImageHostAddress = true
                 break
+            case UPDATE_USER_PROFILE_PIC: // replied to profile pic change
+                setOwnProfilePic(json.Pic)
+                break
             default:
                 console.log("Server sent unknown message type")
         }
@@ -233,20 +271,8 @@ async function connectToWebsocket() {
     await waitUntilBoolIsTrue(() => wsConnected)
 }
 
-// class ReceivedChatMessage {
-//     constructor(messageID, userID, message) {
-//         this.messageID = messageID;
-//         this.userID = userID;
-//         this.message = message;
-//     }
-//
-//     static fromJSON(jsonString) {
-//         const data = JSON.parse(jsonString);
-//         return new ReceivedChatMessage(data.IDm, data.IDu, this.Msg);
-//     }
-// }
-
 async function preparePacket(type, bigIntIDs, struct) {
+    // wait if websocket is not on yet
     await waitUntilBoolIsTrue(() => wsConnected)
 
     // convert the type value into a single byte value that will be the packet type
@@ -290,7 +316,7 @@ async function preparePacket(type, bigIntIDs, struct) {
 
 async function sendChatMessage(message, channelID, attachmentToken) { // type is 1
     console.log("Sending a chat message")
-    await preparePacket(1, [channelID], {
+    await preparePacket(ADD_CHAT_MESSAGE, [channelID], {
         ChannelID: channelID,
         Message: message,
         AttTok: attachmentToken
@@ -298,7 +324,7 @@ async function sendChatMessage(message, channelID, attachmentToken) { // type is
 }
 async function requestChatHistory(channelID, lastMessageID) {
     console.log("Requesting chat history for channel ID", channelID)
-    preparePacket(2, [channelID, lastMessageID], {
+    preparePacket(CHAT_HISTORY, [channelID, lastMessageID], {
         ChannelID: channelID,
         FromMessageID: lastMessageID,
         Older: true // if true it will request older, if false it will request newer messages from the message id
@@ -306,13 +332,13 @@ async function requestChatHistory(channelID, lastMessageID) {
 }
 async function requestDeleteChatMessage(messageID) {
     console.log("Requesting to delete chat message ID", messageID)
-    preparePacket(3, [messageID], {
+    preparePacket(DELETE_CHAT_MESSAGE, [messageID], {
         MessageID: messageID
     })
 }
 async function requestAddServer(serverName) {
     console.log("Requesting to add a new server")
-    preparePacket(21, [0], {
+    preparePacket(ADD_SERVER, [0], {
         Name: serverName
     })
 }
@@ -321,10 +347,15 @@ function requestRenameServer(serverID) {
     console.log("Requesting to rename server ID:", serverID)
 }
 
+function requestServerList() {
+    console.log("Requesting server list")
+    preparePacket(SERVER_LIST, [0], null)
+}
+
 function requestDeleteServer(serverID) {
     if (document.getElementById(serverID).getAttribute("owned") == "false") return
     console.log("Requesting to delete server ID:", serverID)
-    preparePacket(23, [serverID], {
+    preparePacket(DELETE_SERVER, [serverID], {
         ServerID: serverID
     })
 }
@@ -332,22 +363,17 @@ function requestDeleteServer(serverID) {
 function requestInviteLink(serverID) {
     if (document.getElementById(serverID).getAttribute("owned") == "false") return
     console.log("Requesting invite link creation for server ID:", serverID)
-    preparePacket(24, [serverID], {
+    preparePacket(SERVER_INVITE_LINK, [serverID], {
         ServerID: serverID,
         SingleUse: false,
         Expiration: 7
     })
 }
 
-function requestServerList() {
-    console.log("Requesting server list")
-    preparePacket(22, [0], null)
-}
-
 function requestAddChannel() {
     if (document.getElementById(currentServerID).getAttribute("owned") == "false") return
     console.log("Requesting to add new channel to server ID:", currentServerID)
-    preparePacket(31, [currentServerID], {
+    preparePacket(ADD_CHANNEL, [currentServerID], {
         Name: "Channel",
         ServerID: currentServerID
     })
@@ -355,40 +381,60 @@ function requestAddChannel() {
 
 function requestChannelList() {
     console.log("Requesting channel list for current server ID", currentServerID)
-    preparePacket(32, [currentServerID], {
+    preparePacket(CHANNEL_LIST, [currentServerID], {
         ServerID: currentServerID
     })
 }
 
 function requestMemberList() {
     console.log("Requesting member list for current server ID", currentServerID)
-    preparePacket(42, [currentServerID], {
+    preparePacket(SERVER_MEMBER_LIST, [currentServerID], {
         ServerID: currentServerID
     })
 }
 
 function requestLeaveServer(serverID) {
     console.log("Requesting to leave a server ID", serverID)
-    preparePacket(43, [serverID], {
+    preparePacket(DELETE_SERVER_MEMBER, [serverID], {
         ServerID: serverID
     })
 }
 
 function requestStatusChange(newStatus) {
     console.log("Requesting to change status")
-    preparePacket(53, [], {
+    preparePacket(UPDATE_STATUS, [], {
         Status: newStatus
     })
 }
 
 function requestImageHostAddress() {
     console.log("Requesting image host address")
-    preparePacket(242, [], {})
+    preparePacket(IMAGE_HOST_ADDRESS, [], {})
 }
 
 function requestUpdateUserData(updatedUserData) {
     console.log("Requesting to update account data")
-    preparePacket(243, [], updatedUserData)
+    preparePacket(UPDATE_USER_DATA, [], updatedUserData)
 }
 
+function requestAddFriend(userID) {
+    if (userID === ownUserID) {
+        console.warn("You can't be friends with yourself")
+        return
+    }
+    console.log(`Requesting to add user ID [${userID}] as friend`)
+    preparePacket(ADD_FRIEND, [userID], {
+        UserID: userID
+    })
+}
 
+function requestBlockUser(userID) {
+    if (userID === ownUserID) {
+        console.warn("You can't block yourself")
+        return
+    }
+    console.log(`Requesting to block user ID [${userID}]`)
+    preparePacket(BLOCK_USER, [userID], {
+        UserID: userID
+    })
+}

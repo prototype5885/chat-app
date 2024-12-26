@@ -1,7 +1,6 @@
 package clients
 
 import (
-	"fmt"
 	log "proto-chat/modules/logging"
 	"proto-chat/modules/snowflake"
 	"sync"
@@ -15,14 +14,11 @@ type Client struct {
 }
 
 // accessed using session id
-var Clients = make(map[uint64]*Client)
+// var Clients = make(map[uint64]*Client)
 
-var mu sync.Mutex
+var Clients sync.Map
 
 func AddClient(userID uint64) uint64 {
-	mu.Lock()
-	defer mu.Unlock()
-
 	var sessionID uint64 = snowflake.Generate()
 	log.Trace("Adding user ID [%d] as session ID [%d] to Clients", userID, sessionID)
 	client := &Client{
@@ -31,84 +27,125 @@ func AddClient(userID uint64) uint64 {
 		CurrentServerID:  2000,
 		Status:           1,
 	}
-	Clients[sessionID] = client
+	Clients.Store(sessionID, client)
+
 	return sessionID
 }
 
 func RemoveClient(sessionID uint64) {
-	mu.Lock()
-	defer mu.Unlock()
-
 	log.Trace("Removing session ID [%d] from Clients", sessionID)
-	delete(Clients, sessionID)
+	Clients.Delete(sessionID)
 }
 
 func CheckIfUserIsOnline(userID uint64) bool {
-	mu.Lock()
-	defer mu.Unlock()
+	var online bool = false
 
-	for _, client := range Clients {
-		if client.UserID == userID {
+	Clients.Range(func(key, value interface{}) bool {
+		client, ok := value.(*Client)
+		if !ok {
+			log.Warn("Invalid WsClient")
 			return true
 		}
-	}
-	return false
+		if client.UserID == userID {
+			online = true
+			return false
+		}
+		return true
+	})
+
+	return online
 }
 
 func GetUserSessions(userID uint64) []uint64 {
-	mu.Lock()
-	defer mu.Unlock()
 	var sessionIDs []uint64
-	for key, _ := range Clients {
-		sessionIDs = append(sessionIDs, key)
-	}
+
+	Clients.Range(func(key, value interface{}) bool {
+		sessionID, ok := key.(uint64)
+		if !ok {
+			log.Warn("Invalid key type")
+			return true
+		}
+		client, ok := value.(*Client)
+		if !ok {
+			log.Warn("Invalid WsClient type while getting user sessions")
+			return true
+		}
+		if client.UserID == userID {
+			sessionIDs = append(sessionIDs, sessionID)
+			return false
+		}
+		return true
+	})
 
 	return sessionIDs
 }
 
-func GetCurrentChannelID(sessionID uint64) uint64 {
-	mu.Lock()
-	defer mu.Unlock()
-	if Clients[sessionID] != nil {
-		return Clients[sessionID].CurrentChannelID
+func GetCurrentChannelID(sessionID uint64) (uint64, bool) {
+	log.Trace("[Session %d] Getting current channel ID", sessionID)
+	client, found := Clients.Load(sessionID)
+	if found {
+		client, ok := client.(*Client)
+		if !ok {
+			log.Warn("[Session %d] Invalid Client type while getting current channel ID for session", sessionID)
+			return 0, false
+		}
+		log.Trace("[Session %d] Current channel is: [%d]", sessionID, client.CurrentChannelID)
+		return client.CurrentChannelID, true
 	} else {
-		return 0
+		log.Trace("[Session %d] Session was not found while looking for current channel ID", sessionID)
+		return 0, false
 	}
 }
 
-func SetCurrentChannelID(sessionID uint64, channelID uint64) string {
-	mu.Lock()
-	defer mu.Unlock()
-	if Clients[sessionID] != nil {
-		Clients[sessionID].CurrentChannelID = channelID
-		log.Trace("User ID [%d] session ID [%d] moved to channel ID [%d]", Clients[sessionID].UserID, sessionID, channelID)
-		return ""
+func SetCurrentChannelID(sessionID uint64, channelID uint64) bool {
+	log.Trace("[Session %d] Setting current channel", sessionID)
+	client, found := Clients.Load(sessionID)
+	if found {
+		client, ok := client.(*Client)
+		if !ok {
+			log.Warn("[Session %d] Invalid Client type while setting current channel ID for session", sessionID)
+			return false
+		}
+		client.CurrentChannelID = channelID
+		log.Trace("[Session %d] Current channel set to channel ID [%d]", sessionID, channelID)
+		return true
 	} else {
-		return fmt.Sprintf("Couldn't set channel ID for session ID [%d] because session was not found", sessionID)
+		log.Trace("[Session %d] Session was not found while setting current channel ID", sessionID)
+		return false
 	}
 }
 
-func GetCurrentServerID(sessionID uint64) uint64 {
-	mu.Lock()
-	defer mu.Unlock()
-	if Clients[sessionID] != nil {
-		return Clients[sessionID].CurrentServerID
+func GetCurrentServerID(sessionID uint64) (uint64, bool) {
+	log.Trace("[Session %d] Getting current server ID", sessionID)
+	client, found := Clients.Load(sessionID)
+	if found {
+		client, ok := client.(*Client)
+		if !ok {
+			log.Warn("[Session %d] Invalid Client type while getting current server ID", sessionID)
+			return 0, false
+		}
+		log.Trace("[Session %d] Current server is: [%d]", sessionID, client.CurrentServerID)
+		return client.CurrentServerID, true
 	} else {
-		return 0
+		log.Trace("[Session %d] Session was not found while looking for current server ID", sessionID)
+		return 0, false
 	}
 }
 
-func SetCurrentServerID(sessionID uint64, serverID uint64) string {
-	mu.Lock()
-	defer mu.Unlock()
-	for _, client := range Clients {
-		fmt.Println(client)
-	}
-	if Clients[sessionID] != nil {
-		Clients[sessionID].CurrentServerID = serverID
-		log.Trace("User ID [%d] session ID [%d] moved to server ID [%d]", Clients[sessionID].UserID, sessionID, Clients[sessionID].CurrentServerID)
-		return ""
+func SetCurrentServerID(sessionID uint64, serverID uint64) bool {
+	log.Trace("[Session %d] Setting current server", sessionID)
+	client, found := Clients.Load(sessionID)
+	if found {
+		client, ok := client.(*Client)
+		if !ok {
+			log.Warn("[Session %d] Invalid Client type while setting current server ID", sessionID)
+			return false
+		}
+		client.CurrentServerID = serverID
+		log.Trace("[Session %d] Current server set to server ID [%d]", sessionID, serverID)
+		return true
 	} else {
-		return fmt.Sprintf("Couldn't set server ID for session ID [%d] because session was not found", sessionID)
+		log.Trace("[Session %d] Session was not found while setting current server ID", sessionID)
+		return false
 	}
 }

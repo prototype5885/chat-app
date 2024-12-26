@@ -124,14 +124,6 @@ function setButtonActive(button, active) {
     }
 }
 
-function fixJson(jsonString) {
-    const valueNames = ["ChannelID", "UserID", "MessageID", "ServerID", "IDm", "IDu"]
-    for (let i = 0; i < valueNames.length; i++) {
-        jsonString = jsonString.replace(new RegExp(`"${valueNames[i]}":(\\d+)`, 'g'), (match, p1) => `"${valueNames[i]}":"${p1}"`)
-    }
-    return JSON.parse(jsonString)
-}
-
 function main() {
     // this runs after webpage was loaded
     document.addEventListener("DOMContentLoaded", async function () {

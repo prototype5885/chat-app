@@ -23,13 +23,13 @@ func MeasureTime(start int64, msg string) {
 	log.Time("%s took [%d μs] [%d ms]", msg, duration, durationMs)
 }
 
-func ErrorDeserializing(errStr string, jsonType string, userID uint64) []byte {
-	log.WarnError(errStr, "Error deserializing json type [%s] of user ID [%d]", jsonType, userID)
-	return RespondFailureReason("%s", fmt.Sprintf("Couldn't deserialize json of [%s] request", jsonType))
+func ErrorDeserializing(errStr string, jsonType byte, userID uint64) []byte {
+	log.WarnError(errStr, "Error deserializing json packet type [%d] of user ID [%d]", jsonType, userID)
+	return RespondFailureReason("%s", fmt.Sprintf("Couldn't deserialize json of type [%d] request", jsonType))
 }
 
-func ErrorSerializing(errStr string, jsonType string, userID uint64) {
-	log.Impossible(errStr, "Fatal error serializing response json type [%s] for user ID [%d]", jsonType, userID)
+func ErrorSerializing(errStr string, jsonType byte, userID uint64) {
+	log.FatalError(errStr, "Fatal error serializing response to packet type [%d] for user ID [%d]", jsonType, userID)
 }
 
 func RespondFailureReason(format string, v ...any) []byte {
@@ -42,7 +42,7 @@ func RespondFailureReason(format string, v ...any) []byte {
 
 	json, err := json.Marshal(failure)
 	if err != nil {
-		log.FatalError(err.Error(), "Could not serialize issue in respondFailureReason")
+		log.FatalError(err.Error(), "Error serializing RespondFailureReason")
 	}
 
 	return PreparePacket(0, json)

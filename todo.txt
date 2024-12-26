@@ -29,3 +29,5 @@ cache joined servers too next to database
 make attachment token expire after a time
 DONE // fix userdata updating, separating broadcast and reply
 when switching channel or server, ignore all packages from previous one
+add check if user is blocked when adding friends
+check for safe way to access wsClients when broadcasting

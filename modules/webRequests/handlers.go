@@ -278,14 +278,13 @@ func inviteHandler(w http.ResponseWriter, r *http.Request) {
 			}
 			serverID := database.ConfirmServerInviteID(inviteID)
 			if serverID != 0 {
-				success := database.Insert(database.ServerMember{ServerID: serverID, UserID: userID})
-				if success {
-					respondText(w, "Successfully joined server ID [%d]", serverID)
-					log.Trace("User ID [%d] successfully joined server ID [%d]", userID, serverID)
-					redirect(w, r, "/chat.html")
-				} else {
+				err := database.Insert(database.ServerMemberShort{ServerID: serverID, UserID: userID})
+				if err != nil {
 					respondText(w, "Failed joining server")
 				}
+				respondText(w, "Successfully joined server ID [%d]", serverID)
+				log.Trace("User ID [%d] successfully joined server ID [%d]", userID, serverID)
+				redirect(w, r, "/chat.html")
 			} else {
 				respondText(w, "No invite exists with this invite ID")
 				return

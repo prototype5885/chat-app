@@ -95,8 +95,8 @@ func newTokenCookie(userID uint64) http.Cookie {
 	}
 
 	// add the newly generated token into the database
-	success := database.Insert(token)
-	if !success {
+	err = database.Insert(token)
+	if err != nil {
 		log.Fatal("Failed inserting new generated token for user ID [%d] into database", userID)
 	}
 

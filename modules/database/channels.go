@@ -3,7 +3,6 @@ package database
 import (
 	"encoding/json"
 	log "proto-chat/modules/logging"
-	"proto-chat/modules/macros"
 	"time"
 )
 
@@ -52,7 +51,7 @@ func GetChannelList(serverID uint64) []byte {
 
 	jsonResult, err := json.Marshal(channels)
 	if err != nil {
-		macros.ErrorSerializing(err.Error(), "channel list", serverID)
+		log.FatalError(err.Error(), "Error serializing channel list of server ID [%d] retreived from database", serverID)
 	}
 
 	measureDbTime(start)

@@ -6,13 +6,13 @@ import (
 )
 
 type ServerInvite struct {
-	InviteID   uint64 `gorm:"primaryKey;not null"`
-	ServerID   uint64 `gorm:"not null"`
-	SingleUse  bool   `gorm:"not null"`
-	Expiration uint64 `gorm:"not null"`
+	InviteID   uint64
+	ServerID   uint64
+	SingleUse  bool
+	Expiration uint64
 }
 
-const insertServerInviteQuery = "INSERT INTO server_invites (invite_id, server_id, single_use, expiration)"
+const insertServerInviteQuery = "INSERT INTO server_invites (invite_id, server_id, single_use, expiration) VALUES (?, ?, ?, ?)"
 
 func CreateServerInvitesTable() {
 	_, err := Conn.Exec(`CREATE TABLE IF NOT EXISTS server_invites (
