@@ -14,8 +14,6 @@ type Client struct {
 }
 
 // accessed using session id
-// var Clients = make(map[uint64]*Client)
-
 var Clients sync.Map
 
 func AddClient(userID uint64) uint64 {
@@ -52,6 +50,11 @@ func CheckIfUserIsOnline(userID uint64) bool {
 		}
 		return true
 	})
+	if online {
+		log.Trace("User ID [%d] is online", userID)
+	} else {
+		log.Trace("User ID [%d] is offline", userID)
+	}
 
 	return online
 }

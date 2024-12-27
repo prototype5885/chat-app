@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-var jsFilePaths [16]string = [16]string{
+var jsFilePaths = [17]string{
 	"main.js",
 	"notification.js",
 	"localStorage.js",
@@ -25,6 +25,7 @@ var jsFilePaths [16]string = [16]string{
 	"comp/chatMessageList.js",
 	"comp/window.js",
 	"comp/chatInput.js",
+	"comp/directMessages.js",
 	"dynamicContent.js",
 	"websocket.js",
 }

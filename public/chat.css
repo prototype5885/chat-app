@@ -345,26 +345,33 @@ body {
     background-color: #474a52;
 }
 
-#channels {
+#friends-channels {
     overflow-y: scroll;
-    padding: 8px;
     flex: 1;
 }
 
+#channels,
+#friends-chat {
+    padding: 8px;
+}
+
 /* this holds 2 buttons that either hides or makes new channels */
-#channels-visible-or-add-new {
+#channels-visible-or-add-new,
+#friends-chat-visible-or-add-new {
     justify-content: space-between;
     display: flex;
 }
 
 /* the text inside it */
-#channels-visible-or-add-new button:first-child div {
+#channels-visible-or-add-new button:first-child div,
+#friends-chat-visible-or-add-new button:first-child div {
     margin-left: 6px;
     font-variant: small-caps;
 }
 
 /* button that toggles the channels' visibility */
-#channels-visibility-button {
+#channels-visibility-button,
+#friends-chat-visibility-button {
     display: flex;
     /* background-color: red; */
     flex: 1;

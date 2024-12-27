@@ -2,7 +2,6 @@ package database
 
 import (
 	log "proto-chat/modules/logging"
-	"time"
 )
 
 type ServerInvite struct {
@@ -28,7 +27,6 @@ func CreateServerInvitesTable() {
 }
 
 func ConfirmServerInviteID(inviteID uint64) uint64 {
-	start := time.Now().UnixMicro()
 	const query string = "SELECT server_id FROM server_invites WHERE invite_id = ?"
 	log.Query(query, inviteID)
 
@@ -42,6 +40,5 @@ func ConfirmServerInviteID(inviteID uint64) uint64 {
 		log.Debug("Invite ID [%d] was found in database, it belongs to server ID [%d]", inviteID, serverID)
 	}
 
-	measureDbTime(start)
 	return serverID
 }

@@ -27,7 +27,6 @@ func CreateTokensTable() {
 	}
 }
 func ConfirmToken(tokenBytes []byte) Token {
-	start := time.Now().UnixMicro()
 	const query string = "SELECT user_id, expiration FROM tokens WHERE token = ?"
 	log.Query(query, macros.ShortenToken(tokenBytes))
 
@@ -46,7 +45,6 @@ func ConfirmToken(tokenBytes []byte) Token {
 		log.Debug("Token [%s] was found in database, it belongs to user ID [%d], expires at [%s]", macros.ShortenToken(tokenBytes), token.UserID, formattedDate)
 	}
 
-	measureDbTime(start)
 	return token
 }
 

@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	log "proto-chat/modules/logging"
 	"proto-chat/modules/snowflake"
-	"time"
 )
 
 type Server struct {
@@ -31,7 +30,6 @@ func CreateServersTable() {
 }
 
 func GetServerList(userID uint64) []byte {
-	start := time.Now().UnixMicro()
 	const query = "SELECT s.* FROM servers s JOIN server_members m ON s.server_id = m.server_id WHERE m.user_id = ?"
 	log.Query(query, userID)
 
@@ -47,16 +45,14 @@ func GetServerList(userID uint64) []byte {
 
 	if len(servers) == 0 {
 		log.Trace("User ID [%d] is not in any servers", userID)
-		return nullJson
+		return emptyArray
 	}
 
 	jsonResult, _ := json.Marshal(servers)
 
-	measureDbTime(start)
 	return jsonResult
 }
 func GetServerOwner(serverID uint64) uint64 {
-	start := time.Now().UnixMicro()
 	const query = "SELECT user_id FROM servers WHERE server_id = ?"
 	log.Query(query, serverID)
 
@@ -70,7 +66,6 @@ func GetServerOwner(serverID uint64) uint64 {
 		log.Trace("Owner of server ID [%d] is: [%d]", serverID, ownerID)
 	}
 
-	measureDbTime(start)
 	return ownerID
 }
 

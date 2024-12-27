@@ -6,7 +6,6 @@ import (
 	"os"
 	log "proto-chat/modules/logging"
 	"proto-chat/modules/macros"
-	"time"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/mattn/go-sqlite3"
@@ -14,7 +13,8 @@ import (
 
 var Conn *sql.DB
 
-var nullJson = []byte("null")
+// var nullJson = []byte("null")
+var emptyArray = []byte("[]")
 
 var sqlite bool = false
 
@@ -58,8 +58,7 @@ func CloseDatabaseConnection() error {
 }
 
 func CreateTables() {
-	log.Trace("Creating database tables...")
-	start := time.Now().UnixMicro()
+	log.Trace("Creating tables in database...")
 	CreateUsersTable()
 	CreateTokensTable()
 	CreateServersTable()
@@ -68,8 +67,9 @@ func CreateTables() {
 	CreateChatMessagesTable()
 	CreateFriendshipsTable()
 	CreateBlockListTable()
+	CreateDmTable()
+	CreateDmMembersTable()
 	CreateServerInvitesTable()
-	measureDbTime(start)
 }
 
 func DatabaseErrorCheck(err error) {
@@ -88,13 +88,7 @@ func transactionErrorCheck(err error) {
 	}
 }
 
-func measureDbTime(start int64) {
-	macros.MeasureTime(start, "Database statement")
-}
-
 func Insert(structs any) error {
-	start := time.Now().UnixMicro()
-
 	var err error
 	switch s := structs.(type) {
 	case Channel:
@@ -122,6 +116,8 @@ func Insert(structs any) error {
 		log.Query(insertServerInviteQuery, s.InviteID, s.ServerID, s.SingleUse, s.Expiration)
 		_, err = Conn.Exec(insertServerInviteQuery, s.InviteID, s.ServerID, s.SingleUse, s.Expiration)
 	case Friendship:
+		// query := strings.Replace(insertFriendshipQuery, "@value1", strconv.FormatUint(s.FirstUserID, 10), -1)
+		// query = strings.Replace(query, "@value2", strconv.FormatUint(s.SecondUserID, 10), -1)
 		log.Query(insertFriendshipQuery, s.FirstUserID, s.SecondUserID, s.FriendsSince)
 		_, err = Conn.Exec(insertFriendshipQuery, s.FirstUserID, s.SecondUserID, s.FriendsSince)
 	case BlockUser:
@@ -130,11 +126,10 @@ func Insert(structs any) error {
 	default:
 		log.Fatal("Unknown struct type in database Insert: %T", s)
 	}
-
 	if err != nil {
 		if sqlite { // sqlite
-			fmt.Printf("SQLite Error Code: %d\n", err.(sqlite3.Error).Code)
-			fmt.Printf("SQLite Error Message: %s\n", err.(sqlite3.Error).Error())
+			log.Warn("SQLite Error Code: %d\n", err.(sqlite3.Error).Code)
+			log.Warn("SQLite Error Message: %s\n", err.(sqlite3.Error).Error())
 			return err
 			// if strings.Contains(err.Error(), "275") { // constraint check failed, 2 or more values are duplicates
 			// 	log.Error(err.Error(), "%s", "duplicate values where it's enforced to not have")
@@ -170,13 +165,11 @@ func Insert(structs any) error {
 		}
 
 	}
-	measureDbTime(start)
+
 	return nil
 }
 
 func Delete(structo any) bool {
-	start := time.Now().UnixMicro()
-
 	var err error
 	var result sql.Result
 	switch s := structo.(type) {
@@ -191,9 +184,9 @@ func Delete(structo any) bool {
 	case ServerMemberShort:
 		log.Query(deleteServerMemberQuery, s.ServerID, s.UserID)
 		result, err = Conn.Exec(deleteServerMemberQuery, s.ServerID, s.UserID)
-	case Friendship:
-		log.Query(deleteFriendshipQuery, s.FirstUserID, s.SecondUserID)
-		result, err = Conn.Exec(deleteFriendshipQuery, s.FirstUserID, s.SecondUserID)
+	case FriendshipSimple:
+		log.Query(deleteFriendshipQuery, s.UserID, s.ReceiverID)
+		result, err = Conn.Exec(deleteFriendshipQuery, s.UserID, s.ReceiverID)
 	case BlockUser:
 		log.Query(deleteBlockListQuery, s.UserID, s.BlockedUserID)
 		result, err = Conn.Exec(deleteBlockListQuery, s.UserID, s.BlockedUserID)
@@ -214,8 +207,6 @@ func Delete(structo any) bool {
 	if err != nil {
 		log.FatalError(err.Error(), "%s", "error getting RowsAffected")
 	}
-
-	measureDbTime(start)
 
 	if rowsAffected == 1 {
 		return true

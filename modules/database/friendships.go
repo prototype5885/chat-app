@@ -2,7 +2,6 @@ package database
 
 import (
 	log "proto-chat/modules/logging"
-	"time"
 )
 
 type Friendship struct {
@@ -11,14 +10,10 @@ type Friendship struct {
 	FriendsSince int64
 }
 
-// const insertFriendshipQuery string = `
-// 		INSERT INTO friendships (user1_id, user2_id, friends_since)
-// 		SELECT ?, ?, NOW()
-// 		WHERE NOT EXISTS (
-// 			SELECT 1
-// 			FROM friendships
-// 			WHERE (user1_id = ? AND user2_id = ?) OR (user1_id = ? AND user2_id = ?)
-// 		);`
+type FriendshipSimple struct {
+	UserID     uint64
+	ReceiverID uint64
+}
 
 const insertFriendshipQuery string = "INSERT INTO friendships (user1_id, user2_id, friends_since) VALUES (?, ?, ?)"
 const deleteFriendshipQuery string = "DELETE FROM friendships WHERE MIN(user1_id, user2_id) = ? AND MAX(user1_id, user2_id) = ?"
@@ -40,7 +35,6 @@ func CreateFriendshipsTable() {
 }
 
 func CheckIfFriends(userID uint64, targetUserID uint64) bool {
-	start := time.Now().UnixMicro()
 	const query string = `
 	SELECT EXISTS (
 		SELECT 1
@@ -60,6 +54,5 @@ func CheckIfFriends(userID uint64, targetUserID uint64) bool {
 		log.Debug("User ID [%d] is friends with user ID [%d]", targetUserID, userID)
 	}
 
-	measureDbTime(start)
 	return areFriends
 }

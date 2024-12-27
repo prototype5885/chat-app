@@ -17,12 +17,17 @@ const ServerName = document.getElementById("server-name")
 const AttachmentInput = document.getElementById("attachment-input")
 const AttachmentContainer = document.getElementById("attachment-container")
 const AttachmentList = document.getElementById("attachment-list")
+const Channels = document.getElementById("channels")
+const FriendsChat = document.getElementById("friends-chat")
+const FriendsChatList = document.getElementById("friends-chat-list")
 
 let ownUserID = ""
 let ownDisplayName = ""
 let ownProfilePic = ""
 let ownPronouns = ""
 let ownStatusText = ""
+let ownFriends = []
+let ownBlocks = []
 
 let receivedInitialUserData = false // don't continue loading until own user data is received
 let receivedImageHostAddress = false // don't continue loading until host address of image server arrived
@@ -82,6 +87,11 @@ function setMemberProfilePic(userID, pic) {
     console.log(`User ID [${userID}] changed profile pic to [${pic}]`)
 }
 
+function setOwnUserID(userID) {
+    ownUserID = userID
+    console.log(`Own user ID has been set to [${ownUserID}]`)
+}
+
 function setOwnDisplayName(displayName) {
     displayName = checkDisplayName(displayName)
     ownDisplayName = displayName
@@ -102,7 +112,7 @@ function setOwnPronouns(pronouns) {
 
 function setOwnStatusText(statusText) {
     ownStatusText = statusText
-    console.log(`Own status text has been changed to [${ownStatusText}]`)
+    console.log(`Own status text has been set to [${ownStatusText}]`)
 }
 
 function setOwnProfilePic(pic) {
@@ -111,7 +121,31 @@ function setOwnProfilePic(pic) {
     ownProfilePic = pic
     setUserPanelPic(pic)
     console.log(`Own profile pic has been set to [${ownProfilePic}]`)
+}
 
+function setOwnFriends(friends) {
+    ownFriends = friends
+    console.log(`You have [${ownFriends.length}] friends, they are: [${ownFriends}]`)
+}
+
+function removeFriend(userID) {
+    for (i = 0; i < ownFriends.length; i++) {
+        if (ownFriends[i] === userID) {
+            ownFriends.splice(i, 1)
+            return
+        }
+    }
+    console.error(`Local error: could not remove user ID [${userID}] from ownFriends array`)
+}
+
+function setBlockedUsers(blocks) {
+    ownBlocks = blocks
+    console.log(`You have blocked [${ownBlocks.length}] users, they are: [${ownBlocks}]`)
+}
+
+function setCurrentChannel(channelID) {
+    currentChannelID = channelID
+    updateLastChannelsStorage()
 }
 
 function setButtonActive(button, active) {

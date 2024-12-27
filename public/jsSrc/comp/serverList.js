@@ -86,7 +86,21 @@ function addServer(serverID, userID, serverName, picture, className) {
 }
 
 function selectServer(serverID) {
-    console.log("Selected server ID", serverID, "Requesting list of channels...")
+    let dm = false
+    if (serverID === "2000") {
+        dm = true
+    }
+
+    if (dm) {
+        console.log("Selected direct messages")
+        FriendsChat.removeAttribute("style")
+        Channels.style.display = "none"
+    } else {
+        console.log("Selected server ID", serverID, "Requesting list of channels...")
+        Channels.removeAttribute("style")
+        FriendsChat.style.display = "none"
+
+    }
 
     const serverButton = document.getElementById(serverID)
     if (serverButton == null) {
@@ -110,19 +124,21 @@ function selectServer(serverID) {
 
     currentServerID = serverID
 
-
     serverButton.nextElementSibling.style.height = "36px"
 
-    const owned = serverButton.getAttribute("owned")
+    if (!dm) {
+        const owned = serverButton.getAttribute("owned")
 
-    // hide add channel button if server isn't own
-    if (owned === "true") {
-        AddChannelButton.style.display = "block"
-    } else {
-        AddChannelButton.style.display = "none"
+        // hide add channel button if server isn't own
+        if (owned === "true") {
+            AddChannelButton.style.display = "block"
+        } else {
+            AddChannelButton.style.display = "none"
+        }
     }
 
-    if (serverID === "2000") {
+
+    if (dm) {
         hideMemberList()
     } else {
         showMemberList()
@@ -132,11 +148,17 @@ function selectServer(serverID) {
     resetChatMessages()
     resetMemberList()
 
-    requestChannelList()
-    requestMemberList()
+    if (!dm) {
+        requestChannelList()
+        requestMemberList()
+    }
 
     ServerName.textContent = serverButton.getAttribute("name")
+
+    selectDirectMessages()
 }
+
+
 
 function deleteServer(serverID) {
     console.log("Deleting server ID:", serverID)

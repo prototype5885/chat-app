@@ -3,7 +3,6 @@ package database
 import (
 	"encoding/json"
 	log "proto-chat/modules/logging"
-	"time"
 )
 
 type Channel struct {
@@ -28,7 +27,6 @@ func CreateChannelsTable() {
 	}
 }
 func GetChannelList(serverID uint64) []byte {
-	start := time.Now().UnixMicro()
 	const query string = "SELECT * FROM channels WHERE server_id = ?"
 	log.Query(query, serverID)
 
@@ -46,7 +44,7 @@ func GetChannelList(serverID uint64) []byte {
 
 	if len(channels) == 0 {
 		log.Trace("Server ID [%d] does't have any channels", serverID)
-		return nullJson
+		return emptyArray
 	}
 
 	jsonResult, err := json.Marshal(channels)
@@ -54,12 +52,10 @@ func GetChannelList(serverID uint64) []byte {
 		log.FatalError(err.Error(), "Error serializing channel list of server ID [%d] retreived from database", serverID)
 	}
 
-	measureDbTime(start)
 	return jsonResult
 }
 
 func GetServerIdOfChannel(channelID uint64) uint64 {
-	start := time.Now().UnixMicro()
 	const query = "SELECT server_id FROM channels WHERE channel_id = ?"
 	log.Query(query, channelID)
 
@@ -73,6 +69,5 @@ func GetServerIdOfChannel(channelID uint64) uint64 {
 		log.Trace("Channel ID [%d] belongs to server ID [%d]", channelID, serverID)
 	}
 
-	measureDbTime(start)
 	return serverID
 }

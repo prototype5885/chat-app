@@ -210,9 +210,9 @@ func (c *WsClient) onChatMessageDeleteRequest(packetJson []byte) (BroadcastData,
 		MessageID uint64
 	}
 
-	var messageDeleteRequest = MessageToDelete{}
+	var req = MessageToDelete{}
 
-	if err := json.Unmarshal(packetJson, &messageDeleteRequest); err != nil {
+	if err := json.Unmarshal(packetJson, &req); err != nil {
 		return BroadcastData{
 			MessageBytes: macros.ErrorDeserializing(err.Error(), DELETE_CHAT_MESSAGE, c.UserID),
 		}, nil
@@ -220,12 +220,12 @@ func (c *WsClient) onChatMessageDeleteRequest(packetJson []byte) (BroadcastData,
 
 	// get the channel ID where the message was deleted,
 	// so can broadcoast it to affected Clients
-	var channelID uint64 = database.DeleteChatMessage(messageDeleteRequest.MessageID, c.UserID)
+	var channelID uint64 = database.DeleteChatMessage(req.MessageID, c.UserID)
 	if channelID == 0 {
 		return BroadcastData{}, macros.RespondFailureReason("Denied to delete chat message")
 	}
 
-	responseBytes, err := json.Marshal(strconv.FormatUint(messageDeleteRequest.MessageID, 10))
+	responseBytes, err := json.Marshal(req)
 	if err != nil {
 		macros.ErrorSerializing(err.Error(), DELETE_CHAT_MESSAGE, c.UserID)
 	}
@@ -237,7 +237,7 @@ func (c *WsClient) onChatMessageDeleteRequest(packetJson []byte) (BroadcastData,
 	}, nil
 }
 
-func (c *WsClient) AddFriend(packetJson []byte) {
+func (c *WsClient) onAddFriendRequest(packetJson []byte) {
 	type AddFriendRequest struct {
 		UserID uint64
 	}
@@ -259,16 +259,23 @@ func (c *WsClient) AddFriend(packetJson []byte) {
 
 	// TODO check if blocked
 
-	areFriends := database.CheckIfFriends(c.UserID, req.UserID)
-	if areFriends {
-		c.WriteChan <- macros.RespondFailureReason("You are already friends with user ID [%d]", req.UserID)
-		return
-	}
+	// areFriends := database.CheckIfFriends(c.UserID, req.UserID)
+	// if areFriends {
+	// 	c.WriteChan <- macros.RespondFailureReason("You are already friends with user ID [%d]", req.UserID)
+	// 	return
+	// }
 
 	friendship := database.Friendship{
-		FirstUserID:  c.UserID,
-		SecondUserID: req.UserID,
 		FriendsSince: time.Now().Unix(),
+	}
+
+	// make sure the smaller ID is first one
+	if c.UserID < req.UserID {
+		friendship.FirstUserID = c.UserID
+		friendship.SecondUserID = req.UserID
+	} else {
+		friendship.FirstUserID = req.UserID
+		friendship.SecondUserID = c.UserID
 	}
 
 	err := database.Insert(friendship)
@@ -278,7 +285,12 @@ func (c *WsClient) AddFriend(packetJson []byte) {
 		return
 	}
 
-	msgBytes, err := json.Marshal(friendship)
+	res := database.FriendshipSimple{
+		UserID:     c.UserID,
+		ReceiverID: req.UserID,
+	}
+
+	msgBytes, err := json.Marshal(res)
 	if err != nil {
 		macros.ErrorSerializing(err.Error(), ADD_FRIEND, c.UserID)
 		return
@@ -293,7 +305,7 @@ func (c *WsClient) AddFriend(packetJson []byte) {
 	broadcastChan <- broadcastData
 }
 
-func (c *WsClient) BlockUser(packetJson []byte) {
+func (c *WsClient) onBlockUserRequest(packetJson []byte) {
 	type BlockUserRequest struct {
 		UserID uint64
 	}
@@ -305,7 +317,7 @@ func (c *WsClient) BlockUser(packetJson []byte) {
 		return
 	}
 
-	log.Trace("User ID [%d] wants to block [%d]", c.UserID, req.UserID)
+	log.Trace("[User %d] wants to block user [%d]", c.UserID, req.UserID)
 
 	block := database.BlockUser{
 		UserID:        c.UserID,
@@ -319,7 +331,7 @@ func (c *WsClient) BlockUser(packetJson []byte) {
 		return
 	}
 
-	msgBytes, err := json.Marshal(req.UserID)
+	msgBytes, err := json.Marshal(req)
 	if err != nil {
 		macros.ErrorSerializing(err.Error(), BLOCK_USER, c.UserID)
 		return
@@ -328,6 +340,58 @@ func (c *WsClient) BlockUser(packetJson []byte) {
 	broadcastData := BroadcastData{
 		MessageBytes:   macros.PreparePacket(BLOCK_USER, msgBytes),
 		Type:           BLOCK_USER,
+		AffectedUserID: []uint64{c.UserID},
+	}
+
+	broadcastChan <- broadcastData
+}
+
+func (c *WsClient) onUnfriendRequest(packetJson []byte) {
+	type UnfriendRequest struct {
+		UserID uint64
+	}
+
+	var req = UnfriendRequest{}
+
+	if err := json.Unmarshal(packetJson, &req); err != nil {
+		c.WriteChan <- macros.ErrorDeserializing(err.Error(), UNFRIEND, c.UserID)
+		return
+	}
+
+	log.Trace("[User %d] wants to unfriend user [%d]", c.UserID, req.UserID)
+
+	unfriend := database.FriendshipSimple{}
+
+	// make sure the smaller ID is first one
+	if c.UserID < req.UserID {
+		unfriend.UserID = c.UserID
+		unfriend.ReceiverID = req.UserID
+	} else {
+		unfriend.UserID = req.UserID
+		unfriend.ReceiverID = c.UserID
+	}
+
+	success := database.Delete(unfriend)
+	if !success {
+		log.Warn("[User %d] failed to unfriend user [%d]", c.UserID, req.UserID)
+		c.WriteChan <- macros.RespondFailureReason("Error unfriending user ID [%d]", req.UserID)
+		return
+	}
+
+	res := database.FriendshipSimple{
+		UserID:     c.UserID,
+		ReceiverID: req.UserID,
+	}
+
+	msgBytes, err := json.Marshal(res)
+	if err != nil {
+		macros.ErrorSerializing(err.Error(), UNFRIEND, c.UserID)
+		return
+	}
+
+	broadcastData := BroadcastData{
+		MessageBytes:   macros.PreparePacket(UNFRIEND, msgBytes),
+		Type:           UNFRIEND,
 		AffectedUserID: []uint64{c.UserID, req.UserID},
 	}
 
@@ -347,8 +411,9 @@ func (c *WsClient) onServerMemberListRequest(packetJson []byte) []byte {
 
 	members := database.GetServerMembersList(req.ServerID)
 
+	// check if members are online or not
 	for i := 0; i < len(members); i++ {
-		members[i].Online = clients.CheckIfUserIsOnline(c.UserID)
+		members[i].Online = clients.CheckIfUserIsOnline(members[i].UserID)
 	}
 
 	membersJson, err := json.Marshal(members)
@@ -619,7 +684,7 @@ func (c *WsClient) onUpdateUserDataRequest(packetJson []byte) {
 	}
 	// if status text was changed
 	if req.NewST {
-		// setUserStatusText(c.UserID, req.StatusText)
+		setUserStatusText(c.UserID, req.StatusText)
 	}
 
 	if req.NewDN || req.NewP || req.NewST {

@@ -30,15 +30,27 @@
                 <div id="server-name-arrow">></div>
             </button>
         </div>
-        <div id="channels">
-            <div id="channels-visible-or-add-new">
-                <button id="channels-visibility-button" onclick="toggleChannelsVisibility()">
-                    <div>></div>
-                    <div>text channels</div>
-                </button>
-                <button id="add-channel-button" onclick="requestAddChannel()">+</button>
+        <div id="friends-channels">
+            <div id="channels" style="display: none;">
+                <div id="channels-visible-or-add-new">
+                    <button id="channels-visibility-button" onclick="toggleChannelsVisibility()">
+                        <div>></div>
+                        <div>text channels</div>
+                    </button>
+                    <button id="add-channel-button" onclick="requestAddChannel()">+</button>
+                </div>
+                <div id="channel-list"></div>
             </div>
-            <div id="channel-list"></div>
+            <div id="friends-chat" style="display: none;">
+                <div id="friends-chat-visible-or-add-new">
+                    <button id="friends-chat-visibility-button">
+                        <div>></div>
+                        <div>direct messages</div>
+                    </button>
+                    <button id="add-friends-button">+</button>
+                </div>
+                <div id="friends-chat-list"></div>
+            </div>
         </div>
         <div id="user-panel">
             <div>
@@ -71,7 +83,7 @@
         <div id="main-bottom">
             <div id="main-center-container">
                 <div id="chat-loading-indicator">Loading</div>
-                <ol id="chat-message-list" onscroll="scrolledOnChat(event)"></ol>
+                <ul id="chat-message-list" onscroll="scrolledOnChat(event)"></ul>
                 <div id="attachment-container">
                     <div id="attachment-list"></div>
                 </div>
@@ -88,7 +100,7 @@
                     </div>
                 </div>
             </div>
-            <ol id="member-list">
+            <ol id="member-list" style="display: none;">
                 <!-- <li>Members</li> -->
             </ol>
         </div>

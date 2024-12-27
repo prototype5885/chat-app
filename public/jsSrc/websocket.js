@@ -24,6 +24,7 @@ const UPDATE_ONLINE = 55
 
 const ADD_FRIEND = 61
 const BLOCK_USER = 62
+const UNFRIEND = 63
 
 const INITIAL_USER_DATA = 241
 const IMAGE_HOST_ADDRESS = 242
@@ -103,15 +104,19 @@ async function connectToWebsocket() {
         let packetJson = String.fromCharCode.apply(null, receivedBytes.slice(5, endIndex))
 
         console.log("Received packet:", endIndex, packetType, packetJson)
-        console.log(`Received packet size: [${receivedBytes.length} bytes] index: [${endIndex}] packetType: [${packetType}] json: ${packetJson}`)
 
-        // this turns 64 bit unsigned integers into string
-        // const json = fixJson(packetJson)
-        const valueNames = ["ChannelID", "UserID", "MessageID", "ServerID", "IDm", "IDu"]
-        for (let i = 0; i < valueNames.length; i++) {
-            packetJson = packetJson.replace(new RegExp(`"${valueNames[i]}":(\\d+)`, 'g'), (match, p1) => `"${valueNames[i]}":"${p1}"`)
-        }
-        const json = JSON.parse(packetJson)
+        // function bigIntReviver(key, value) {
+        //     // Check if the value is a number and exceeds the safe integer range
+        //     if (typeof value === 'number' && value > Number.MAX_SAFE_INTEGER) {
+        //         console.log(value)
+        //         return value.toString()
+        //     }
+        //     return value;
+        // }
+        packetJson = packetJson.replace(/([\[:])?(\d{16,})([,\}\]])/g, "$1\"$2\"$3");
+        json = JSON.parse(packetJson)
+        console.log(json)
+        // json = fixJson(packetJson)
 
         switch (packetType) {
             case REJECTION_MESSAGE: // Server sent rejection message
@@ -133,7 +138,7 @@ async function connectToWebsocket() {
                 break
             case SERVER_LIST: // Server sent the requested server list
                 console.log("Requested server list arrived")
-                if (json != null) {
+                if (json.length !== 0) {
                     for (let i = 0; i < json.length; i++) {
                         console.log("Adding server ID", json[i].ServerID)
                         addServer(json[i].ServerID, json[i].UserID, json[i].Name, imageHost + json[i].Picture, "server")
@@ -164,7 +169,7 @@ async function connectToWebsocket() {
                 break
             case CHANNEL_LIST: // Server sent the requested channel list
                 console.log("Requested channel list arrived")
-                if (json == null) {
+                if (json.length === 0) {
                     console.warn("No channels on server ID", currentServerID)
                     break
                 }
@@ -241,14 +246,35 @@ async function connectToWebsocket() {
                     setMemberOnline(json.UserID, json.Online)
                 }
                 break
-            // case 56: // Server sent new pronouns
-            //     setOwnPronouns(json.Pronouns)
+            case ADD_FRIEND:
+                if (json.UserID === ownUserID) {
+                    ownFriends.push(json.ReceiverID)
+                    console.log(`You have added user ID [${json.ReceiverID}] as friend`)
+                } else if (json.ReceiverID == ownUserID) {
+                    ownFriends.push(json.UserID)
+                    console.log(`User ID [${json.UserID}] has added you as a friend`)
+                }
+                break
+            case BLOCK_USER:
+                break
+            case UNFRIEND:
+                if (json.UserID === ownUserID) {
+                    removeFriend(json.ReceiverID)
+                    console.log(`You have unfriended user ID [${json.ReceiverID}]`)
+                } else if (json.ReceiverID == ownUserID) {
+                    removeFriend(json.UserID)
+                    console.log(`User ID [${json.UserID}] has unfriended you`)
+                }
+                break
             case INITIAL_USER_DATA: // Server sent the client's own user ID and display name
-                ownUserID = json.UserID
+                setOwnUserID(json.UserID)
                 setOwnProfilePic(json.ProfilePic)
                 setOwnDisplayName(json.DisplayName)
                 setOwnPronouns(json.Pronouns)
                 setOwnStatusText(json.StatusText)
+                setOwnFriends(json.Friends)
+                setBlockedUsers(json.Blocks)
+
                 receivedInitialUserData = true
                 console.log(`Received own user ID [${ownUserID}] and display name: [${ownDisplayName}]:`)
                 break
@@ -271,7 +297,7 @@ async function connectToWebsocket() {
     await waitUntilBoolIsTrue(() => wsConnected)
 }
 
-async function preparePacket(type, bigIntIDs, struct) {
+async function preparePacket(type, struct) {
     // wait if websocket is not on yet
     await waitUntilBoolIsTrue(() => wsConnected)
 
@@ -281,13 +307,13 @@ async function preparePacket(type, bigIntIDs, struct) {
 
     let json = JSON.stringify(struct)
 
-    // workaround to turn uint64 value in json from string to normal number value
-    // since javascript cant serialize BigInt
-    for (i = 0; i < bigIntIDs.length; i++) {
-        if (bigIntIDs[i] !== 0) {
-            json = json.replace(`"${bigIntIDs[i]}"`, bigIntIDs[i])
-        }
-    }
+    // workaround to turn uint64 values in json from string to integer type so server can process
+    // numbers longer than 16 characters
+    // json = json.replace(/"(\d{16,})"/g, "$1");
+    json = json.replace(/(?<!\"Message\"\s*:\s*)\"(\d{16,})\"/g, "$1");
+
+    console.log("Json to prepare for sending:", json)
+
 
     // serialize the struct into json then convert to byte array
     let jsonBytes
@@ -316,7 +342,7 @@ async function preparePacket(type, bigIntIDs, struct) {
 
 async function sendChatMessage(message, channelID, attachmentToken) { // type is 1
     console.log("Sending a chat message")
-    await preparePacket(ADD_CHAT_MESSAGE, [channelID], {
+    await preparePacket(ADD_CHAT_MESSAGE, {
         ChannelID: channelID,
         Message: message,
         AttTok: attachmentToken
@@ -324,7 +350,7 @@ async function sendChatMessage(message, channelID, attachmentToken) { // type is
 }
 async function requestChatHistory(channelID, lastMessageID) {
     console.log("Requesting chat history for channel ID", channelID)
-    preparePacket(CHAT_HISTORY, [channelID, lastMessageID], {
+    preparePacket(CHAT_HISTORY, {
         ChannelID: channelID,
         FromMessageID: lastMessageID,
         Older: true // if true it will request older, if false it will request newer messages from the message id
@@ -332,13 +358,13 @@ async function requestChatHistory(channelID, lastMessageID) {
 }
 async function requestDeleteChatMessage(messageID) {
     console.log("Requesting to delete chat message ID", messageID)
-    preparePacket(DELETE_CHAT_MESSAGE, [messageID], {
+    preparePacket(DELETE_CHAT_MESSAGE, {
         MessageID: messageID
     })
 }
 async function requestAddServer(serverName) {
     console.log("Requesting to add a new server")
-    preparePacket(ADD_SERVER, [0], {
+    preparePacket(ADD_SERVER, {
         Name: serverName
     })
 }
@@ -349,13 +375,13 @@ function requestRenameServer(serverID) {
 
 function requestServerList() {
     console.log("Requesting server list")
-    preparePacket(SERVER_LIST, [0], null)
+    preparePacket(SERVER_LIST, null)
 }
 
 function requestDeleteServer(serverID) {
     if (document.getElementById(serverID).getAttribute("owned") == "false") return
     console.log("Requesting to delete server ID:", serverID)
-    preparePacket(DELETE_SERVER, [serverID], {
+    preparePacket(DELETE_SERVER, {
         ServerID: serverID
     })
 }
@@ -363,7 +389,7 @@ function requestDeleteServer(serverID) {
 function requestInviteLink(serverID) {
     if (document.getElementById(serverID).getAttribute("owned") == "false") return
     console.log("Requesting invite link creation for server ID:", serverID)
-    preparePacket(SERVER_INVITE_LINK, [serverID], {
+    preparePacket(SERVER_INVITE_LINK, {
         ServerID: serverID,
         SingleUse: false,
         Expiration: 7
@@ -373,7 +399,7 @@ function requestInviteLink(serverID) {
 function requestAddChannel() {
     if (document.getElementById(currentServerID).getAttribute("owned") == "false") return
     console.log("Requesting to add new channel to server ID:", currentServerID)
-    preparePacket(ADD_CHANNEL, [currentServerID], {
+    preparePacket(ADD_CHANNEL, {
         Name: "Channel",
         ServerID: currentServerID
     })
@@ -381,40 +407,30 @@ function requestAddChannel() {
 
 function requestChannelList() {
     console.log("Requesting channel list for current server ID", currentServerID)
-    preparePacket(CHANNEL_LIST, [currentServerID], {
+    preparePacket(CHANNEL_LIST, {
         ServerID: currentServerID
     })
 }
 
 function requestMemberList() {
     console.log("Requesting member list for current server ID", currentServerID)
-    preparePacket(SERVER_MEMBER_LIST, [currentServerID], {
+    preparePacket(SERVER_MEMBER_LIST, {
         ServerID: currentServerID
     })
 }
 
 function requestLeaveServer(serverID) {
     console.log("Requesting to leave a server ID", serverID)
-    preparePacket(DELETE_SERVER_MEMBER, [serverID], {
+    preparePacket(DELETE_SERVER_MEMBER, {
         ServerID: serverID
     })
 }
 
 function requestStatusChange(newStatus) {
     console.log("Requesting to change status")
-    preparePacket(UPDATE_STATUS, [], {
+    preparePacket(UPDATE_STATUS, {
         Status: newStatus
     })
-}
-
-function requestImageHostAddress() {
-    console.log("Requesting image host address")
-    preparePacket(IMAGE_HOST_ADDRESS, [], {})
-}
-
-function requestUpdateUserData(updatedUserData) {
-    console.log("Requesting to update account data")
-    preparePacket(UPDATE_USER_DATA, [], updatedUserData)
 }
 
 function requestAddFriend(userID) {
@@ -423,7 +439,7 @@ function requestAddFriend(userID) {
         return
     }
     console.log(`Requesting to add user ID [${userID}] as friend`)
-    preparePacket(ADD_FRIEND, [userID], {
+    preparePacket(ADD_FRIEND, {
         UserID: userID
     })
 }
@@ -434,7 +450,28 @@ function requestBlockUser(userID) {
         return
     }
     console.log(`Requesting to block user ID [${userID}]`)
-    preparePacket(BLOCK_USER, [userID], {
+    preparePacket(BLOCK_USER, {
         UserID: userID
     })
+}
+
+function requestUnfriend(userID) {
+    if (userID === ownUserID) {
+        console.warn("You can't unfriend yourself")
+        return
+    }
+    console.log(`Requesting to unfriend user ID [${userID}]`)
+    preparePacket(UNFRIEND, {
+        UserID: userID
+    })
+}
+
+function requestImageHostAddress() {
+    console.log("Requesting image host address")
+    preparePacket(IMAGE_HOST_ADDRESS, {})
+}
+
+function requestUpdateUserData(updatedUserData) {
+    console.log("Requesting to update account data")
+    preparePacket(UPDATE_USER_DATA, updatedUserData)
 }

@@ -41,6 +41,7 @@ const (
 
 	ADD_FRIEND byte = 61
 	BLOCK_USER byte = 62
+	UNFRIEND   byte = 63
 
 	INITIAL_USER_DATA       byte = 241
 	IMAGE_HOST_ADDRESS      byte = 242
@@ -79,14 +80,6 @@ type WsClient struct {
 	CloseChan chan bool
 }
 
-type InitialUserData struct {
-	UserID      uint64
-	DisplayName string
-	ProfilePic  string
-	Pronouns    string
-	StatusText  string
-}
-
 var broadcastChan = make(chan BroadcastData, 100)
 
 var wsClients sync.Map
@@ -106,7 +99,7 @@ func AcceptWsClient(userID uint64, w http.ResponseWriter, r *http.Request) {
 	// session ID is used as key value for Clients hashmap to make it possible
 	// for a single user to connect to chat from multiple devices/browsers
 
-	// add client
+	// add client to central area
 	sessionID := clients.AddClient(userID)
 
 	// sending and reading messages are two separate goroutines
@@ -122,6 +115,7 @@ func AcceptWsClient(userID uint64, w http.ResponseWriter, r *http.Request) {
 
 	// add to wsClients
 	wsClients.Store(sessionID, wsClient)
+	defer wsClient.removeWsClient()
 
 	// create 2 goroutines for reading and writing messages
 	var wg sync.WaitGroup
@@ -133,22 +127,17 @@ func AcceptWsClient(userID uint64, w http.ResponseWriter, r *http.Request) {
 	log.Trace("Session ID [%d] as user ID [%d] has been added to WsClients", sessionID, userID)
 
 	// sends the client its own user ID and display name
-	displayName, profilePic, statusText, pronouns := database.GetUserData(userID)
-
-	var userData InitialUserData = InitialUserData{
-		UserID:      userID,
-		DisplayName: displayName,
-		ProfilePic:  profilePic,
-		Pronouns:    pronouns,
-		StatusText:  statusText,
+	initialData, success := database.GetInitialData(userID)
+	if !success {
+		return
 	}
 
-	jsonUserID, err := json.Marshal(userData)
+	jsonUserID, err := json.Marshal(initialData)
 	if err != nil {
 		macros.ErrorSerializing(err.Error(), INITIAL_USER_DATA, userID)
 	}
 
-	wsClient.WriteChan <- macros.PreparePacket(241, jsonUserID)
+	wsClient.WriteChan <- macros.PreparePacket(INITIAL_USER_DATA, jsonUserID)
 
 	setUserStatusText(userID, "Online")
 	setUserOnline(userID, true)
@@ -156,15 +145,14 @@ func AcceptWsClient(userID uint64, w http.ResponseWriter, r *http.Request) {
 	// this will block here while both the reading and writing goroutine are running
 	// if one stops, the other should stop too
 	wg.Wait()
+}
 
-	setUserStatusText(userID, "Offline")
-	setUserOnline(userID, false)
-
-	// lastly remove the client
-	wsClients.Delete(sessionID)
-	log.Trace("Successfully removed session ID [%d] from WsClients", sessionID)
-
-	clients.RemoveClient(sessionID)
+func (c *WsClient) removeWsClient() {
+	setUserStatusText(c.UserID, "Offline")
+	setUserOnline(c.UserID, false)
+	log.Trace("Removing session ID [%d] from WsClients", c.SessionID)
+	clients.RemoveClient(c.SessionID)
+	wsClients.Delete(c.SessionID)
 }
 
 func (c *WsClient) readMessages(wg *sync.WaitGroup) {
@@ -288,9 +276,11 @@ func (c *WsClient) readMessages(wg *sync.WaitGroup) {
 			log.Trace("User ID [%d] is requesting to update their status value", c.UserID)
 			c.onUpdateUserStatusValue(packetJson)
 		case ADD_FRIEND: // user wants to add an other user as friend
-			c.AddFriend(packetJson)
+			c.onAddFriendRequest(packetJson)
 		case BLOCK_USER: // user wants to block a user
-			c.BlockUser(packetJson)
+			c.onBlockUserRequest(packetJson)
+		case UNFRIEND: // user wants to unfriend a user
+			c.onUnfriendRequest(packetJson)
 		case IMAGE_HOST_ADDRESS:
 			log.Trace("User ID [%d] is requesting address of image host server", c.UserID)
 			imageHostJson, err := json.Marshal(ImageHost)
@@ -372,7 +362,7 @@ func broadCastChannel() {
 					}
 					return true
 				})
-			case ADD_CHANNEL, DELETE_CHANNEL, ADD_SERVER_MEMBER, DELETE_SERVER_MEMBER, UPDATE_ONLINE: // things that only affect a single server
+			case ADD_CHANNEL, DELETE_CHANNEL, ADD_SERVER_MEMBER, DELETE_SERVER_MEMBER: // things that only affect a single server
 				wsClients.Range(func(key, value interface{}) bool {
 					wsClient, ok := value.(*WsClient)
 					if !ok {
@@ -390,7 +380,7 @@ func broadCastChannel() {
 					return true
 				})
 
-			case UPDATE_MEMBER_PROFILE_PIC, UPDATE_STATUS, UPDATE_MEMBER_DISPLAY_NAME, DELETE_SERVER: // things that affect multiple servers
+			case UPDATE_MEMBER_PROFILE_PIC, UPDATE_ONLINE, UPDATE_STATUS, UPDATE_MEMBER_DISPLAY_NAME, DELETE_SERVER: // things that affect multiple servers
 				wsClients.Range(func(key, value interface{}) bool {
 					wsClient, ok := value.(*WsClient)
 					if !ok {
@@ -422,7 +412,7 @@ func broadCastChannel() {
 					}
 					return true
 				})
-			case ADD_FRIEND, BLOCK_USER: // things that affect multiple users
+			case ADD_FRIEND, BLOCK_USER, UNFRIEND: // things that affect multiple users
 				wsClients.Range(func(key, value interface{}) bool {
 					wsClient, ok := value.(*WsClient)
 					if !ok {

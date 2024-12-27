@@ -60,7 +60,7 @@ function addMember(userID, displayName, picture, online, status, statusText) {
     MemberList.appendChild(li)
 
     changeStatusValueInMemberList(userID, status)
-    // setMemberOnline(userID, online)
+    setMemberOnline(userID, online)
 }
 
 function removeMember(userID) {

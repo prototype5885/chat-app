@@ -2,27 +2,30 @@ package database
 
 import (
 	"encoding/json"
+	"fmt"
 	log "proto-chat/modules/logging"
 	"proto-chat/modules/macros"
 	"proto-chat/modules/snowflake"
-	"time"
 )
 
 type Message struct {
-	MessageID uint64
-	ChannelID uint64
-	UserID    uint64
-	// Timestamp   uint64
+	MessageID   uint64
+	ChannelID   uint64
+	UserID      uint64
 	Message     string
 	Attachments []byte
 }
 
 type ChatMessageHistory struct {
-	IDm uint64
-	IDu uint64
-	Msg string
-	Att []string
+	UserID uint64
+	Msgs   []interface{}
 }
+
+// type ChatMessages struct {
+// 	IDm uint64   `json:"I"`
+// 	Msg string   `json:"M"`
+// 	Att []string `json:"A"`
+// }
 
 const insertChatMessageQuery = "INSERT INTO messages (message_id, channel_id, user_id, message, attachments) VALUES (?, ?, ?, ?, ?)"
 
@@ -64,8 +67,6 @@ func AddChatMessage(userID uint64, channelID uint64, chatMessage string, filenam
 }
 
 func GetChatHistory(channelID uint64, fromMessageID uint64, older bool, userID uint64) []byte {
-	start := time.Now().UnixMicro()
-
 	const query = "SELECT message_id, user_id, message, attachments FROM messages WHERE channel_id = ? AND (message_id < ? OR ? = 0) ORDER BY message_id DESC LIMIT 50"
 	log.Query(query, channelID, fromMessageID, fromMessageID)
 
@@ -75,43 +76,60 @@ func GetChatHistory(channelID uint64, fromMessageID uint64, older bool, userID u
 	var chatMessageHistory []ChatMessageHistory
 	var counter int
 	for rows.Next() {
-		var cm ChatMessageHistory
-		var attachmentsJson []byte
+		var userID uint64
+		var messageID uint64
+		var message string
 
-		err := rows.Scan(&cm.IDm, &cm.IDu, &cm.Msg, &attachmentsJson)
+		var attachmentsJson []byte
+		err := rows.Scan(&messageID, &userID, &message, &attachmentsJson)
 		DatabaseErrorCheck(err)
 
-		if attachmentsJson != nil {
-			err = json.Unmarshal(attachmentsJson, &cm.Att)
-			if err != nil {
-				log.FatalError(err.Error(), "Error deserializing message attachments retrieved from database of message ID [%d]", cm.IDm)
+		found := false
+		index := 0
+		for i := 0; i < len(chatMessageHistory); i++ {
+			if chatMessageHistory[i].UserID == userID {
+				found = true
+				index = i
+				break
 			}
 		}
 
-		chatMessageHistory = append(chatMessageHistory, cm)
+		if !found {
+			chatMessageHistory = append(chatMessageHistory, ChatMessageHistory{UserID: userID})
+			index = len(chatMessageHistory) - 1
+		}
+
+		var attachmentHistory []string
+		if attachmentsJson != nil {
+			err = json.Unmarshal(attachmentsJson, &attachmentHistory)
+			if err != nil {
+				log.FatalError(err.Error(), "Error deserializing message attachments retrieved from database of message ID [%d]", messageID)
+			}
+		}
+
+		// chatMessageHistory[index].Msgs = append(chatMessageHistory[index].Msgs, ChatMessages{IDm: messageID, Msg: message, Att: attachmentHistory})
+		chatMessageHistory[index].Msgs = append(chatMessageHistory[index].Msgs, []interface{}{messageID, message, attachmentHistory})
 		counter++
 	}
 	DatabaseErrorCheck(rows.Err())
 
 	if counter == 0 {
 		log.Trace("Channel ID [%d] does not have any messages or user reached top of chat", channelID)
-		return nullJson
+		return emptyArray
 	} else {
 		log.Trace("Retrieved [%d] messages from channel ID [%d]", counter, channelID)
 	}
+	fmt.Println(counter)
 
 	jsonResult, err := json.Marshal(chatMessageHistory)
 	if err != nil {
 		macros.ErrorSerializing(err.Error(), 2, userID)
 	}
 
-	measureDbTime(start)
 	return jsonResult
 }
 
 func DeleteChatMessage(messageID uint64, userID uint64) uint64 {
-	start := time.Now().UnixMicro()
-
 	const query string = "DELETE FROM messages WHERE message_id = ? AND user_id = ? RETURNING channel_id"
 	log.Query(query, messageID, userID)
 
@@ -123,6 +141,5 @@ func DeleteChatMessage(messageID uint64, userID uint64) uint64 {
 		log.Hack("There is no message ID [%d] owned by user ID [%d]", messageID, userID)
 	}
 
-	measureDbTime(start)
 	return channelID
 }

@@ -158,19 +158,34 @@ async function chatMessageReceived(json) {
     amountOfMessagesChanged()
 }
 
+
 async function chatHistoryReceived(json) {
     console.log(`Requested chat history for current channel arrived`)
     if (!memberListLoaded) {
         await waitUntilBoolIsTrue(() => memberListLoaded) // wait until members are loaded
     }
 
-    if (json !== null) {
+    const chatMessages = []
+    if (json.length !== 0) {
         // runs if json contains chat history
-        // loop through the json and add each messages one by one
-        for (let i = 0; i < json.length; i++) {
-            // false here means these messages will be inserted before existing ones
-            addChatMessage(json[i].IDm, json[i].IDu, json[i].Msg, json[i].Att, false)
+        for (let u = 0; u < json.length; u++) {
+            for (let m = 0; m < json[u].Msgs.length; m++) {
+                // add message in this format to a chatMessages list
+                const chatMessage = {
+                    IDm: json[u].Msgs[m][0], // message id
+                    IDu: json[u].UserID, // user id
+                    Msg: json[u].Msgs[m][1], // message
+                    Att: json[u].Msgs[m][2] // attachments
+                }
+                chatMessages.push(chatMessage)
+            }
         }
+        // sort the history here because message history is not received ordered
+        chatMessages.sort((b, a) => a.IDm - b.IDm)
+        for (let i = 0; i < chatMessages.length; i++) {
+            addChatMessage(chatMessages[i].IDm, chatMessages[i].IDu, chatMessages[i].Msg, chatMessages[i].Att, false)
+        }
+
         // only auto scroll down when entering channel, and not when
         // server sends rest of history while scrolling up manually
         if (currentChannelID !== lastChannelID) {

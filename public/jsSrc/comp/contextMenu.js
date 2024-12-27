@@ -101,22 +101,18 @@ function userCtxMenu(userID, pageX, pageY) {
         console.log("Reporting user", userID)
     }
 
-    function removeFriend(userID) {
-        console.log("Removing friend", userID)
-    }
-
     function copyUserID(userID) {
         console.log("Copying user ID", userID)
         navigator.clipboard.writeText(userID)
     }
 
-    const actions = [
-        { text: "Add friend", func: () => requestAddFriend(userID) },
-        { text: "Block", func: () => requestBlockUser(userID) },
-        { text: "Report user", color: "red", func: () => reportUser(userID) },
-        { text: "Remove friend", color: "red", func: () => removeFriend(userID) },
-        { text: "Copy user ID", func: () => copyUserID(userID) }
-    ]
+    const actions = []
+    if (!ownFriends.includes(userID) && userID !== ownUserID) { actions.push({ text: "Add friend", func: () => requestAddFriend(userID) }) }
+    if (ownFriends.includes(userID) && userID !== ownUserID) { actions.push({ text: "Remove friend", color: "red", func: () => requestUnfriend(userID) }) }
+    if (userID !== ownUserID) { actions.push({ text: "Block", color: "red", func: () => requestBlockUser(userID) }) }
+    if (userID !== ownUserID) { actions.push({ text: "Report user", color: "red", func: () => reportUser(userID) }) }
+    actions.push({ text: "Copy user ID", func: () => copyUserID(userID) })
+
     createContextMenu(actions, pageX, pageY)
 }
 

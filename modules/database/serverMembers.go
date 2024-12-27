@@ -2,7 +2,6 @@ package database
 
 import (
 	log "proto-chat/modules/logging"
-	"time"
 )
 
 type ServerMemberShort struct {
@@ -79,7 +78,6 @@ func ConfirmServerMembership(userID uint64, serverID uint64) bool {
 func GetJoinedServersList(userID uint64) []uint64 {
 	// get what servers are the user part of, so message will broadcast to members of these servers
 	// this makes sure users who don't have visual on the user who receive the changes
-	start := time.Now().UnixMicro()
 	const query string = "SELECT s.server_id FROM servers s JOIN server_members m ON s.server_id = m.server_id WHERE m.user_id = ?"
 	log.Query(query, userID)
 
@@ -99,6 +97,5 @@ func GetJoinedServersList(userID uint64) []uint64 {
 	} else {
 		log.Trace("Successfully retrieved list of servers where user ID [%d] is joined", userID)
 	}
-	measureDbTime(start)
 	return serverIDs
 }

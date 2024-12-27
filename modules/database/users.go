@@ -16,6 +16,16 @@ type User struct {
 	Totp        string
 }
 
+type InitialData struct {
+	UserID      uint64
+	DisplayName string
+	ProfilePic  string
+	Pronouns    string
+	StatusText  string
+	Friends     []uint64
+	Blocks      []uint64
+}
+
 const insertUserQuery = "INSERT INTO users (user_id, username, display_name, password) VALUES (?, ?, ?, ?)"
 
 func CreateUsersTable() {
@@ -139,24 +149,83 @@ func CheckIfUsernameExists(username string) bool {
 	return taken
 }
 
-func GetUserData(userID uint64) (string, string, string, string) {
-	const query = "SELECT display_name, picture, status_text, pronouns FROM users WHERE user_id = ?"
-	log.Query(query, userID)
+func GetInitialData(userID uint64) (InitialData, bool) {
+	tx, err := Conn.Begin()
+	transactionErrorCheck(err)
 
-	var displayName string
-	var picture string
-	var statusText string
-	var pronouns string
-	err := Conn.QueryRow(query, userID).Scan(&displayName, &picture, &statusText, &pronouns)
-	DatabaseErrorCheck(err)
+	defer tx.Rollback()
 
-	if displayName == "" || picture == "" {
-		log.Trace("Failed to find username [%d] for user data in database", userID)
-	} else {
-		log.Trace("Successfully retrieved user data of user ID [%d]", userID)
+	iData := InitialData{
+		UserID:  userID,
+		Blocks:  []uint64{},
+		Friends: []uint64{},
 	}
 
-	return displayName, picture, statusText, pronouns
+	// get user data
+	const query1 = "SELECT display_name, picture, status_text, pronouns FROM users WHERE user_id = ?"
+	log.Query(query1, userID)
+
+	err = tx.QueryRow(query1, userID).Scan(&iData.DisplayName, &iData.ProfilePic, &iData.StatusText, &iData.Pronouns)
+	transactionErrorCheck(err)
+
+	// get block list
+	const query2 = "SELECT blocked_id FROM block_list WHERE user_id = ?"
+	log.Query(query2, userID)
+
+	rows2, err := tx.Query(query2, userID)
+	DatabaseErrorCheck(err)
+	for rows2.Next() {
+		var blockedID uint64
+		err := rows2.Scan(&blockedID)
+		DatabaseErrorCheck(err)
+		iData.Blocks = append(iData.Blocks, blockedID)
+	}
+
+	// get friends
+	const query3 = `
+		SELECT 
+			CASE
+				WHEN user1_id = ? THEN user2_id
+				WHEN user2_id = ? THEN user1_id
+			END AS friend_id
+		FROM friendships
+		WHERE user1_id = ? OR user2_id = ?
+		`
+
+	log.Query(query3, userID, userID, userID, userID)
+
+	rows3, err := tx.Query(query3, userID, userID, userID, userID)
+	DatabaseErrorCheck(err)
+	for rows3.Next() {
+		var friendID uint64
+		err := rows3.Scan(&friendID)
+		DatabaseErrorCheck(err)
+		iData.Friends = append(iData.Friends, friendID)
+	}
+
+	err = tx.Commit()
+	transactionErrorCheck(err)
+
+	return iData, true
+
+	// const query = "SELECT display_name, picture, status_text, pronouns FROM users WHERE user_id = ?"
+
+	// log.Query(query, userID)
+
+	// var displayName string
+	// var picture string
+	// var statusText string
+	// var pronouns string
+	// err := Conn.QueryRow(query, userID).Scan(&displayName, &picture, &statusText, &pronouns)
+	// DatabaseErrorCheck(err)
+
+	// if displayName == "" || picture == "" {
+	// 	log.Trace("Failed to find username [%d] for user data in database", userID)
+	// } else {
+	// 	log.Trace("Successfully retrieved user data of user ID [%d]", userID)
+	// }
+
+	// return displayName, picture, statusText, pronouns
 }
 
 func UpdateUserValue(userID uint64, value string, column string) bool {

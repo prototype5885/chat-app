@@ -17,7 +17,7 @@ function setLastChannels(value) {
     localStorage.setItem("lastChannels", value)
 }
 
-function updateLastChannels() {
+function updateLastChannelsStorage() {
     if (!localStorageSupported) {
         console.warn("Local storage isn't enabled in browser, can't update lastChannels value")
         return
@@ -31,15 +31,15 @@ function updateLastChannels() {
     if (json != null) {
         lastChannels = JSON.parse(json)
 
-        var serverIDstr = currentServerID.toString()
-        var channelIDstr = currentChannelID.toString()
+        // var serverIDstr = currentServerID
+        // var channelIDstr = currentChannelID
 
-        if (serverIDstr in lastChannels && lastChannels[serverIDstr] === channelIDstr) {
-            // if currentServerID and currentChannelID matches witht hose in lastChannels localStorage, don"t do anything
-        }
+        // if (serverIDstr in lastChannels && lastChannels[serverIDstr] === channelIDstr) {
+        // if currentServerID and currentChannelID matches witht hose in lastChannels localStorage, don't do anything
+        // }
     }
     // if channel was changed, overwrite with new one
-    lastChannels[serverIDstr] = channelIDstr
+    lastChannels[currentServerID] = currentChannelID
     setLastChannels(JSON.stringify(lastChannels))
 }
 
