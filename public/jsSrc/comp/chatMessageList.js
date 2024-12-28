@@ -1,18 +1,101 @@
 const ChatLoadingIndicator = document.getElementById("chat-loading-indicator")
 
-let waitingForHistory = false
 let amountOfMessagesLoaded = 0
+let lastReceivedChannelHistoryID = ""
+
+const locale = navigator.language
+const dateHourShort = { timeStyle: "short" }
+const dateOptionsDay = { year: "numeric", month: "long", day: "numeric" }
+const dateOptionsLong = { year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" }
+
+
+function updateDaySeparatorsInChat() {
+    // insert a separator that separates message each day
+    const messages = Array.from(ChatMessagesList.querySelectorAll("li.msg"))
+
+    // remove previous day separators
+    const daySeparators = Array.from(ChatMessagesList.querySelectorAll("li.date-between-msgs"))
+    daySeparators.forEach(daySeparator => {
+        daySeparator.remove()
+    })
+
+    let lastDate = ""
+    for (let i = 0; i < messages.length; i++) {
+        // extract date from message id
+        const date = new Date(Number((BigInt(messages[i].id) >> BigInt(22)))).toLocaleDateString(locale, dateOptionsDay)
+
+        if (lastDate !== "" && lastDate !== date) {
+            const dateBetweenMsgs = document.createElement("li")
+            dateBetweenMsgs.className = "date-between-msgs"
+
+            const leftLine = document.createElement("div")
+
+            const dateText = document.createElement("span")
+            dateText.textContent = date
+
+            const rightLine = document.createElement("div")
+
+            dateBetweenMsgs.appendChild(leftLine)
+            dateBetweenMsgs.appendChild(dateText)
+            dateBetweenMsgs.appendChild(rightLine)
+
+            ChatMessagesList.insertBefore(dateBetweenMsgs, messages[i])
+        }
+        lastDate = date
+    }
+}
+
+function removeGhostMessages() {
+    const ghostMessages = ChatMessagesList.querySelectorAll(".ghost-msg")
+    if (ghostMessages.length === 0) {
+        return
+    }
+    for (let i = 0; i < ghostMessages.length; i++) {
+        ghostMessages[i].remove()
+    }
+}
 
 // adds the new chat message into html
-function addChatMessage(messageID, userID, message, attachments, after) {
+function addChatMessage(messageID, userID, message, attachments, ghost) {
+    if (document.getElementById(messageID) !== null) {
+        console.error("A message already exists in chat list, won't add it again")
+        return
+    }
+
     // extract the message date from messageID
-    const msgDate = new Date(Number((BigInt(messageID) >> BigInt(22)))).toLocaleString()
+    let msgDate
+    if (ghost) {
+        msgDate = new Date()
+    } else {
+        msgDate = new Date(Number((BigInt(messageID) >> BigInt(22))))
+    }
+
+    let msgDateStr = ""
+
+    const today = new Date()
+
+    const yesterday = new Date()
+    yesterday.setDate(yesterday.getDate() - 1)
+
+
+
+    if (msgDate.toLocaleDateString() === today.toLocaleDateString()) {
+        msgDateStr = translation.today + msgDate.toLocaleTimeString(locale, dateHourShort)
+    } else if (msgDate.toLocaleDateString() === yesterday.toLocaleDateString()) {
+        msgDateStr = "Yesterday at " + msgDate.toLocaleTimeString(locale, dateHourShort)
+    } else {
+        msgDateStr = msgDate.toLocaleString(locale, dateOptionsLong)
+    }
 
     const userInfo = getUserInfo(userID)
 
     // create a <li> that holds the message
     const li = document.createElement("li")
-    li.className = "msg"
+    if (ghost) {
+        li.className = "msg ghost-msg"
+    } else {
+        li.className = "msg"
+    }
     li.id = messageID
     li.setAttribute("user-id", userID)
 
@@ -56,7 +139,7 @@ function addChatMessage(messageID, userID, message, attachments, after) {
     // and next to it create a <div> that displays the date of msg on the right
     const msgDateDiv = document.createElement("div")
     msgDateDiv.className = "msg-date"
-    msgDateDiv.textContent = msgDate
+    msgDateDiv.textContent = msgDateStr
 
     // append name and date to msgNameAndDateDiv
     msgNameAndDateDiv.appendChild(msgNameDiv)
@@ -80,11 +163,20 @@ function addChatMessage(messageID, userID, message, attachments, after) {
     li.appendChild(img)
     li.appendChild(msgDataDiv)
 
-    // and finally append the message to the message list
-    if (after) {
-        ChatMessagesList.insertAdjacentElement("beforeend", li)
-    } else {
-        ChatMessagesList.insertAdjacentElement("afterbegin", li)
+    // insert the messages ordered by message id
+    const messages = ChatMessagesList.querySelectorAll("li.msg")
+
+    let inserted = false
+    for (let i = 0; i < messages.length; i++) {
+        if (li.id < messages[i].id) {
+            ChatMessagesList.insertBefore(li, messages[i])
+            inserted = true
+            break
+        }
+    }
+
+    if (!inserted) {
+        ChatMessagesList.appendChild(li)
     }
 
     // add attachments
@@ -99,7 +191,7 @@ function addChatMessage(messageID, userID, message, attachments, after) {
 
         for (let i = 0; i < attachments.length; i++) {
             const path = `/content/attachments/${attachments[i]}`
-            const extension = attachments[i].split('.').pop().toLowerCase()
+            const extension = attachments[i].split(".").pop().toLowerCase()
 
             switch (extension) {
                 case "mp4":
@@ -122,8 +214,6 @@ function addChatMessage(messageID, userID, message, attachments, after) {
     }
 }
 
-
-
 function deleteChatMessage() {
     const messageID = json
     console.log(`Deleting message ID [${messageID}]`)
@@ -132,12 +222,17 @@ function deleteChatMessage() {
 }
 
 async function chatMessageReceived(json) {
+    if (!channelHistoryReceived) {
+        console.warn("Won't add received chat message as it was meant for the previous channel")
+        return
+    }
     if (!memberListLoaded) {
         await waitUntilBoolIsTrue(() => memberListLoaded) // wait until members are loaded
     }
 
     console.log(`New chat message ID [${json.IDm}] received`)
-    addChatMessage(json.IDm, json.IDu, json.Msg, json.Att, true)
+    addChatMessage(json.MsgID, json.UserID, json.Msg, json.Att, false)
+
 
     if (getScrollDistanceFromBottom(ChatMessagesList) < 200 || json.IDu === ownUserID) {
         ChatMessagesList.scrollTo({
@@ -148,9 +243,10 @@ async function chatMessageReceived(json) {
         console.log("Too far from current chat messages, not scrolling down on new message")
     }
 
-    if (json.IDu !== ownUserID) {
+    // play notification sound if messages is from other user
+    if (json.UserID !== ownUserID) {
         if (Notification.permission === "granted") {
-            sendNotification(json.IDu, json.Msg)
+            sendNotification(json.UserID, json.Msg)
         } else {
             NotificationSound.play()
         }
@@ -160,35 +256,43 @@ async function chatMessageReceived(json) {
 
 
 async function chatHistoryReceived(json) {
-    console.log(`Requested chat history for current channel arrived`)
+    console.log(`Requested chat history for channel ID [${json[0]}] arrived`)
+    if (currentChannelID !== json[0]) {
+        console.warn(`The received chat history was meant to be for channel ID [${json[0]}], but you are on [${currentChannelID}]`)
+        return
+    }
+    // if (currentChannelID === lastReceivedChannelHistoryID) {
+    //     console.warn("You already received the chat history for this channel")
+    //     return
+    // }
     if (!memberListLoaded) {
         await waitUntilBoolIsTrue(() => memberListLoaded) // wait until members are loaded
     }
 
     const chatMessages = []
-    if (json.length !== 0) {
+    if (json[1].length !== 0) {
         // runs if json contains chat history
-        for (let u = 0; u < json.length; u++) {
-            for (let m = 0; m < json[u].Msgs.length; m++) {
+        for (let u = 0; u < json[1].length; u++) {
+            for (let m = 0; m < json[1][u].Msgs.length; m++) {
                 // add message in this format to a chatMessages list
                 const chatMessage = {
-                    IDm: json[u].Msgs[m][0], // message id
-                    IDu: json[u].UserID, // user id
-                    Msg: json[u].Msgs[m][1], // message
-                    Att: json[u].Msgs[m][2] // attachments
+                    MessageID: json[1][u].Msgs[m][0], // message id
+                    UserID: json[1][u].UserID, // user id
+                    Message: json[1][u].Msgs[m][1], // message
+                    Attachments: json[1][u].Msgs[m][2] // attachments
                 }
                 chatMessages.push(chatMessage)
             }
         }
         // sort the history here because message history is not received ordered
-        chatMessages.sort((b, a) => a.IDm - b.IDm)
+        chatMessages.sort((a, b) => a.MessageID - b.MessageID)
         for (let i = 0; i < chatMessages.length; i++) {
-            addChatMessage(chatMessages[i].IDm, chatMessages[i].IDu, chatMessages[i].Msg, chatMessages[i].Att, false)
+            addChatMessage(chatMessages[i].MessageID, chatMessages[i].UserID, chatMessages[i].Message, chatMessages[i].Attachments, false)
         }
 
         // only auto scroll down when entering channel, and not when
         // server sends rest of history while scrolling up manually
-        if (currentChannelID !== lastChannelID) {
+        if (!channelHistoryReceived) {
             // this runs when entered a channel
             ChatMessagesList.scrollTo({
                 top: ChatMessagesList.scrollHeight,
@@ -211,14 +315,17 @@ async function chatHistoryReceived(json) {
             console.warn("Current channel has no chat history")
         }
     }
-    waitingForHistory = false
     setLoadingChatMessagesIndicator(false)
     amountOfMessagesChanged()
+    setChannelHistoryReceived(true)
+    lastReceivedChannelHistoryID = json[0]
 }
 
 function amountOfMessagesChanged() {
     amountOfMessagesLoaded = ChatMessagesList.querySelectorAll("li").length
     console.log("Amount of messages loaded:", amountOfMessagesLoaded)
+    updateDaySeparatorsInChat()
+    // removeGhostMessages()
 }
 
 function changeDisplayNameInChatMessageList(userID, newDisplayName) {
@@ -239,12 +346,17 @@ function changeProfilePicInChatMessageList(userID, pic) {
     })
 }
 
-function scrolledOnChat(event) {
-    if (!waitingForHistory && !reachedBeginningOfChannel && ChatMessagesList.scrollTop < 200 && amountOfMessagesLoaded >= 50) {
-        const chatMessage = ChatMessagesList.querySelector("li")
+function scrolledOnChat() {
+    if (!reachedBeginningOfChannel && ChatMessagesList.scrollTop < 200) {
+        checkIfNeedsHistory()
+    }
+}
+
+function checkIfNeedsHistory() {
+    if (channelHistoryReceived && amountOfMessagesLoaded >= 50) {
+        const chatMessage = ChatMessagesList.querySelector("li.msg")
         if (chatMessage != null) {
             requestChatHistory(currentChannelID, chatMessage.id)
-            waitingForHistory = true
             setLoadingChatMessagesIndicator(true)
         }
     }

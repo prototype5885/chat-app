@@ -5,7 +5,6 @@ import (
 	"fmt"
 	log "proto-chat/modules/logging"
 	"proto-chat/modules/macros"
-	"proto-chat/modules/snowflake"
 )
 
 type Message struct {
@@ -16,16 +15,10 @@ type Message struct {
 	Attachments []byte
 }
 
-type ChatMessageHistory struct {
+type UserMessages struct {
 	UserID uint64
 	Msgs   []interface{}
 }
-
-// type ChatMessages struct {
-// 	IDm uint64   `json:"I"`
-// 	Msg string   `json:"M"`
-// 	Att []string `json:"A"`
-// }
 
 const insertChatMessageQuery = "INSERT INTO messages (message_id, channel_id, user_id, message, attachments) VALUES (?, ?, ?, ?, ?)"
 
@@ -43,7 +36,7 @@ func CreateChatMessagesTable() {
 		log.FatalError(err.Error(), "Error creating messages table")
 	}
 }
-func AddChatMessage(userID uint64, channelID uint64, chatMessage string, filenames []string) bool {
+func AddChatMessage(messageID uint64, channelID uint64, userID uint64, chatMessage string, filenames []string) bool {
 	var filenamesJson []byte = nil
 	if len(filenames) > 0 {
 		var err error
@@ -53,7 +46,7 @@ func AddChatMessage(userID uint64, channelID uint64, chatMessage string, filenam
 		}
 	}
 	err := Insert(Message{
-		MessageID:   snowflake.Generate(),
+		MessageID:   messageID,
 		ChannelID:   channelID,
 		UserID:      userID,
 		Message:     chatMessage,
@@ -72,8 +65,7 @@ func GetChatHistory(channelID uint64, fromMessageID uint64, older bool, userID u
 
 	rows, err := Conn.Query(query, channelID, fromMessageID, fromMessageID)
 	DatabaseErrorCheck(err)
-
-	var chatMessageHistory []ChatMessageHistory
+	var userMessages []UserMessages
 	var counter int
 	for rows.Next() {
 		var userID uint64
@@ -86,8 +78,8 @@ func GetChatHistory(channelID uint64, fromMessageID uint64, older bool, userID u
 
 		found := false
 		index := 0
-		for i := 0; i < len(chatMessageHistory); i++ {
-			if chatMessageHistory[i].UserID == userID {
+		for i := 0; i < len(userMessages); i++ {
+			if userMessages[i].UserID == userID {
 				found = true
 				index = i
 				break
@@ -95,8 +87,8 @@ func GetChatHistory(channelID uint64, fromMessageID uint64, older bool, userID u
 		}
 
 		if !found {
-			chatMessageHistory = append(chatMessageHistory, ChatMessageHistory{UserID: userID})
-			index = len(chatMessageHistory) - 1
+			userMessages = append(userMessages, UserMessages{UserID: userID})
+			index = len(userMessages) - 1
 		}
 
 		var attachmentHistory []string
@@ -107,21 +99,21 @@ func GetChatHistory(channelID uint64, fromMessageID uint64, older bool, userID u
 			}
 		}
 
-		// chatMessageHistory[index].Msgs = append(chatMessageHistory[index].Msgs, ChatMessages{IDm: messageID, Msg: message, Att: attachmentHistory})
-		chatMessageHistory[index].Msgs = append(chatMessageHistory[index].Msgs, []interface{}{messageID, message, attachmentHistory})
+		userMessages[index].Msgs = append(userMessages[index].Msgs, []interface{}{messageID, message, attachmentHistory})
 		counter++
 	}
 	DatabaseErrorCheck(rows.Err())
 
 	if counter == 0 {
 		log.Trace("Channel ID [%d] does not have any messages or user reached top of chat", channelID)
-		return emptyArray
+		return []byte(fmt.Sprintf("[%d, []]", channelID))
 	} else {
 		log.Trace("Retrieved [%d] messages from channel ID [%d]", counter, channelID)
 	}
-	fmt.Println(counter)
 
-	jsonResult, err := json.Marshal(chatMessageHistory)
+	var chatHistory = []interface{}{channelID, userMessages}
+
+	jsonResult, err := json.Marshal(chatHistory)
 	if err != nil {
 		macros.ErrorSerializing(err.Error(), 2, userID)
 	}

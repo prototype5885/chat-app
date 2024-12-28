@@ -1,16 +1,24 @@
 function createPlaceHolderServers() {
     const serverCount = getServerCount()
-    const placeholderButtons = []
+    // const placeholderButtons = []
     if (serverCount !== 0) {
         for (i = 0; i < serverCount; i++) {
-            const buttonParent = addServer("", 0, "phs", "", "placeholder-server")
+            const buttonParent = addServer("", 0, "", "", "placeholder-server")
             let button = buttonParent.querySelector("button")
             button.nextElementSibling.style.backgroundColor = "transparent"
             button.textContent = ""
-            placeholderButtons.push(buttonParent)
+            // placeholderButtons.push(buttonParent)
         }
     }
-    return placeholderButtons
+    // return placeholderButtons
+}
+
+function removePlaceholderServers() {
+    // remove placeholder servers
+    const placeholderButtons = ServerList.querySelectorAll(".placeholder-server")
+    for (let i = 0; i < placeholderButtons.length; i++) {
+        placeholderButtons[i].remove()
+    }
 }
 
 function addServer(serverID, userID, serverName, picture, className) {
@@ -36,7 +44,9 @@ function addServer(serverID, userID, serverName, picture, className) {
         }
         button.style.backgroundImage = `url(${picture})`
     } else {
-        button.textContent = serverName[0].toUpperCase()
+        if (serverName !== "") {
+            button.textContent = serverName[0].toUpperCase()
+        }
     }
 
 

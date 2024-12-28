@@ -171,6 +171,8 @@ func (c *WsClient) readMessages(wg *sync.WaitGroup) {
 			break
 		}
 
+		// time.Sleep(500 * time.Millisecond)
+
 		// check if array is at least 5 in length to avoid exceptions
 		// because if client sends smaller byte array for some reason,
 		// this func would throw an index out of range exception
@@ -184,7 +186,6 @@ func (c *WsClient) readMessages(wg *sync.WaitGroup) {
 		// convert the first 4 bytes into uint32 to get the endIndex,
 		// which marks the end of the packet
 		var endIndex uint32 = binary.LittleEndian.Uint32(receivedBytes[:4])
-		// log.Println("endIndex:", endIndex)
 
 		// check if the extracted endIndex is outside the received array bounds to avoid exception
 		// not supposed to happen in normal cases

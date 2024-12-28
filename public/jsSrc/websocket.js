@@ -35,13 +35,14 @@ let wsClient
 let wsConnected = false
 let reconnectAttempts = 0
 
-function refreshWebsocketContent() {
+async function refreshWebsocketContent() {
     document.querySelectorAll('.server').forEach(server => {
         server.remove();
     })
 
     requestServerList()
     selectServer("2000")
+    await waitUntilBoolIsTrue(() => serverListLoaded)
     fadeOutLoading()
 }
 
@@ -138,6 +139,7 @@ async function connectToWebsocket() {
                 break
             case SERVER_LIST: // Server sent the requested server list
                 console.log("Requested server list arrived")
+                removePlaceholderServers()
                 if (json.length !== 0) {
                     for (let i = 0; i < json.length; i++) {
                         console.log("Adding server ID", json[i].ServerID)
@@ -147,6 +149,7 @@ async function connectToWebsocket() {
                     console.log("Not being in any servers")
                 }
                 lookForDeletedServersInLastChannels()
+                serverListLoaded = true
                 break
             case DELETE_SERVER: // Server sent which server was deleted
                 console.log(`Server ID [${json.ServerID}] has been deleted`)

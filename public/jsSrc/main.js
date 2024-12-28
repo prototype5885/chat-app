@@ -32,6 +32,7 @@ let ownBlocks = []
 let receivedInitialUserData = false // don't continue loading until own user data is received
 let receivedImageHostAddress = false // don't continue loading until host address of image server arrived
 let memberListLoaded = false // don't add chat history until server member list is received
+let serverListLoaded = false
 
 let currentServerID = 2000
 let currentChannelID
@@ -40,6 +41,8 @@ let reachedBeginningOfChannel = false
 
 // let imageHost = "http://localhost:8000/"
 let imageHost = ""
+let translationJson
+let translation
 const defaultProfilePic = "/content/static/default_profilepic.webp"
 
 function waitUntilBoolIsTrue(checkFunction, interval = 10) {
@@ -158,9 +161,45 @@ function setButtonActive(button, active) {
     }
 }
 
+function setLanguage(language) {
+    switch (language) {
+        case "de":
+            translation = translationJson.de
+            break
+        case "hu":
+            translation = translationJson.hu
+            break
+        case "en":
+        default:
+            translation = translationJson.en
+            break
+    }
+    console.log(translation)
+}
+
+async function getTranslationJson() {
+    const jsonFileUrl = `${location.protocol}//${location.host}/translation.json`;  // Correcting the URL
+    try {
+        const response = await fetch(jsonFileUrl);
+        if (!response.ok) {
+            throw new Error("Failed getting translation json file");
+        }
+        translationJson = await response.json();
+    } catch (error) {
+        console.error(error);
+    }
+}
+
+
 function main() {
+
+
+
     // this runs after webpage was loaded
     document.addEventListener("DOMContentLoaded", async function () {
+        await getTranslationJson()
+        setLanguage("en")
+
         initNotification()
         initLocalStorage()
         initContextMenu()
@@ -169,9 +208,8 @@ function main() {
 
         // add placeholder servers depending on how many servers the client was in, will delete on websocket connection
         // purely visual
-        const placeholderButtons = createPlaceHolderServers()
+        createPlaceHolderServers()
         serversSeparatorVisibility()
-        console.log("Placeholder buttons:", placeholderButtons.length)
 
         // this will continue when websocket connected
         await connectToWebsocket()
@@ -186,11 +224,6 @@ function main() {
         // wait until the address is received
         console.log("Waiting for server to send image host address..")
         await waitUntilBoolIsTrue(() => receivedImageHostAddress)
-
-        // remove placeholder servers
-        for (let i = 0; i < placeholderButtons.length; i++) {
-            placeholderButtons[i].remove()
-        }
 
         registerHoverListeners() // add event listeners for hovering
 

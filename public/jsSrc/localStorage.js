@@ -120,18 +120,6 @@ function selectLastChannels(firstChannelID) {
     }
 }
 
-// lastServer 2.
-
-// function getLastServer() {
-//     return localStorage.getItem("lastServer")
-// }
-
-// function setLastServer(value) {
-//     localStorage.setItem("lastServer", value)
-// }
-
-// serverCount 3.
-
 function getServerCount() {
     if (!localStorageSupported) {
         console.warn(`Local storage isn't enabled in browser, can't get serverCount value, returning 0`)

@@ -610,7 +610,7 @@ body {
 }
 
 #chat-message-list>li {
-    padding: 8px 32px;
+    padding: 8px 24px;
     display: flex;
     flex-direction: row;
 }
@@ -621,8 +621,12 @@ body {
 
 /* chat scroll gap */
 #chat-message-list>div {
-    order: 1;
+    order: 2;
     min-height: 20px;
+}
+
+.ghost-msg {
+    order: 1;
 }
 
 .profile-pic,
@@ -719,6 +723,10 @@ body {
     overflow-wrap: anywhere;
 }
 
+.ghost-msg> {
+    opacity: 25%;
+}
+
 #attachment-container,
 #chat-input-form-container {
     padding-left: 16px;
@@ -768,6 +776,28 @@ body {
 .attachment-name {
     margin-top: 4px;
     /* font-size: larger; */
+}
+
+.date-between-msgs {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    pointer-events: none;
+    color: grey;
+}
+
+.date-between-msgs>div {
+    display: flex;
+    width: 100%;
+    border-top: thin solid;
+
+}
+
+.date-between-msgs>span {
+    margin-left: 4px;
+    margin-right: 4px;
+    white-space: nowrap;
+    color: lightgray;
 }
 
 /* chat input */

@@ -1,3 +1,12 @@
+// if a chat message was received in previous channel while switching to new channel,
+// this should prevent it from being added to new one
+let channelHistoryReceived = false
+
+function setChannelHistoryReceived(value) {
+    channelHistoryReceived = value
+    // console.log("Channel history received was set to", channelHistoryReceived)
+}
+
 function addChannel(channelID, channelName) {
     const button = document.createElement("button")
     button.id = channelID
@@ -15,6 +24,7 @@ function addChannel(channelID, channelName) {
 
 function selectChannel(channelID) {
     console.log("Selected channel ID:", channelID)
+    setChannelHistoryReceived(false)
     reachedBeginningOfChannel = false
 
     if (channelID === currentChannelID) {

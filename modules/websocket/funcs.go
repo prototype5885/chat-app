@@ -138,23 +138,23 @@ func (c *WsClient) onChatMessageRequest(packetJson []byte) (BroadcastData, []byt
 
 	var messageID = snowflake.Generate()
 
-	success := database.AddChatMessage(c.UserID, req.ChannelID, req.Message, fileNames)
+	success := database.AddChatMessage(messageID, req.ChannelID, c.UserID, req.Message, fileNames)
 	if !success {
 		return BroadcastData{}, macros.RespondFailureReason("%s", rejectMessage)
 	}
 
 	type ChatMessageResponse struct {
-		IDm uint64 // message ID
-		IDu uint64 // user ID
-		Msg string // message
-		Att []string
+		MsgID  uint64
+		UserID uint64
+		Msg    string
+		Att    []string
 	}
 
 	var serverChatMsg = ChatMessageResponse{
-		IDm: messageID,
-		IDu: c.UserID,
-		Msg: req.Message,
-		Att: fileNames,
+		MsgID:  messageID,
+		UserID: c.UserID,
+		Msg:    req.Message,
+		Att:    fileNames,
 	}
 	jsonBytes, err := json.Marshal(serverChatMsg)
 	if err != nil {
@@ -162,7 +162,7 @@ func (c *WsClient) onChatMessageRequest(packetJson []byte) (BroadcastData, []byt
 	}
 
 	return BroadcastData{
-		MessageBytes:    macros.PreparePacket(1, jsonBytes),
+		MessageBytes:    macros.PreparePacket(ADD_CHAT_MESSAGE, jsonBytes),
 		Type:            ADD_CHAT_MESSAGE,
 		AffectedChannel: req.ChannelID,
 	}, nil

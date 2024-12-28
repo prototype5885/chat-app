@@ -18,14 +18,12 @@ async function chatEnterPressed(event) {
 async function readChatInput() {
     let attachmentToken = null
     if (AttachmentInput.files.length !== 0) {
-        // for (let i = 0; i < AttachmentInput.files.length; i++) {
-        //     listOfAttachments.push(AttachmentInput.files[i].name)
-        // }
         attachmentToken = await sendAttachment()
         console.log("http response to uploading attachment:", attachmentToken)
     }
 
     if (ChatInput.value || attachmentToken !== null) {
+        // addChatMessage("0", ownUserID, ChatInput.value, [], true)
         if (attachmentToken !== null) {
             await sendChatMessage(ChatInput.value, currentChannelID, attachmentToken.AttToken)
         } else {
