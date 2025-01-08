@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"proto-chat/modules/clients"
-	"proto-chat/modules/database"
 	log "proto-chat/modules/logging"
 	"proto-chat/modules/macros"
 	"sync"
@@ -126,18 +125,8 @@ func AcceptWsClient(userID uint64, w http.ResponseWriter, r *http.Request) {
 
 	log.Trace("Session ID [%d] as user ID [%d] has been added to WsClients", sessionID, userID)
 
-	// sends the client its own user ID and display name
-	initialData, success := database.GetInitialData(userID)
-	if !success {
-		return
-	}
-
-	jsonUserID, err := json.Marshal(initialData)
-	if err != nil {
-		macros.ErrorSerializing(err.Error(), INITIAL_USER_DATA, userID)
-	}
-
-	wsClient.WriteChan <- macros.PreparePacket(INITIAL_USER_DATA, jsonUserID)
+	// sends the initial data
+	wsClient.onInitialDataRequest()
 
 	setUserStatusText(userID, "Online")
 	setUserOnline(userID, true)
@@ -233,9 +222,9 @@ func (c *WsClient) readMessages(wg *sync.WaitGroup) {
 			log.Trace("User ID [%d] wants to create a server", c.UserID)
 			c.WriteChan <- c.onAddServerRequest(packetJson)
 
-		case SERVER_LIST: // user requesting their server list
-			log.Trace("User ID [%d] is requesting their joined server list", c.UserID)
-			c.WriteChan <- macros.PreparePacket(22, database.GetServerList(c.UserID))
+		// case SERVER_LIST: // user requesting their server list
+		// 	log.Trace("User ID [%d] is requesting their joined server list", c.UserID)
+		// 	c.WriteChan <- macros.PreparePacket(22, *database.GetServerList(c.UserID))
 
 		case DELETE_SERVER: // user deleting a server
 			log.Trace("User ID [%d] wants to delete a server", c.UserID)
@@ -282,6 +271,8 @@ func (c *WsClient) readMessages(wg *sync.WaitGroup) {
 			c.onBlockUserRequest(packetJson)
 		case UNFRIEND: // user wants to unfriend a user
 			c.onUnfriendRequest(packetJson)
+		case INITIAL_USER_DATA: // user requests initial data
+			c.onInitialDataRequest()
 		case IMAGE_HOST_ADDRESS:
 			log.Trace("User ID [%d] is requesting address of image host server", c.UserID)
 			imageHostJson, err := json.Marshal(ImageHost)
@@ -302,11 +293,8 @@ func (c *WsClient) readMessages(wg *sync.WaitGroup) {
 
 func (c *WsClient) writeMessages(wg *sync.WaitGroup) {
 	ticker := time.NewTicker(pingPeriod) // client will be pinged in intervals using this
-
-	defer func() { // this will run when writeMessages goroutine returns
-		ticker.Stop()
-		wg.Done()
-	}()
+	defer ticker.Stop()
+	defer wg.Done()
 
 	errorWriting := func(errMsg string) {
 		log.WarnError(errMsg, "Error writing message to session ID [%d] as user ID [%d]", c.SessionID, c.UserID)

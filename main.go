@@ -10,10 +10,12 @@ import (
 	jsfilesmerger "proto-chat/modules/jsFilesMerger"
 	log "proto-chat/modules/logging"
 	"proto-chat/modules/snowflake"
+	"proto-chat/modules/token"
 	"proto-chat/modules/webRequests"
 	"proto-chat/modules/websocket"
 	"strconv"
 	"syscall"
+	"time"
 )
 
 func main() {
@@ -99,8 +101,10 @@ func main() {
 	// handle http requests
 	http.HandleFunc("/", webRequests.MainHandler)
 
-	var address string
+	// maintenance goroutine
+	go maintenance()
 
+	var address string
 	if config.LocalhostOnly {
 		address = fmt.Sprintf("%s:%d", "127.0.0.1", config.Port)
 	} else {
@@ -119,6 +123,25 @@ func main() {
 		log.Info("Listening on http://%s", address)
 		if err := http.ListenAndServe(address, nil); err != nil {
 			log.FatalError(err.Error(), "Error starting non-TLS server")
+		}
+	}
+}
+
+func maintenance() {
+	time.Sleep(1 * time.Second)
+	ticker := time.NewTicker(24 * time.Hour)
+	defer ticker.Stop()
+
+	task := func() {
+		token.DeleteExpiredTokens()
+	}
+
+	task()
+
+	for {
+		select {
+		case <-ticker.C:
+			task()
 		}
 	}
 }

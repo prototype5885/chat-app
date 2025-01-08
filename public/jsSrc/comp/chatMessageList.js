@@ -195,6 +195,8 @@ function addChatMessage(messageID, userID, message, attachments, ghost) {
 
             switch (extension) {
                 case "mp4":
+                case "webm":
+                case "mov":
                     videosContainer.innerHTML += `
                         <video controls class="attachment-video">
                             <source src="${path}" type="video/mp4">
@@ -230,7 +232,7 @@ async function chatMessageReceived(json) {
         await waitUntilBoolIsTrue(() => memberListLoaded) // wait until members are loaded
     }
 
-    console.log(`New chat message ID [${json.IDm}] received`)
+    // console.log(`New chat message ID [${json.MsgID}] received`)
     addChatMessage(json.MsgID, json.UserID, json.Msg, json.Att, false)
 
 

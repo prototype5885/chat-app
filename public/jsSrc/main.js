@@ -32,7 +32,6 @@ let ownBlocks = []
 let receivedInitialUserData = false // don't continue loading until own user data is received
 let receivedImageHostAddress = false // don't continue loading until host address of image server arrived
 let memberListLoaded = false // don't add chat history until server member list is received
-let serverListLoaded = false
 
 let currentServerID = 2000
 let currentChannelID
@@ -205,29 +204,26 @@ function main() {
         initContextMenu()
 
         addServer("2000", 0, "Direct Messages", "content/static/hs.svg", "dm") // add the direct messages button
-
-        // add placeholder servers depending on how many servers the client was in, will delete on websocket connection
-        // purely visual
-        createPlaceHolderServers()
-        serversSeparatorVisibility()
-
         // this will continue when websocket connected
         await connectToWebsocket()
+        // refreshWebsocketContent()
 
-        // waits until server sends user's own ID and display name
-        console.log("Waiting for server to send own user ID and display name...")
-        await waitUntilBoolIsTrue(() => receivedInitialUserData)
+        // // waits until server sends user's own ID and display name
+        // console.log("Waiting for server to send initial data...")
+        // await waitUntilBoolIsTrue(() => receivedInitialUserData)
+        // console.log("Initial data has already arrived")
 
-        // request http address of image hosting server
-        requestImageHostAddress()
+        // // request http address of image hosting server
+        // requestImageHostAddress()
 
-        // wait until the address is received
-        console.log("Waiting for server to send image host address..")
-        await waitUntilBoolIsTrue(() => receivedImageHostAddress)
+        // // wait until the address is received
+        // console.log("Waiting for server to send image host address..")
+        // await waitUntilBoolIsTrue(() => receivedImageHostAddress)
+        // console.log("Image host address has already arrived")
 
-        registerHoverListeners() // add event listeners for hovering
+        // registerHoverListeners() // add event listeners for hovering
 
-        refreshWebsocketContent()
+        // refreshWebsocketContent()
     })
 }
 

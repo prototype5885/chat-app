@@ -59,7 +59,7 @@ func AddChatMessage(messageID uint64, channelID uint64, userID uint64, chatMessa
 	}
 }
 
-func GetChatHistory(channelID uint64, fromMessageID uint64, older bool, userID uint64) []byte {
+func GetChatHistory(channelID uint64, fromMessageID uint64, older bool, userID uint64) *[]byte {
 	const query = "SELECT message_id, user_id, message, attachments FROM messages WHERE channel_id = ? AND (message_id < ? OR ? = 0) ORDER BY message_id DESC LIMIT 50"
 	log.Query(query, channelID, fromMessageID, fromMessageID)
 
@@ -106,7 +106,8 @@ func GetChatHistory(channelID uint64, fromMessageID uint64, older bool, userID u
 
 	if counter == 0 {
 		log.Trace("Channel ID [%d] does not have any messages or user reached top of chat", channelID)
-		return []byte(fmt.Sprintf("[%d, []]", channelID))
+		var emptyResponse []byte = []byte(fmt.Sprintf("[%d, []]", channelID))
+		return &emptyResponse
 	} else {
 		log.Trace("Retrieved [%d] messages from channel ID [%d]", counter, channelID)
 	}
@@ -118,7 +119,7 @@ func GetChatHistory(channelID uint64, fromMessageID uint64, older bool, userID u
 		macros.ErrorSerializing(err.Error(), 2, userID)
 	}
 
-	return jsonResult
+	return &jsonResult
 }
 
 func DeleteChatMessage(messageID uint64, userID uint64) uint64 {

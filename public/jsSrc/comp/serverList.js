@@ -1,24 +1,29 @@
 function createPlaceHolderServers() {
+    console.log("Adding placeholder servers")
+    removePlaceholderServers()
     const serverCount = getServerCount()
-    // const placeholderButtons = []
     if (serverCount !== 0) {
         for (i = 0; i < serverCount; i++) {
-            const buttonParent = addServer("", 0, "", "", "placeholder-server")
-            let button = buttonParent.querySelector("button")
-            button.nextElementSibling.style.backgroundColor = "transparent"
-            button.textContent = ""
-            // placeholderButtons.push(buttonParent)
+            addPlaceholderServer()
         }
     }
-    // return placeholderButtons
+    serversSeparatorVisibility()
 }
 
 function removePlaceholderServers() {
+    console.log("Removing placeholder servers")
     // remove placeholder servers
     const placeholderButtons = ServerList.querySelectorAll(".placeholder-server")
     for (let i = 0; i < placeholderButtons.length; i++) {
         placeholderButtons[i].remove()
     }
+}
+
+function addPlaceholderServer() {
+    const buttonParent = addServer("", 0, "", "", "placeholder-server")
+    let button = buttonParent.querySelector("button")
+    button.nextElementSibling.style.backgroundColor = "transparent"
+    button.textContent = ""
 }
 
 function addServer(serverID, userID, serverName, picture, className) {
@@ -48,8 +53,6 @@ function addServer(serverID, userID, serverName, picture, className) {
             button.textContent = serverName[0].toUpperCase()
         }
     }
-
-
 
     const span = document.createElement("span")
     span.className = "server-notification"
@@ -93,6 +96,12 @@ function addServer(serverID, userID, serverName, picture, className) {
     }
 
     return li
+}
+
+function removeServers() {
+    document.querySelectorAll('.server').forEach(server => {
+        server.remove()
+    })
 }
 
 function selectServer(serverID) {
@@ -165,7 +174,7 @@ function selectServer(serverID) {
 
     ServerName.textContent = serverButton.getAttribute("name")
 
-    selectDirectMessages()
+    setLastServer(serverID)
 }
 
 
@@ -178,10 +187,10 @@ function deleteServer(serverID) {
 }
 
 function serversSeparatorVisibility() {
-    const servers = ServerList.querySelectorAll(".server, .placeholder-server")
-    setServerCount(servers.length)
+    const allServers = ServerList.querySelectorAll(".server, .placeholder-server")
+    const servers = ServerList.querySelectorAll(".server")
 
-    if (servers.length != 0) {
+    if (allServers.length != 0) {
         serverSeparators.forEach((separator) => {
             separator.style.display = "block"
         })

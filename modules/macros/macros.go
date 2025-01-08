@@ -1,7 +1,6 @@
 package macros
 
 import (
-	"crypto/rand"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
@@ -75,15 +74,6 @@ func ShortenToken(tokenBytes []byte) string {
 		log.Hack("Can't shorten token [%s], it's shorter than 4 characters", token)
 		return ""
 	}
-}
-
-func GenerateRandomBytes() []byte {
-	bytes := make([]byte, 64)
-	_, err := rand.Read(bytes)
-	if err != nil {
-		log.FatalError(err.Error(), "Could not generate random bytes")
-	}
-	return bytes
 }
 
 func ToAscii(input string) string {

@@ -48,6 +48,31 @@ func ConfirmToken(tokenBytes []byte) Token {
 	return token
 }
 
+func GetAllTokens() *[]Token {
+	const query string = "SELECT * FROM tokens"
+	log.Query(query)
+
+	var tokens []Token
+
+	rows, err := Conn.Query(query)
+	DatabaseErrorCheck(err)
+
+	var i int = 0
+	for rows.Next() {
+		tokens = append(tokens, Token{})
+
+		err := rows.Scan(&tokens[i].Token, &tokens[i].UserID, &tokens[i].Expiration)
+		DatabaseErrorCheck(err)
+		i++
+	}
+
+	if len(tokens) == 0 {
+		log.Trace("No tokens found in database")
+	}
+
+	return &tokens
+}
+
 func RenewTokenExpiration(newExpiration int64, tokenBytes []byte) bool {
 	const query string = "UPDATE tokens SET expiration = ? WHERE token = ?"
 	log.Query(query, newExpiration, macros.ShortenToken(tokenBytes))

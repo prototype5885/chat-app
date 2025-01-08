@@ -721,6 +721,7 @@ body {
 .msg-text {
     vertical-align: baseline;
     overflow-wrap: anywhere;
+    padding-bottom: 8px;
 }
 
 .ghost-msg> {

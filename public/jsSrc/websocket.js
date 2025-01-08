@@ -5,7 +5,7 @@ const CHAT_HISTORY = 2
 const DELETE_CHAT_MESSAGE = 3
 
 const ADD_SERVER = 21
-const SERVER_LIST = 22
+// const SERVER_LIST = 22
 const DELETE_SERVER = 23
 const SERVER_INVITE_LINK = 24
 
@@ -35,19 +35,54 @@ let wsClient
 let wsConnected = false
 let reconnectAttempts = 0
 
-async function refreshWebsocketContent() {
-    document.querySelectorAll('.server').forEach(server => {
-        server.remove();
-    })
 
-    requestServerList()
-    selectServer("2000")
-    await waitUntilBoolIsTrue(() => serverListLoaded)
+async function websocketConnected() {
+    console.log("Refreshing websocket connections")
+
+    removePlaceholderServers()
+
+    // waits until server sends user's own ID and display name
+    console.log("Waiting for server to send initial data...")
+    await waitUntilBoolIsTrue(() => receivedInitialUserData)
+    console.log("Initial data has already arrived")
+
+
+    // request http address of image hosting server
+    requestImageHostAddress()
+
+    // wait until the address is received
+    console.log("Waiting for server to send image host address..")
+    await waitUntilBoolIsTrue(() => receivedImageHostAddress)
+    console.log("Image host address has already arrived")
+
+    registerHoverListeners() // add event listeners for hovering
+
     fadeOutLoading()
+    const lastServer = getLastServer()
+    if (lastServer === null) {
+        selectServer("2000")
+    } else {
+        selectServer(getLastServer())
+    }
+    
+}
+
+function websocketBeforeConnected() {
+    currentServerID = 0
+    currentChannelID = 0
+    lastChannelID = 0
+
+    receivedInitialUserData = false
+    receivedImageHostAddress = false
+    
+    removeServers()
+    createPlaceHolderServers()
 }
 
 async function connectToWebsocket() {
     console.log("Connecting to websocket...")
+
+    websocketBeforeConnected()
 
     // check if protocol is http or https
     const protocol = location.protocol === "https:" ? "wss://" : "ws://";
@@ -56,21 +91,19 @@ async function connectToWebsocket() {
 
     // make the websocket work with byte arrays
     wsClient.binaryType = "arraybuffer"
-
+    
     wsClient.onopen = async function (_event) {
         console.log("Connected to WebSocket successfully.")
         wsConnected = true
-        if (currentChannelID != null) {
-            currentServerID = 0
-            currentChannelID = 0
-            lastChannelID = 0
-            refreshWebsocketContent()
-        }
+        // if (currentChannelID != null) {
+
+        websocketConnected()
+        // }
     }
 
     wsClient.onclose = async function (_event) {
         console.log("Connection lost to websocket")
-        if (reconnectAttempts > 10) {
+        if (reconnectAttempts > 60) {
             console.log("Failed reconnecting to the server")
             setLoadingText("Failed reconnecting")
             return
@@ -106,18 +139,9 @@ async function connectToWebsocket() {
 
         console.log("Received packet:", endIndex, packetType, packetJson)
 
-        // function bigIntReviver(key, value) {
-        //     // Check if the value is a number and exceeds the safe integer range
-        //     if (typeof value === 'number' && value > Number.MAX_SAFE_INTEGER) {
-        //         console.log(value)
-        //         return value.toString()
-        //     }
-        //     return value;
-        // }
         packetJson = packetJson.replace(/([\[:])?(\d{16,})([,\}\]])/g, "$1\"$2\"$3");
         json = JSON.parse(packetJson)
         console.log(json)
-        // json = fixJson(packetJson)
 
         switch (packetType) {
             case REJECTION_MESSAGE: // Server sent rejection message
@@ -137,20 +161,20 @@ async function connectToWebsocket() {
                 addServer(json.ServerID, json.UserID, json.Name, imageHost + json.Picture, "server")
                 selectServer(json.ServerID)
                 break
-            case SERVER_LIST: // Server sent the requested server list
-                console.log("Requested server list arrived")
-                removePlaceholderServers()
-                if (json.length !== 0) {
-                    for (let i = 0; i < json.length; i++) {
-                        console.log("Adding server ID", json[i].ServerID)
-                        addServer(json[i].ServerID, json[i].UserID, json[i].Name, imageHost + json[i].Picture, "server")
-                    }
-                } else {
-                    console.log("Not being in any servers")
-                }
-                lookForDeletedServersInLastChannels()
-                serverListLoaded = true
-                break
+            // case SERVER_LIST: // Server sent the requested server list
+            //     console.log("Requested server list arrived")
+            //     removePlaceholderServers()
+            //     if (json.length !== 0) {
+            //         for (let i = 0; i < json.length; i++) {
+            //             console.log("Adding server ID", json[i].ServerID)
+            //             addServer(json[i].ServerID, json[i].UserID, json[i].Name, imageHost + json[i].Picture, "server")
+            //         }
+            //     } else {
+            //         console.log("Not being in any servers")
+            //     }
+            //     lookForDeletedServersInLastChannels()
+            //     serverListLoaded = true
+            //     break
             case DELETE_SERVER: // Server sent which server was deleted
                 console.log(`Server ID [${json.ServerID}] has been deleted`)
                 const serverID = json.ServerID
@@ -278,8 +302,18 @@ async function connectToWebsocket() {
                 setOwnFriends(json.Friends)
                 setBlockedUsers(json.Blocks)
 
+                if (json.Servers.length !== 0) {
+                    for (let i = 0; i < json.Servers.length; i++) {
+                        console.log("Adding server ID", json.Servers[i].ServerID)
+                        addServer(json.Servers[i].ServerID, json.Servers[i].UserID, json.Servers[i].Name, imageHost + json.Servers[i].Picture, "server")
+                    }
+                } else {
+                    console.log("Not being in any servers")
+                }
+                lookForDeletedServersInLastChannels()
+
                 receivedInitialUserData = true
-                console.log(`Received own user ID [${ownUserID}] and display name: [${ownDisplayName}]:`)
+                console.log("Received own initial data")
                 break
             case IMAGE_HOST_ADDRESS: // Server sent image host address
                 if (json === "") {
@@ -376,10 +410,10 @@ function requestRenameServer(serverID) {
     console.log("Requesting to rename server ID:", serverID)
 }
 
-function requestServerList() {
-    console.log("Requesting server list")
-    preparePacket(SERVER_LIST, null)
-}
+// function requestServerList() {
+//     console.log("Requesting server list")
+//     preparePacket(SERVER_LIST, null)
+// }
 
 function requestDeleteServer(serverID) {
     if (document.getElementById(serverID).getAttribute("owned") == "false") return

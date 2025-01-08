@@ -3,7 +3,6 @@ package database
 import (
 	"database/sql"
 	"fmt"
-	"os"
 	log "proto-chat/modules/logging"
 	"proto-chat/modules/macros"
 
@@ -19,12 +18,12 @@ var emptyArray = []byte("[]")
 var sqlite bool = false
 
 func ConnectSqlite() {
-	if err := os.MkdirAll("database", os.ModePerm); err != nil {
-		log.FatalError(err.Error(), "Error creating sqlite database folder")
-	}
+	// if err := os.MkdirAll("database", os.ModePerm); err != nil {
+	// 	log.FatalError(err.Error(), "Error creating sqlite database folder")
+	// }
 
 	var err error
-	Conn, err = sql.Open("sqlite3", "./database/sqlite.db")
+	Conn, err = sql.Open("sqlite3", "./database.sqlite")
 	if err != nil {
 		log.FatalError(err.Error(), "Error connecting to sqlite database")
 	}

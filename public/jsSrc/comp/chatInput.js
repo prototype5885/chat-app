@@ -23,7 +23,6 @@ async function readChatInput() {
     }
 
     if (ChatInput.value || attachmentToken !== null) {
-        // addChatMessage("0", ownUserID, ChatInput.value, [], true)
         if (attachmentToken !== null) {
             await sendChatMessage(ChatInput.value, currentChannelID, attachmentToken.AttToken)
         } else {

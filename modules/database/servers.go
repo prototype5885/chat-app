@@ -1,7 +1,6 @@
 package database
 
 import (
-	"encoding/json"
 	log "proto-chat/modules/logging"
 	"proto-chat/modules/snowflake"
 )
@@ -29,29 +28,28 @@ func CreateServersTable() {
 	}
 }
 
-func GetServerList(userID uint64) []byte {
-	const query = "SELECT s.* FROM servers s JOIN server_members m ON s.server_id = m.server_id WHERE m.user_id = ?"
-	log.Query(query, userID)
+// func GetServerList(userID uint64) *[]Server {
+// 	const query = "SELECT s.* FROM servers s JOIN server_members m ON s.server_id = m.server_id WHERE m.user_id = ?"
+// 	log.Query(query, userID)
 
-	rows, err := Conn.Query(query, userID)
-	DatabaseErrorCheck(err)
-	var servers []Server
-	for rows.Next() {
-		var server Server
-		err := rows.Scan(&server.ServerID, &server.UserID, &server.Name, &server.Picture)
-		DatabaseErrorCheck(err)
-		servers = append(servers, server)
-	}
+// 	rows, err := Conn.Query(query, userID)
+// 	DatabaseErrorCheck(err)
+// 	var servers []Server
+// 	for rows.Next() {
+// 		var server Server
+// 		err := rows.Scan(&server.ServerID, &server.UserID, &server.Name, &server.Picture)
+// 		DatabaseErrorCheck(err)
+// 		servers = append(servers, server)
+// 	}
 
-	if len(servers) == 0 {
-		log.Trace("User ID [%d] is not in any servers", userID)
-		return emptyArray
-	}
+// 	if len(servers) == 0 {
+// 		log.Trace("User ID [%d] is not in any servers", userID)
+// 		return &servers
+// 	}
 
-	jsonResult, _ := json.Marshal(servers)
+// 	return &servers
+// }
 
-	return jsonResult
-}
 func GetServerOwner(serverID uint64) uint64 {
 	const query = "SELECT user_id FROM servers WHERE server_id = ?"
 	log.Query(query, serverID)

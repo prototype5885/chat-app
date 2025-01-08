@@ -6,10 +6,10 @@ require (
 	github.com/disintegration/imaging v1.6.2
 	github.com/go-sql-driver/mysql v1.8.1
 	github.com/gorilla/websocket v1.5.3
+	github.com/mattn/go-sqlite3 v1.14.24
 	github.com/pquerna/otp v1.4.0
 	golang.org/x/crypto v0.31.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
-	github.com/mattn/go-sqlite3 v1.14.24
 )
 
 require (

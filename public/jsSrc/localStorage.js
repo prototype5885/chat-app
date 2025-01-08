@@ -17,6 +17,14 @@ function setLastChannels(value) {
     localStorage.setItem("lastChannels", value)
 }
 
+function getLastServer() {
+    return localStorage.getItem("lastServer")
+}
+
+function setLastServer(value) {
+    localStorage.setItem("lastServer", value)
+}
+
 function updateLastChannelsStorage() {
     if (!localStorageSupported) {
         console.warn("Local storage isn't enabled in browser, can't update lastChannels value")

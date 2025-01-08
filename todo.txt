@@ -11,7 +11,7 @@ display and customise server and user picture and name
 look for security hole in server invitation process
 make it possible to set duration on server invitation
 make it possible to set set server invitation one time use only
-writing goroutine does not tell to reading goroutine if it fails
+    DONE // writing goroutine does not tell to reading goroutine if it fails
     DONE // placeholder servers stopped working
     DONE // check if user is authorized to get channels/messages from a server
     DONE // make sure client cant send messages to channels where they are not authorized
@@ -26,8 +26,9 @@ add more stuff to userChanges.go
 check if user can send message to server or request messages from server they are not in
 cache joined servers too next to database
     DONE // check if username is already taken
-make attachment token expire after a time
-DONE // fix userdata updating, separating broadcast and reply
+    DONE // make attachment token expire after a time
+    DONE // fix userdata updating, separating broadcast and reply
 when switching channel or server, ignore all packages from previous one
 add check if user is blocked when adding friends
-check for safe way to access wsClients when broadcasting
+    DONE // check for safe way to access wsClients when broadcasting
+make expired cookie token deletion more efficient, so they are deleted in 1 query

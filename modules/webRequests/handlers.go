@@ -7,23 +7,22 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"image"
-	"image/jpeg"
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"proto-chat/modules/attachments"
 	"proto-chat/modules/database"
 	log "proto-chat/modules/logging"
 	"proto-chat/modules/macros"
 	"proto-chat/modules/pictures"
 	"proto-chat/modules/snowflake"
+	"proto-chat/modules/token"
 	"proto-chat/modules/websocket"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/disintegration/imaging"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -32,7 +31,7 @@ func websocketHandler(w http.ResponseWriter, r *http.Request) {
 	log.Info("Someone is connecting to websocket...")
 
 	// check if the user trying to connect to websocket has token
-	userID := CheckIfTokenIsValid(w, r)
+	userID := token.CheckIfTokenIsValid(w, r)
 	if userID != 0 {
 		websocket.AcceptWsClient(userID, w, r)
 		return
@@ -47,7 +46,7 @@ func websocketHandler(w http.ResponseWriter, r *http.Request) {
 // on /login-register GET request
 func loginRegisterHandler(w http.ResponseWriter, r *http.Request) {
 	// check if user requesting login/registration already has a token
-	userID := CheckIfTokenIsValid(w, r)
+	userID := token.CheckIfTokenIsValid(w, r)
 	if userID != 0 { // if user is trying to log in but has a token
 		log.Trace("User is trying to access /login-register.html but already has authorized token, redirecting to /chat.html...")
 		redirect(w, r, "/chat.html")
@@ -62,7 +61,7 @@ func loginRegisterHandler(w http.ResponseWriter, r *http.Request) {
 func chatHandler(w http.ResponseWriter, r *http.Request) {
 
 	// check if user requesting login/registration already has a token
-	userID := CheckIfTokenIsValid(w, r)
+	userID := token.CheckIfTokenIsValid(w, r)
 	if userID == 0 { // if user tries to use the chat but has no token or expired
 		log.Trace("Someone is trying to access /chat without authorized token, redirecting to / ...")
 		redirect(w, r, "/")
@@ -153,7 +152,7 @@ func loginRequestHandler(w http.ResponseWriter, r *http.Request) {
 
 	log.Trace("%s: password matches with hash, comparison took: %d ms", loginRequest.Username, time.Now().UnixMilli()-start)
 
-	cookie := newTokenCookie(userID)
+	cookie := token.NewTokenCookie(userID)
 	http.SetCookie(w, &cookie)
 	redirect(w, r, "/chat.html")
 }
@@ -254,14 +253,14 @@ func registerRequestHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cookie := newTokenCookie(userID)
+	cookie := token.NewTokenCookie(userID)
 	http.SetCookie(w, &cookie)
 	redirect(w, r, "/chat.html")
 }
 func inviteHandler(w http.ResponseWriter, r *http.Request) {
 	log.Trace("Received invite request")
 
-	userID := CheckIfTokenIsValid(w, r)
+	userID := token.CheckIfTokenIsValid(w, r)
 	if userID == 0 { // if user has no valid token
 		respondText(w, "Not logged in")
 		log.Hack("Someone without authorized token clicked on an invite link")
@@ -294,7 +293,7 @@ func inviteHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func uploadProfilePicHandler(w http.ResponseWriter, r *http.Request) {
-	userID := CheckIfTokenIsValid(w, r)
+	userID := token.CheckIfTokenIsValid(w, r)
 	if userID == 0 {
 		respondText(w, "Who are you?")
 		log.Hack("Someone is trying to upload a profile picture without token")
@@ -367,7 +366,7 @@ func uploadProfilePicHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func uploadAttachmentHandler(w http.ResponseWriter, r *http.Request) {
-	userID := CheckIfTokenIsValid(w, r)
+	userID := token.CheckIfTokenIsValid(w, r)
 	if userID == 0 {
 		_, err := fmt.Fprintf(w, "Who are you?")
 		if err != nil {
@@ -398,53 +397,85 @@ func uploadAttachmentHandler(w http.ResponseWriter, r *http.Request) {
 
 		}
 
+		const attachmentsPath string = "./public/content/attachments/"
+
 		if part.FileName() != "" {
-			img, _, err := image.Decode(part)
+			extension := filepath.Ext(part.FileName())
+
+			var fileBytes *bytes.Buffer = new(bytes.Buffer)
+			var fileName string
+
+			_, err := io.Copy(fileBytes, part)
 			if err != nil {
-				log.Error("%s", err.Error())
-				log.Hack("Received attachment from user ID [%d] is not a picture", userID)
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
+				log.FatalError(err.Error(), "Error reading video sent by user ID [%d]", userID)
+				continue
 			}
 
-			resizedImg := imaging.Resize(img, 2048, 0, imaging.Lanczos)
+			var hash [32]byte = sha256.Sum256(fileBytes.Bytes())
 
-			buf := new(bytes.Buffer)
-			opt := jpeg.Options{Quality: 75}
-			err = jpeg.Encode(buf, resizedImg, &opt)
-			if err != nil {
-				http.Error(w, "error", http.StatusInternalServerError)
-				log.FatalError(err.Error(), "Error encoding image sent by user ID [%d]", userID)
-				return
+			log.Trace("Extension sent by user ID [%d] is [%s]", userID, extension)
+			switch extension {
+
+			case ".jpg", ".png", ".webp", ".jpeg", ".bmp":
+				// var img image.Image
+				// if extension == ".webp" {
+				// 	img, err = webp.Decode(fileBytes)
+				// } else if extension == ".bmp" {
+				// 	img, err = bmp.Decode(fileBytes)
+				// } else if extension == ".jpg" || extension == ".jpeg" {
+				// 	img, err = jpeg.Decode(fileBytes)
+				// } else if extension == ".png" {
+				// 	img, err = png.Decode(fileBytes)
+				// }
+				// if err != nil {
+				// 	log.Error("%s", err.Error())
+				// 	log.Hack("Received attachment picture of extension [%s] from user ID [%d] could not be decoded", extension, userID)
+				// 	continue
+				// }
+
+				// resizedImg := imaging.Resize(img, 2048, 0, imaging.Lanczos)
+
+				// opt := jpeg.Options{Quality: 75}
+				// err = jpeg.Encode(fileBytes, resizedImg, &opt)
+				// if err != nil {
+				// 	http.Error(w, "error", http.StatusInternalServerError)
+				// 	log.FatalError(err.Error(), "Error encoding image sent by user ID [%d]", userID)
+				// 	continue
+				// }
+				// fileName = hex.EncodeToString(hash[:]) + ".jpg"
+				fileName = hex.EncodeToString(hash[:]) + extension
+			case ".mp4", ".webm", ".mov":
+				fileName = hex.EncodeToString(hash[:]) + extension
+			default:
+				log.Hack("User ID [%d] sent attachment of unknown extension [%s]", userID, extension)
+				continue
 			}
-
-			hash := sha256.Sum256(buf.Bytes())
-			fileName := hex.EncodeToString(hash[:]) + ".jpg"
 
 			fileNames = append(fileNames, fileName)
 
-			var filePath = "./public/content/attachments/" + fileName
+			path := attachmentsPath + fileName
 
-			_, err = os.Stat(filePath)
+			_, err = os.Stat(path)
 			if err == nil {
-				log.Trace("Attachment at path [%s] already exists", filePath)
+				log.Trace("Attachment at path [%s] already exists", path)
 			} else if os.IsNotExist(err) {
-				log.Trace("Attachment at path [%s] doesn't exist, creating...", filePath)
-				err = os.WriteFile(filePath, buf.Bytes(), 0644)
+				log.Trace("Attachment at path [%s] doesn't exist, creating...", path)
+				err = os.WriteFile(path, fileBytes.Bytes(), 0644)
 				if err != nil {
-					log.FatalError(err.Error(), "Error writing to file [%s]", filePath)
+					log.FatalError(err.Error(), "Error writing to file [%s]", path)
 					return
 				}
 			} else {
-				log.FatalError(err.Error(), "Error checking file [%s]", filePath)
+				log.FatalError(err.Error(), "Error checking file [%s]", path)
 			}
+
 		}
 	}
 
 	log.Trace("[%s] POST request response was sent", r.URL.Path)
 
-	attachmentToken := attachments.OnAttachmentUploaded(userID, fileNames)
-	encoded := base64.StdEncoding.EncodeToString(attachmentToken)
+	attachmentToken := *attachments.OnAttachmentUploaded(userID, fileNames)
+	encoded := base64.StdEncoding.EncodeToString(attachmentToken[:])
 
 	log.Trace("Response for [%s] POST request: [%s]", r.URL.Path, encoded)
 	w.Header().Set("Content-Type", "application/json")

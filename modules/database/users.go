@@ -24,6 +24,7 @@ type InitialData struct {
 	StatusText  string
 	Friends     []uint64
 	Blocks      []uint64
+	Servers     []Server
 }
 
 const insertUserQuery = "INSERT INTO users (user_id, username, display_name, password) VALUES (?, ?, ?, ?)"
@@ -149,23 +150,24 @@ func CheckIfUsernameExists(username string) bool {
 	return taken
 }
 
-func GetInitialData(userID uint64) (InitialData, bool) {
+func GetInitialData(userID uint64) (*InitialData, bool) {
 	tx, err := Conn.Begin()
 	transactionErrorCheck(err)
 
 	defer tx.Rollback()
 
-	iData := InitialData{
+	initData := InitialData{
 		UserID:  userID,
 		Blocks:  []uint64{},
 		Friends: []uint64{},
+		Servers: []Server{},
 	}
 
 	// get user data
 	const query1 = "SELECT display_name, picture, status_text, pronouns FROM users WHERE user_id = ?"
 	log.Query(query1, userID)
 
-	err = tx.QueryRow(query1, userID).Scan(&iData.DisplayName, &iData.ProfilePic, &iData.StatusText, &iData.Pronouns)
+	err = tx.QueryRow(query1, userID).Scan(&initData.DisplayName, &initData.ProfilePic, &initData.StatusText, &initData.Pronouns)
 	transactionErrorCheck(err)
 
 	// get block list
@@ -178,7 +180,7 @@ func GetInitialData(userID uint64) (InitialData, bool) {
 		var blockedID uint64
 		err := rows2.Scan(&blockedID)
 		DatabaseErrorCheck(err)
-		iData.Blocks = append(iData.Blocks, blockedID)
+		initData.Blocks = append(initData.Blocks, blockedID)
 	}
 
 	// get friends
@@ -200,32 +202,27 @@ func GetInitialData(userID uint64) (InitialData, bool) {
 		var friendID uint64
 		err := rows3.Scan(&friendID)
 		DatabaseErrorCheck(err)
-		iData.Friends = append(iData.Friends, friendID)
+		initData.Friends = append(initData.Friends, friendID)
+	}
+
+	// get servers
+	const query4 string = "SELECT s.* FROM servers s JOIN server_members m ON s.server_id = m.server_id WHERE m.user_id = ?"
+	log.Query(query4, userID)
+
+	rows4, err := tx.Query(query4, userID)
+	DatabaseErrorCheck(err)
+
+	for rows4.Next() {
+		var server Server
+		err := rows4.Scan(&server.ServerID, &server.UserID, &server.Name, &server.Picture)
+		DatabaseErrorCheck(err)
+		initData.Servers = append(initData.Servers, server)
 	}
 
 	err = tx.Commit()
 	transactionErrorCheck(err)
 
-	return iData, true
-
-	// const query = "SELECT display_name, picture, status_text, pronouns FROM users WHERE user_id = ?"
-
-	// log.Query(query, userID)
-
-	// var displayName string
-	// var picture string
-	// var statusText string
-	// var pronouns string
-	// err := Conn.QueryRow(query, userID).Scan(&displayName, &picture, &statusText, &pronouns)
-	// DatabaseErrorCheck(err)
-
-	// if displayName == "" || picture == "" {
-	// 	log.Trace("Failed to find username [%d] for user data in database", userID)
-	// } else {
-	// 	log.Trace("Successfully retrieved user data of user ID [%d]", userID)
-	// }
-
-	// return displayName, picture, statusText, pronouns
+	return &initData, true
 }
 
 func UpdateUserValue(userID uint64, value string, column string) bool {

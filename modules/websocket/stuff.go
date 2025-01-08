@@ -133,7 +133,7 @@ func (c *WsClient) onChatMessageRequest(packetJson []byte) (BroadcastData, []byt
 
 	var fileNames []string
 	if len(attachmentToken) > 0 {
-		fileNames = attachments.GetWaitingAttachment([64]byte(attachmentToken))
+		fileNames = *attachments.GetWaitingAttachment([64]byte(attachmentToken))
 	}
 
 	var messageID = snowflake.Generate()
@@ -196,7 +196,7 @@ func (c *WsClient) onChatHistoryRequest(packetJson []byte) []byte {
 		return macros.RespondFailureReason(rejectionMessage)
 	}
 
-	var jsonBytes []byte = database.GetChatHistory(req.ChannelID, req.FromMessageID, req.Older, c.UserID)
+	var jsonBytes []byte = *database.GetChatHistory(req.ChannelID, req.FromMessageID, req.Older, c.UserID)
 	if jsonBytes == nil {
 		return macros.RespondFailureReason(rejectionMessage)
 	}
@@ -397,6 +397,10 @@ func (c *WsClient) onUnfriendRequest(packetJson []byte) {
 
 	broadcastChan <- broadcastData
 }
+
+// func (c *WsClient) onFriendListRequest(packetJson []byte) []byte {
+
+// }
 
 func (c *WsClient) onServerMemberListRequest(packetJson []byte) []byte {
 	type MemberListRequest struct {
@@ -608,6 +612,20 @@ func (c *WsClient) onServerInviteRequest(packetJson []byte) []byte {
 		macros.ErrorSerializing(err.Error(), SERVER_INVITE_LINK, c.UserID)
 	}
 	return macros.PreparePacket(SERVER_INVITE_LINK, messagesBytes)
+}
+
+func (c *WsClient) onInitialDataRequest() {
+	initialData, success := database.GetInitialData(c.UserID)
+	if !success {
+		return
+	}
+
+	jsonUserID, err := json.Marshal(initialData)
+	if err != nil {
+		macros.ErrorSerializing(err.Error(), INITIAL_USER_DATA, c.UserID)
+	}
+
+	c.WriteChan <- macros.PreparePacket(INITIAL_USER_DATA, jsonUserID)
 }
 
 func (c *WsClient) onUpdateUserDataRequest(packetJson []byte) {
