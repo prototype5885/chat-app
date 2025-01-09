@@ -181,35 +181,45 @@ function addChatMessage(messageID, userID, message, attachments, ghost) {
 
     // add attachments
     if (attachments !== undefined && attachments !== null && attachments.length > 0) {
-        const videosContainer = document.createElement("div")
-        videosContainer.className = "message-attachment-videos"
-        msgDataDiv.appendChild(videosContainer)
-
-        const picturesContainer = document.createElement("div")
-        picturesContainer.className = "message-attachment-pictures"
-        msgDataDiv.appendChild(picturesContainer)
-
         for (let i = 0; i < attachments.length; i++) {
             const path = `/content/attachments/${attachments[i]}`
             const extension = attachments[i].split(".").pop().toLowerCase()
 
+            const attachmentContainer = document.createElement("div")
+
             switch (extension) {
+                case "mp3":
+                    attachmentContainer.className = "message-attachment-audios"
+                    attachmentContainer.innerHTML += `
+                        <audio controls class="attachment-audio">
+                            <source src="${path}">
+                        </audio>`
+                    msgDataDiv.appendChild(attachmentContainer)
+                    break
                 case "mp4":
                 case "webm":
                 case "mov":
-                    videosContainer.innerHTML += `
+                    attachmentContainer.className = "message-attachment-videos"
+                    
+                    attachmentContainer.innerHTML += `
                         <video controls class="attachment-video">
-                            <source src="${path}" type="video/mp4">
+                            <source src="${path}">
                         </video>`
+                    msgDataDiv.appendChild(attachmentContainer)
                     break
                 case "jpg":
                 case "jpeg":
                 case "webp":
                 case "png":
-                    picturesContainer.innerHTML += `<img src="${path}" class="attachment-pic">`
+                    attachmentContainer.className = "message-attachment-pictures"
+                    attachmentContainer.innerHTML += `<img src="${path}" class="attachment-pic">`
+                    msgDataDiv.appendChild(attachmentContainer)
                     break
                 default:
                     console.warn("Unsupported attachment type:", extension)
+                    attachmentContainer.className = "attachment-unknown"
+                    attachmentContainer.innerHTML += `<a href="${path}" class="url" target="_blank">${attachments[i]}</a>`
+                    msgDataDiv.appendChild(attachmentContainer)
                     break
             }
         }

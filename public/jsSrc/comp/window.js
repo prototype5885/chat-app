@@ -2,13 +2,14 @@ let openWindows = [] // this stores every open windows as hashmap by type value
 let lastSelected = new Map()
 
 // this is called when something creates as new window
-function addWindow(type) {
-    openWindows.push(new Window(type))
+function addWindow(type, id) {
+    openWindows.push(new Window(type, id))
 }
 
 class Window {
-    constructor(type) {
+    constructor(type, id) {
         this.window
+        this.id = id
         this.topBar
         this.topBarLeft
         this.windowMain
@@ -245,13 +246,81 @@ class Window {
                 break
             case "server-settings":
                 this.topBarLeft.textContent = "Server settings"
-                createSettingsLeftSide(this.windowMain, this.type)
+                createSettingsLeftSide(this.windowMain, this.type, this.id)
                 break
         }
     }
 }
 
-function createSettingsLeftSide(windowMain, type) {
+function pictureUploader(settings, pictureType, serverID) {
+    const sendButon = settings.querySelector(".send-pic-button")
+    const responseLabel = settings.querySelector(".pic-response-label")
+    // clicked on the pic
+    settings.querySelector(".select-pic").addEventListener("click", async (event) => {
+        settings.querySelector(".pic-uploader").click()
+        
+        responseLabel.style.color = ""
+        responseLabel.textContent = ""
+    })
+
+    // added a pic
+    const picUploader = settings.querySelector(".pic-uploader")
+    picUploader.addEventListener("change", async (event) => {
+        const picPreview = settings.querySelector(".select-pic")
+        if (picUploader.files.length === 0) {
+            console.log("No picture has been selected")
+            picPreview.style.backgroundImage = `url(${ownProfilePic})`
+        } else {
+            setButtonActive(sendButon, true)
+            console.log("Picture selected")
+            const reader = new FileReader()
+            reader.readAsDataURL(picUploader.files[0])
+
+            reader.onload = function (e) {
+                picPreview.style.backgroundImage = `url(${e.target.result})`
+            }
+        }
+    })
+
+    // upload the pic
+    sendButon.addEventListener("click", async (event) => {
+        console.log(`Uploading ${pictureType}...`)
+        event.preventDefault()
+
+        if (picUploader.files.length === 0) {
+            console.warn("No new profile was attached")
+            return
+        }
+
+        const formData = new FormData()
+
+        formData.append(`${pictureType}`, picUploader.files[0])
+        if (pictureType === "server-pic") {
+            formData.append("serverID", serverID)
+        }
+        
+
+        const response = await fetch(`/upload-${pictureType}`, {
+            method: "POST",
+            body: formData
+        })
+
+        const respText = await response.text()
+
+        if (response.ok) {
+            const successText = "Picture was uploaded successfully"
+            console.log(successText)
+            responseLabel.style.color = "green"
+            responseLabel.textContent = successText
+        } else {
+            console.error(respText)
+            responseLabel.style.color = "red"
+            responseLabel.textContent = respText
+        }
+    })
+}
+
+function createSettingsLeftSide(windowMain, type, value) {
     const leftSide = document.createElement("div")
     leftSide.className = "settings-left"
     const rightSide = document.createElement("div")
@@ -259,8 +328,6 @@ function createSettingsLeftSide(windowMain, type) {
 
     windowMain.appendChild(leftSide)
     windowMain.appendChild(rightSide)
-
-    const leftSideContent = []
 
     function addElementsLeftSide(elements) {
         const settingsLeft = windowMain.querySelector(".settings-left")
@@ -297,7 +364,7 @@ function createSettingsLeftSide(windowMain, type) {
                 settingsRight.textContent = ""
 
                 console.log("Selected my", elements[i].text)
-                const mainRight = createSettingsRightSideMyAccount(windowMain, elements[i].text, settingsRight)
+                const mainRight = createSettingsRightSideMyAccount(elements[i].text, settingsRight)
                 switch (elements[i].text) {
                     case "Profile":
                         const profileSettings = document.createElement("div")
@@ -318,12 +385,12 @@ function createSettingsLeftSide(windowMain, type) {
                                 <button class="button update-account-data">Apply</button>
                             </div>
                             <div>
-                                <input type="file" name="image" class="pfp-uploader" accept="image/*" style="display: none">
-                                <button class="select-pfp" style="background-image: url(${ownProfilePic})"></button>
+                                <input type="file" name="image" class="pic-uploader" accept="image/*" style="display: none">
+                                <button class="select-pic" style="background-image: url(${ownProfilePic})"></button>
                                 <br>
-                                <button class="button send-pfp-button noHover" disabled>Apply Picture</button>
+                                <button class="button send-pic-button noHover" disabled>Apply Picture</button>
                                 <br>
-                                <label class="pfp-response-label"></label>
+                                <label class="pic-response-label"></label>
                             </div>`
 
                         // applying username, pronouns, etc
@@ -364,72 +431,11 @@ function createSettingsLeftSide(windowMain, type) {
                             requestUpdateUserData(updatedUserData)
                         })
 
-                        const sendButon = profileSettings.querySelector(".send-pfp-button")
-
-                        // clicked on profile pic
-                        profileSettings.querySelector(".select-pfp").addEventListener("click", async (event) => {
-                            profileSettings.querySelector(".pfp-uploader").click()
-                            pfpRespLabel.style.color = ""
-                            pfpRespLabel.textContent = ""
-                        })
-
-                        const pfpRespLabel = profileSettings.querySelector(".pfp-response-label")
-
-                        // added a profile pic
-                        const profilePicUploader = profileSettings.querySelector(".pfp-uploader")
-                        profilePicUploader.addEventListener("change", async (event) => {
-                            const pfpPreview = profileSettings.querySelector(".select-pfp")
-                            if (profilePicUploader.files.length === 0) {
-                                console.log("No profile pic has been selected")
-                                pfpPreview.style.backgroundImage = `url(${ownProfilePic})`
-                            } else {
-                                setButtonActive(sendButon, true)
-                                console.log("Profile pic selected")
-                                const reader = new FileReader()
-                                reader.readAsDataURL(profilePicUploader.files[0])
-
-                                reader.onload = function (e) {
-                                    pfpPreview.style.backgroundImage = `url(${e.target.result})`
-                                }
-                            }
-                        })
-
-                        // upload the profile pic
-                        sendButon.addEventListener("click", async (event) => {
-                            console.log("Uploading profile pic...")
-                            event.preventDefault()
-
-                            if (profilePicUploader.files.length === 0) {
-                                console.warn("No new profile pic was attached")
-                                return
-                            }
-
-                            const formData = new FormData()
-
-                            formData.append("pfp", profilePicUploader.files[0])
-
-                            const response = await fetch('/upload-pfp', {
-                                method: "POST",
-                                body: formData
-                            })
-
-                            const respText = await response.text()
-
-                            if (response.ok) {
-                                const successText = "Profile pic was uploaded successfully"
-                                console.log(successText)
-                                pfpRespLabel.style.color = "green"
-                                pfpRespLabel.textContent = successText
-                            } else {
-                                console.error(respText)
-                                pfpRespLabel.style.color = "red"
-                                pfpRespLabel.textContent = respText
-                            }
-                        })
+                        pictureUploader(profileSettings, "profile-pic", "")
                         break
                     case "Account":
                         const accountSettings = document.createElement("div")
-                        accountSettings.className = "profile-settings"
+                        accountSettings.className = "account-settings"
                         mainRight.appendChild(accountSettings)
 
                         accountSettings.innerHTML = `
@@ -446,6 +452,60 @@ function createSettingsLeftSide(windowMain, type) {
                                 <button class="button update-password">Apply</button>
                             </div>`
                         break
+                    case "Server":
+                        const serverSettings = document.createElement("div")
+                        serverSettings.className = "server-settings"
+                        mainRight.appendChild(serverSettings)
+
+
+  
+
+                        serverSettings.innerHTML = `
+                            <div>
+                                <label class="input-label">Server name:</label>
+                                <input class="change-server-name" maxlength="32" value="${value}">
+                                <br>
+                                <button class="button update-server-data">Apply</button>
+                            </div>
+                            <div>
+                                <input type="file" name="image" class="pic-uploader" accept="image/*" style="display: none">
+                                <button class="select-pic"></button>
+                                <br>
+                                <button class="button send-pic-button noHover" disabled>Apply Picture</button>
+                                <br>
+                                <label class="pic-response-label"></label>
+                            </div>`
+
+                        const serverPic = window.getComputedStyle(document.getElementById(value)).backgroundImage
+                        serverSettings.querySelector(".select-pic").style.backgroundImage = serverPic
+
+                         // applying server name
+                        serverSettings.querySelector(".update-server-data").addEventListener('click', function () {
+                            const newServerName = profileSettings.querySelector(".change-server-name").value
+                            let serverNameChanged = false
+                            if (newServerName !== this.id) {
+                                serverNameChanged = true
+                            }
+
+
+
+                            if (newServerName ===  this.id) {
+                                console.warn("No server settings was changed")
+                                return
+                            }
+
+                            const updatedServerData = {
+                                ServerID: serverID,
+                                Servername: newServerName,
+                                NewSN: serverNameChanged,
+                            }
+
+                            requestUpdateServerData(updatedServerData)
+                        })
+
+                        console.log(`Changing picture of server ID [${value}]`)
+                        pictureUploader(serverSettings, "server-pic", value)
+                        break
                 }
             })
 
@@ -455,6 +515,7 @@ function createSettingsLeftSide(windowMain, type) {
         settingsLeft.appendChild(settingsList)
     }
 
+    const leftSideContent = []
     // add these elements to the left side
     switch (type) {
         case "user-settings":
@@ -463,14 +524,18 @@ function createSettingsLeftSide(windowMain, type) {
             leftSideContent.push({ text: "1" })
             leftSideContent.push({ text: "2" })
             leftSideContent.push({ text: "3" })
-            addElementsLeftSide(leftSideContent)
+            break
+        case "server-settings":
+            leftSideContent.push({ text: "Server"})
+            leftSideContent.push({ text: "Extra"})
             break
     }
+    addElementsLeftSide(leftSideContent)
 
     leftSide.querySelector(".settings-list").firstElementChild.click()
 }
 
-function createSettingsRightSideMyAccount(windowMain, labelText, settingsRight) {
+function createSettingsRightSideMyAccount(labelText, settingsRight) {
     const topRight = document.createElement("div")
     topRight.className = "settings-right-top"
 

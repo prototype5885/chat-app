@@ -71,7 +71,7 @@ function deleteCtxMenu() {
 function serverCtxMenu(serverID, owned, pageX, pageY) {
     const actions = []
 
-    if (owned) { actions.push({ text: "Server Settings", func: () => addWindow("server-settings") }) }
+    if (owned) { actions.push({ text: "Server Settings", func: () => addWindow("server-settings", serverID) }) }
     if (owned) { actions.push({ text: "Create Invite Link", func: () => requestInviteLink(serverID) }) }
     // if (owned) { actions.push({ text: "Delete Server", color: "red", func: () => requestDeleteServer(serverID) }) }
     if (!owned) { actions.push({ text: "Leave Server", color: "red", func: () => requestLeaveServer(serverID) }) }

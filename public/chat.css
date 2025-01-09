@@ -172,7 +172,9 @@ body {
     color: white;
 }
 
-.profile-settings {
+.profile-settings,
+.account-settings,
+.server-settings {
     background-color: var(--bit-darker-color);
     border-radius: 16px;
     display: flex;
@@ -180,7 +182,9 @@ body {
     align-items: center;
 }
 
-.profile-settings>div {
+.profile-settings>div,
+.account-settings>div,
+.server-settings>div {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -193,12 +197,13 @@ body {
     width: 128px;
 }
 
-.select-pfp {
+.select-pic {
     width: 128px;
     height: 128px;
     background-size: cover;
     background-position: center;
     border-radius: 50%;
+    background-color: var(--dark-color);
 }
 
 /* server list column on the left side */
@@ -640,6 +645,10 @@ body {
     margin-bottom: 8px;
     max-width: 1024px;
     border-radius: 6px;
+}
+
+.message-attachment-audios>*{
+    width: 512px;
 }
 
 .attachment-pic {

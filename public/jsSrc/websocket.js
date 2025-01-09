@@ -5,7 +5,7 @@ const CHAT_HISTORY = 2
 const DELETE_CHAT_MESSAGE = 3
 
 const ADD_SERVER = 21
-// const SERVER_LIST = 22
+const UPDATE_SERVER_PIC = 22
 const DELETE_SERVER = 23
 const SERVER_INVITE_LINK = 24
 
@@ -161,20 +161,9 @@ async function connectToWebsocket() {
                 addServer(json.ServerID, json.UserID, json.Name, imageHost + json.Picture, "server")
                 selectServer(json.ServerID)
                 break
-            // case SERVER_LIST: // Server sent the requested server list
-            //     console.log("Requested server list arrived")
-            //     removePlaceholderServers()
-            //     if (json.length !== 0) {
-            //         for (let i = 0; i < json.length; i++) {
-            //             console.log("Adding server ID", json[i].ServerID)
-            //             addServer(json[i].ServerID, json[i].UserID, json[i].Name, imageHost + json[i].Picture, "server")
-            //         }
-            //     } else {
-            //         console.log("Not being in any servers")
-            //     }
-            //     lookForDeletedServersInLastChannels()
-            //     serverListLoaded = true
-            //     break
+            case UPDATE_SERVER_PIC: // Server sent that a chat server picture was updated
+                setServerPicture(json.ServerID, json.Pic)
+                break
             case DELETE_SERVER: // Server sent which server was deleted
                 console.log(`Server ID [${json.ServerID}] has been deleted`)
                 const serverID = json.ServerID

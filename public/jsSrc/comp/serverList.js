@@ -186,6 +186,11 @@ function deleteServer(serverID) {
     serversSeparatorVisibility()
 }
 
+function setServerPicture(serverID, picture) {
+    picture = "content/avatars/" + picture
+    document.getElementById(serverID).style.backgroundImage = `url("${picture}")`
+}
+
 function serversSeparatorVisibility() {
     const allServers = ServerList.querySelectorAll(".server, .placeholder-server")
     const servers = ServerList.querySelectorAll(".server")

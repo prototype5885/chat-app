@@ -34,7 +34,7 @@ func CreateServerMembersTable() {
 	}
 }
 
-func GetServerMembersList(serverID uint64) []ServerMember {
+func GetServerMembersList(serverID uint64) *[]ServerMember {
 	const query = "SELECT u.user_id, u.display_name, u.picture, u.status, u.status_text FROM users u JOIN server_members sm ON u.user_id = sm.user_id WHERE sm.server_id = ?"
 	log.Query(query, serverID)
 
@@ -56,7 +56,7 @@ func GetServerMembersList(serverID uint64) []ServerMember {
 	}
 
 	log.Trace("Members of server ID [%d] were retrieved successfully", serverID)
-	return members
+	return &members
 }
 func ConfirmServerMembership(userID uint64, serverID uint64) bool {
 	const query string = "SELECT EXISTS (SELECT 1 FROM server_members WHERE server_id = ? AND user_id = ?)"

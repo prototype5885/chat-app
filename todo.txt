@@ -32,3 +32,5 @@ when switching channel or server, ignore all packages from previous one
 add check if user is blocked when adding friends
     DONE // check for safe way to access wsClients when broadcasting
 make expired cookie token deletion more efficient, so they are deleted in 1 query
+when sending non supported attachment file, keep original filename
+check what happens when non server owner tries to update picture/name of a server they don't own

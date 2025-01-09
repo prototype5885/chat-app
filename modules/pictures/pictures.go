@@ -11,19 +11,19 @@ import (
 	"github.com/disintegration/imaging"
 )
 
-func CheckProfilePic(imgBytes []byte, userID uint64) ([]byte, string) {
+func CheckAvatarPic(imgBytes []byte, userID uint64) ([]byte, string) {
 	start := time.Now().UnixMilli()
 	// decode
 	img, _, err := image.Decode(bytes.NewReader(imgBytes))
 	if err != nil {
 		log.Error("%s", err.Error())
-		log.Hack("Received profile pic from user ID [%d] is not a profile pic", userID)
+		log.Hack("Received avatar pic from user ID [%d] is not a picture", userID)
 		return nil, "Not a picture"
 	}
 
 	// check if picture is too small
 	if img.Bounds().Dx() < 64 || img.Bounds().Dy() < 64 {
-		log.Trace("Received profile pic from user ID [%d] is too small", userID)
+		log.Trace("Received avatar pic from user ID [%d] is too small", userID)
 		return nil, "Picture is too small, minimum 64x64"
 	}
 
@@ -31,10 +31,10 @@ func CheckProfilePic(imgBytes []byte, userID uint64) ([]byte, string) {
 	widthRatio := float64(img.Bounds().Dx()) / float64(img.Bounds().Dy())
 	heightRatio := float64(img.Bounds().Dy()) / float64(img.Bounds().Dx())
 	if widthRatio > 2 {
-		log.Trace("Received profile pic from user ID [%d] is too wide", userID)
+		log.Trace("Received avatar pic from user ID [%d] is too wide", userID)
 		return nil, "Picture is too wide, must be less than 1:2 ratio"
 	} else if heightRatio > 2 {
-		log.Trace("Received profile pic from user ID [%d] is too tall", userID)
+		log.Trace("Received avatar pic from user ID [%d] is too tall", userID)
 		return nil, "Picture is too tall, must be less than 1:2 ratio"
 	}
 
@@ -48,7 +48,7 @@ func CheckProfilePic(imgBytes []byte, userID uint64) ([]byte, string) {
 
 	// check if picture is in square dimension
 	if img.Bounds().Dx() != img.Bounds().Dy() {
-		log.Impossible("Profile pic of user ID [%d] cropped isnt in square dimension: [%dx%d]", userID, img.Bounds().Dx(), img.Bounds().Dy())
+		log.Impossible("Avatar pic of user ID [%d] cropped isnt in square dimension: [%dx%d]", userID, img.Bounds().Dx(), img.Bounds().Dy())
 		return nil, ""
 	}
 
@@ -61,11 +61,11 @@ func CheckProfilePic(imgBytes []byte, userID uint64) ([]byte, string) {
 	var buf bytes.Buffer
 	err = jpeg.Encode(&buf, img, &jpeg.Options{Quality: 90})
 	if err != nil {
-		log.FatalError(err.Error(), "Error compressing profile pic from user ID [%d]", userID)
+		log.FatalError(err.Error(), "Error compressing avatar pic from user ID [%d]", userID)
 		return nil, ""
 	}
 
-	macros.MeasureTime(start, "checking profile pic")
+	macros.MeasureTime(start, "checking avatar pic")
 
 	return buf.Bytes(), ""
 }

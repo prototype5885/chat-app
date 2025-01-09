@@ -292,43 +292,51 @@ func inviteHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func uploadProfilePicHandler(w http.ResponseWriter, r *http.Request) {
+func uploadAvatarHandler(w http.ResponseWriter, r *http.Request) {
+	var picType string
+	if r.URL.Path == "/upload-profile-pic" {
+		picType = "profile-pic"
+	} else if r.URL.Path == "/upload-server-pic" {
+		picType = "server-pic"
+	}
+
 	userID := token.CheckIfTokenIsValid(w, r)
 	if userID == 0 {
 		respondText(w, "Who are you?")
-		log.Hack("Someone is trying to upload a profile picture without token")
+		log.Hack("Someone is trying to upload a [%s] without token", picType)
 		return
 	}
 
-	log.Trace("User ID [%d] wants to change their profile pic", userID)
+	// TODO server ID
+	log.Trace("User ID [%d] wants to change [%s]", userID, picType)
 
 	err := r.ParseMultipartForm(100 << 10)
 	if err != nil {
-		log.WarnError(err.Error(), "Received profile picture from user ID [%d] is too big in size", userID)
+		log.WarnError(err.Error(), "Received [%s] from user ID [%d] is too big in size", picType, userID)
 		http.Error(w, "Uploaded picture is too big", http.StatusBadRequest)
 		return
 	}
 
 	// parse formfile
-	formFile, _, err := r.FormFile("pfp")
+	picFormFile, _, err := r.FormFile(picType)
 	if err != nil {
-		log.WarnError(err.Error(), "Error parsing multipart form 2")
+		log.WarnError(err.Error(), "Error parsing picture formfile sent by user ID [%d]", userID)
 		http.Error(w, "error", http.StatusInternalServerError)
 		return
 	}
-	defer formFile.Close()
+	defer picFormFile.Close()
 
-	// read bytes from received profile pic
-	imgBytes, err := io.ReadAll(formFile)
+	// read bytes from received avatar pic
+	imgBytes, err := io.ReadAll(picFormFile)
 	if err != nil {
-		log.WarnError(err.Error(), "Error reading formFile of profile pic from user ID [%d]", userID)
+		log.WarnError(err.Error(), "Error reading picture formfile of [%s] from user ID [%d]", picType, userID)
 		http.Error(w, "error", http.StatusInternalServerError)
 		return
 	}
 
-	// check if received profile pic is in correct format
+	// check if received avatar pic is in correct format
 	var issue string
-	imgBytes, issue = pictures.CheckProfilePic(imgBytes, userID)
+	imgBytes, issue = pictures.CheckAvatarPic(imgBytes, userID)
 	if issue != "" {
 		http.Error(w, issue, http.StatusBadRequest)
 		return
@@ -338,31 +346,49 @@ func uploadProfilePicHandler(w http.ResponseWriter, r *http.Request) {
 	fileName := hex.EncodeToString(hash[:]) + ".jpg"
 	var pfpPath = "./public/content/avatars/" + fileName
 
-	// check if profile pic file exists already, otherwise save as new
+	// check if avatar pic file exists already, otherwise save as new
 	_, err = os.Stat(pfpPath)
 	if os.IsNotExist(err) {
 		log.Trace("Profile pic [%s] doesn't exist yet, creating...", fileName)
 		err = os.WriteFile(pfpPath, imgBytes, 0644)
 		if err != nil {
-			log.FatalError(err.Error(), "Error writing bytes to profile pic file from user ID [%d]", userID)
+			log.FatalError(err.Error(), "Error writing bytes to [%s] file from user ID [%d]", picType, userID)
 			http.Error(w, "error", http.StatusInternalServerError)
 			return
 		}
 	} else if err != nil {
-		log.FatalError(err.Error(), "Error creating file for profile pic from user ID [%d]", userID)
+		log.FatalError(err.Error(), "Error creating file for [%s] from user ID [%d]", picType, userID)
 		http.Error(w, "error", http.StatusInternalServerError)
 		return
 	} else {
-		log.Trace("Profile pic [%s] of same hash already exists, using that one...", fileName)
+		log.Trace("[%s] [%s] of same hash already exists, using that one...", picType, fileName)
 	}
 
-	success := database.UpdateUserValue(userID, fileName, "picture")
-	if !success {
-		log.Warn("Failed updating profile picture of user ID [%d] in database", userID)
-		return
+	if picType == "profile-pic" {
+		success := database.UpdateUserValue(userID, fileName, "picture")
+		if !success {
+			log.Warn("Failed updating profile picture of user ID [%d] in database", userID)
+			return
+		}
+		websocket.OnProfilePicChanged(userID, fileName)
+	} else if picType == "server-pic" {
+		log.Trace("%s", r.FormValue("serverID"))
+		serverID, err := strconv.ParseUint(r.FormValue("serverID"), 10, 64)
+		if err != nil {
+			log.WarnError(err.Error(), "Error parsing serverID as uint64 while changing picture of server of user ID [%d]", userID)
+			http.Error(w, "error", http.StatusInternalServerError)
+			return
+		}
+		log.Trace("User ID [%d] wants to change picture of server ID [%d]", userID, serverID)
+		success := database.ChangeServerPic(userID, serverID, fileName)
+		if !success {
+			log.Hack("Failed updating picture of server ID [%d] requested by user ID [%d]", serverID, userID)
+			return
+		}
+
+		websocket.OnServerPicChanged(serverID, fileName)
 	}
 
-	websocket.OnProfilePicChanged(userID, fileName)
 }
 
 func uploadAttachmentHandler(w http.ResponseWriter, r *http.Request) {
@@ -412,44 +438,44 @@ func uploadAttachmentHandler(w http.ResponseWriter, r *http.Request) {
 			}
 
 			var hash [32]byte = sha256.Sum256(fileBytes.Bytes())
+			fileName = hex.EncodeToString(hash[:]) + extension
 
 			log.Trace("Extension sent by user ID [%d] is [%s]", userID, extension)
-			switch extension {
+			// switch extension {
+			// case ".jpg", ".png", ".webp", ".jpeg", ".bmp":
+			// var img image.Image
+			// if extension == ".webp" {
+			// 	img, err = webp.Decode(fileBytes)
+			// } else if extension == ".bmp" {
+			// 	img, err = bmp.Decode(fileBytes)
+			// } else if extension == ".jpg" || extension == ".jpeg" {
+			// 	img, err = jpeg.Decode(fileBytes)
+			// } else if extension == ".png" {
+			// 	img, err = png.Decode(fileBytes)
+			// }
+			// if err != nil {
+			// 	log.Error("%s", err.Error())
+			// 	log.Hack("Received attachment picture of extension [%s] from user ID [%d] could not be decoded", extension, userID)
+			// 	continue
+			// }
 
-			case ".jpg", ".png", ".webp", ".jpeg", ".bmp":
-				// var img image.Image
-				// if extension == ".webp" {
-				// 	img, err = webp.Decode(fileBytes)
-				// } else if extension == ".bmp" {
-				// 	img, err = bmp.Decode(fileBytes)
-				// } else if extension == ".jpg" || extension == ".jpeg" {
-				// 	img, err = jpeg.Decode(fileBytes)
-				// } else if extension == ".png" {
-				// 	img, err = png.Decode(fileBytes)
-				// }
-				// if err != nil {
-				// 	log.Error("%s", err.Error())
-				// 	log.Hack("Received attachment picture of extension [%s] from user ID [%d] could not be decoded", extension, userID)
-				// 	continue
-				// }
+			// resizedImg := imaging.Resize(img, 2048, 0, imaging.Lanczos)
 
-				// resizedImg := imaging.Resize(img, 2048, 0, imaging.Lanczos)
-
-				// opt := jpeg.Options{Quality: 75}
-				// err = jpeg.Encode(fileBytes, resizedImg, &opt)
-				// if err != nil {
-				// 	http.Error(w, "error", http.StatusInternalServerError)
-				// 	log.FatalError(err.Error(), "Error encoding image sent by user ID [%d]", userID)
-				// 	continue
-				// }
-				// fileName = hex.EncodeToString(hash[:]) + ".jpg"
-				fileName = hex.EncodeToString(hash[:]) + extension
-			case ".mp4", ".webm", ".mov":
-				fileName = hex.EncodeToString(hash[:]) + extension
-			default:
-				log.Hack("User ID [%d] sent attachment of unknown extension [%s]", userID, extension)
-				continue
-			}
+			// opt := jpeg.Options{Quality: 75}
+			// err = jpeg.Encode(fileBytes, resizedImg, &opt)
+			// if err != nil {
+			// 	http.Error(w, "error", http.StatusInternalServerError)
+			// 	log.FatalError(err.Error(), "Error encoding image sent by user ID [%d]", userID)
+			// 	continue
+			// }
+			// fileName = hex.EncodeToString(hash[:]) + ".jpg"
+			// fileName = hex.EncodeToString(hash[:]) + extension
+			// case ".mp4", ".webm", ".mov":
+			// fileName = hex.EncodeToString(hash[:]) + extension
+			// default:
+			// log.Hack("User ID [%d] sent attachment of unknown extension [%s]", userID, extension)
+			// continue
+			// }
 
 			fileNames = append(fileNames, fileName)
 

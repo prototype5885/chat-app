@@ -413,7 +413,7 @@ func (c *WsClient) onServerMemberListRequest(packetJson []byte) []byte {
 		macros.ErrorDeserializing(err.Error(), SERVER_MEMBER_LIST, c.UserID)
 	}
 
-	members := database.GetServerMembersList(req.ServerID)
+	members := *database.GetServerMembersList(req.ServerID)
 
 	// check if members are online or not
 	for i := 0; i < len(members); i++ {
@@ -542,7 +542,6 @@ func (c *WsClient) onAddServerRequest(packetJson []byte) []byte {
 // 	return macros.PreparePacket(22, database.GetServerList(c.userID))
 // }
 
-// when client wants to delete a server, type 23
 func (c *WsClient) onServerDeleteRequest(jsonBytes []byte) BroadcastData {
 	type ServerToDelete struct {
 		ServerID uint64

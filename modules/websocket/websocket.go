@@ -21,7 +21,7 @@ const (
 	DELETE_CHAT_MESSAGE byte = 3
 
 	ADD_SERVER         byte = 21
-	SERVER_LIST        byte = 22
+	UPDATE_SERVER_PIC  byte = 22
 	DELETE_SERVER      byte = 23
 	SERVER_INVITE_LINK byte = 24
 
@@ -369,7 +369,7 @@ func broadCastChannel() {
 					return true
 				})
 
-			case UPDATE_MEMBER_PROFILE_PIC, UPDATE_ONLINE, UPDATE_STATUS, UPDATE_MEMBER_DISPLAY_NAME, DELETE_SERVER: // things that affect multiple servers
+			case UPDATE_MEMBER_PROFILE_PIC, UPDATE_ONLINE, UPDATE_STATUS, UPDATE_MEMBER_DISPLAY_NAME: // if client is currently on an affected server
 				wsClients.Range(func(key, value interface{}) bool {
 					wsClient, ok := value.(*WsClient)
 					if !ok {
@@ -401,7 +401,7 @@ func broadCastChannel() {
 					}
 					return true
 				})
-			case ADD_FRIEND, BLOCK_USER, UNFRIEND: // things that affect multiple users
+			case ADD_FRIEND, BLOCK_USER, UNFRIEND, UPDATE_SERVER_PIC, DELETE_SERVER: // things that affect multiple users directly
 				wsClients.Range(func(key, value interface{}) bool {
 					wsClient, ok := value.(*WsClient)
 					if !ok {

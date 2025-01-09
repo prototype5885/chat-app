@@ -28,28 +28,6 @@ func CreateServersTable() {
 	}
 }
 
-// func GetServerList(userID uint64) *[]Server {
-// 	const query = "SELECT s.* FROM servers s JOIN server_members m ON s.server_id = m.server_id WHERE m.user_id = ?"
-// 	log.Query(query, userID)
-
-// 	rows, err := Conn.Query(query, userID)
-// 	DatabaseErrorCheck(err)
-// 	var servers []Server
-// 	for rows.Next() {
-// 		var server Server
-// 		err := rows.Scan(&server.ServerID, &server.UserID, &server.Name, &server.Picture)
-// 		DatabaseErrorCheck(err)
-// 		servers = append(servers, server)
-// 	}
-
-// 	if len(servers) == 0 {
-// 		log.Trace("User ID [%d] is not in any servers", userID)
-// 		return &servers
-// 	}
-
-// 	return &servers
-// }
-
 func GetServerOwner(serverID uint64) uint64 {
 	const query = "SELECT user_id FROM servers WHERE server_id = ?"
 	log.Query(query, serverID)
@@ -94,4 +72,23 @@ func AddNewServer(userID uint64, name string, picture string) uint64 {
 	transactionErrorCheck(err)
 
 	return serverID
+}
+
+func ChangeServerPic(userID uint64, serverID uint64, fileName string) bool {
+	const query string = "UPDATE servers SET picture = ? WHERE user_id = ? AND server_id = ?"
+	log.Query(query, fileName, userID, serverID)
+
+	result, err := Conn.Exec(query, fileName, userID, serverID)
+	DatabaseErrorCheck(err)
+
+	rowsAffected, err := result.RowsAffected()
+	DatabaseErrorCheck(err)
+
+	if rowsAffected == 1 {
+		log.Debug("Updated picture of server ID [%d] in database to [%s]", serverID, fileName)
+		return true
+	} else {
+		log.Debug("Couldn't change picture of server ID [%d] in database to [%s]", serverID, fileName)
+		return false
+	}
 }
