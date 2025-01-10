@@ -24,6 +24,7 @@ const (
 	UPDATE_SERVER_PIC  byte = 22
 	DELETE_SERVER      byte = 23
 	SERVER_INVITE_LINK byte = 24
+	UPDATE_SERVER_DATA byte = 25
 
 	ADD_CHANNEL    byte = 31
 	CHANNEL_LIST   byte = 32
@@ -195,7 +196,7 @@ func (c *WsClient) readMessages(wg *sync.WaitGroup) {
 		switch packetType {
 		case ADD_CHAT_MESSAGE: // user sent a chat message on x channel
 			log.Trace("User ID [%d] sent a chat message", c.UserID)
-			broadcastData, failData := c.onChatMessageRequest(packetJson)
+			broadcastData, failData := c.onChatMessageRequest(packetJson, packetType)
 			if failData != nil {
 				c.WriteChan <- failData
 			} else {
@@ -231,11 +232,14 @@ func (c *WsClient) readMessages(wg *sync.WaitGroup) {
 			broadcastChan <- c.onServerDeleteRequest(packetJson)
 
 		case SERVER_INVITE_LINK: // user requested an invite link for a server
-			c.WriteChan <- c.onServerInviteRequest(packetJson)
+			c.WriteChan <- c.onServerInviteRequest(packetJson, packetType)
+
+		case UPDATE_SERVER_DATA: // user is requesting to update server data of their server
+			c.onServerDataUpdateRequest(packetJson, packetType)
 
 		case ADD_CHANNEL: // user added a channel to their server
 			log.Trace("User ID [%d] wants to add a channel", c.UserID)
-			broadcastData, failData := c.onAddChannelRequest(packetJson)
+			broadcastData, failData := c.onAddChannelRequest(packetJson, packetType)
 			if failData != nil {
 				c.WriteChan <- failData
 			} else {
@@ -282,7 +286,7 @@ func (c *WsClient) readMessages(wg *sync.WaitGroup) {
 			c.WriteChan <- macros.PreparePacket(IMAGE_HOST_ADDRESS, imageHostJson)
 		case UPDATE_USER_DATA: // user wants to update their account data
 			log.Trace("User ID [%d] is requesting to update their account data", c.UserID)
-			c.onUpdateUserDataRequest(packetJson)
+			c.onUpdateUserDataRequest(packetJson, packetType)
 
 		default: // if unknown
 			log.Hack("User ID [%d] sent invalid packet type: [%d]", c.UserID, packetType)
@@ -401,7 +405,7 @@ func broadCastChannel() {
 					}
 					return true
 				})
-			case ADD_FRIEND, BLOCK_USER, UNFRIEND, UPDATE_SERVER_PIC, DELETE_SERVER: // things that affect multiple users directly
+			case ADD_FRIEND, BLOCK_USER, UNFRIEND, UPDATE_SERVER_PIC, DELETE_SERVER, UPDATE_SERVER_DATA: // things that affect multiple users directly
 				wsClients.Range(func(key, value interface{}) bool {
 					wsClient, ok := value.(*WsClient)
 					if !ok {

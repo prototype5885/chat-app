@@ -69,6 +69,7 @@ func CreateTables() {
 	CreateDmTable()
 	CreateDmMembersTable()
 	CreateServerInvitesTable()
+	CreateAttachmentsTable()
 }
 
 func DatabaseErrorCheck(err error) {
@@ -94,11 +95,11 @@ func Insert(structs any) error {
 		log.Query(insertChannelQuery, s.ChannelID, s.ServerID, s.Name)
 		_, err = Conn.Exec(insertChannelQuery, s.ChannelID, s.ServerID, s.Name)
 	case Message:
-		log.Query(insertChatMessageQuery, s.MessageID, s.ChannelID, s.UserID, s.Message, s.Attachments)
-		_, err = Conn.Exec(insertChatMessageQuery, s.MessageID, s.ChannelID, s.UserID, s.Message, s.Attachments)
+		log.Query(insertChatMessageQuery, s.MessageID, s.ChannelID, s.UserID, s.Message, s.HasAttachments)
+		_, err = Conn.Exec(insertChatMessageQuery, s.MessageID, s.ChannelID, s.UserID, s.Message, s.HasAttachments)
 	case Attachment:
-		log.Query(insertAttachmentQuery, s.FileName, s.FileExtension, s.MessageID)
-		_, err = Conn.Exec(insertAttachmentQuery, s.FileName, s.FileExtension, s.MessageID)
+		log.Query(insertAttachmentQuery, s.Hash, s.MessageID, s.Name)
+		_, err = Conn.Exec(insertAttachmentQuery, s.Hash, s.MessageID, s.Name)
 	case Server:
 		log.Query(insertServerQuery, s.ServerID, s.UserID, s.Name, s.Picture)
 		_, err = Conn.Exec(insertServerQuery, s.ServerID, s.UserID, s.Name, s.Picture)
@@ -115,13 +116,14 @@ func Insert(structs any) error {
 		log.Query(insertServerInviteQuery, s.InviteID, s.ServerID, s.SingleUse, s.Expiration)
 		_, err = Conn.Exec(insertServerInviteQuery, s.InviteID, s.ServerID, s.SingleUse, s.Expiration)
 	case Friendship:
-		// query := strings.Replace(insertFriendshipQuery, "@value1", strconv.FormatUint(s.FirstUserID, 10), -1)
-		// query = strings.Replace(query, "@value2", strconv.FormatUint(s.SecondUserID, 10), -1)
 		log.Query(insertFriendshipQuery, s.FirstUserID, s.SecondUserID, s.FriendsSince)
 		_, err = Conn.Exec(insertFriendshipQuery, s.FirstUserID, s.SecondUserID, s.FriendsSince)
 	case BlockUser:
 		log.Query(insertBlockListQuery, s.UserID, s.BlockedUserID)
 		_, err = Conn.Exec(insertBlockListQuery, s.UserID, s.BlockedUserID)
+	// case Avatar:
+	// 	log.Query(insertAvatarQuery, s.Hash, s.OriginalHash, s.UserID, s.ServerID)
+	// 	_, err = Conn.Exec(insertAvatarQuery, s.Hash, s.OriginalHash, s.UserID, s.ServerID)
 	default:
 		log.Fatal("Unknown struct type in database Insert: %T", s)
 	}

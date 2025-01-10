@@ -2,8 +2,10 @@ package websocket
 
 import (
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"proto-chat/modules/attachments"
 	"proto-chat/modules/clients"
 	"proto-chat/modules/database"
@@ -15,7 +17,7 @@ import (
 )
 
 // when client is requesting to add a new channel, type 31
-func (c *WsClient) onAddChannelRequest(packetJson []byte) (BroadcastData, []byte) {
+func (c *WsClient) onAddChannelRequest(packetJson []byte, packetType byte) (BroadcastData, []byte) {
 	type AddChannelRequest struct {
 		Name     string
 		ServerID uint64
@@ -24,7 +26,7 @@ func (c *WsClient) onAddChannelRequest(packetJson []byte) (BroadcastData, []byte
 	var channelRequest = AddChannelRequest{}
 
 	if err := json.Unmarshal(packetJson, &channelRequest); err != nil {
-		return BroadcastData{}, macros.ErrorDeserializing(err.Error(), ADD_CHANNEL, c.UserID)
+		return BroadcastData{}, macros.ErrorDeserializing(err.Error(), packetType, c.UserID)
 	}
 
 	var errorMessage = fmt.Sprintf("Error adding channel called [%s]", channelRequest.Name)
@@ -63,12 +65,12 @@ func (c *WsClient) onAddChannelRequest(packetJson []byte) (BroadcastData, []byte
 
 	messagesBytes, err := json.Marshal(channelResponse)
 	if err != nil {
-		macros.ErrorSerializing(err.Error(), ADD_CHANNEL, c.UserID)
+		macros.ErrorSerializing(err.Error(), packetType, c.UserID)
 	}
 
 	return BroadcastData{
-		MessageBytes:    macros.PreparePacket(ADD_CHANNEL, messagesBytes),
-		Type:            ADD_CHANNEL,
+		MessageBytes:    macros.PreparePacket(packetType, messagesBytes),
+		Type:            packetType,
 		AffectedServers: []uint64{channelRequest.ServerID},
 	}, nil
 }
@@ -100,8 +102,7 @@ func (c *WsClient) onChannelListRequest(packetJson []byte) []byte {
 	}
 }
 
-// when client sent a chat message, type 1
-func (c *WsClient) onChatMessageRequest(packetJson []byte) (BroadcastData, []byte) {
+func (c *WsClient) onChatMessageRequest(packetJson []byte, packetType byte) (BroadcastData, []byte) {
 	type ClientChatMsg struct {
 		ChannelID uint64
 		Message   string
@@ -111,7 +112,7 @@ func (c *WsClient) onChatMessageRequest(packetJson []byte) (BroadcastData, []byt
 	var req ClientChatMsg
 
 	if err := json.Unmarshal(packetJson, &req); err != nil {
-		return BroadcastData{}, macros.ErrorDeserializing(err.Error(), ADD_CHAT_MESSAGE, c.UserID)
+		return BroadcastData{}, macros.ErrorDeserializing(err.Error(), packetType, c.UserID)
 	}
 
 	var rejectMessage = fmt.Sprintf("Denied sending chat message to channel ID [%d]", req.ChannelID)
@@ -131,16 +132,39 @@ func (c *WsClient) onChatMessageRequest(packetJson []byte) (BroadcastData, []byt
 		return BroadcastData{}, macros.RespondFailureReason("%s", rejectMessage)
 	}
 
-	var fileNames []string
+	var uploadedAttachments []attachments.UploadedAttachment
 	if len(attachmentToken) > 0 {
-		fileNames = *attachments.GetWaitingAttachment([64]byte(attachmentToken))
+		uploadedAttachments = attachments.GetWaitingAttachment([64]byte(attachmentToken))
 	}
 
 	var messageID = snowflake.Generate()
 
-	success := database.AddChatMessage(messageID, req.ChannelID, c.UserID, req.Message, fileNames)
-	if !success {
-		return BroadcastData{}, macros.RespondFailureReason("%s", rejectMessage)
+	hasAttachments := false
+	if req.AttTok != "" {
+		hasAttachments = true
+	}
+
+	err = database.Insert(database.Message{
+		MessageID:      messageID,
+		ChannelID:      req.ChannelID,
+		UserID:         c.UserID,
+		Message:        req.Message,
+		HasAttachments: hasAttachments,
+	})
+	if err != nil {
+		log.FatalError(err.Error(), "Fatal error inserting message ID [%d] into database of user ID [%d]", messageID, c.UserID)
+	}
+
+	for i := 0; i < len(uploadedAttachments); i++ {
+		attachment := database.Attachment{
+			Hash:      uploadedAttachments[i].Hash[:],
+			MessageID: messageID,
+			Name:      uploadedAttachments[i].Name,
+		}
+		err := database.Insert(attachment)
+		if err != nil {
+			log.FatalError(err.Error(), "Fatal error inserting attachment of message ID [%d] into database of user ID [%d]", messageID, c.UserID)
+		}
 	}
 
 	type ChatMessageResponse struct {
@@ -150,20 +174,27 @@ func (c *WsClient) onChatMessageRequest(packetJson []byte) (BroadcastData, []byt
 		Att    []string
 	}
 
+	var attachmentNames []string
+	for i := 0; i < len(uploadedAttachments); i++ {
+		hashString := hex.EncodeToString(uploadedAttachments[i].Hash[:])
+		extension := filepath.Ext(uploadedAttachments[i].Name)
+		attachmentNames = append(attachmentNames, hashString+extension)
+	}
+
 	var serverChatMsg = ChatMessageResponse{
 		MsgID:  messageID,
 		UserID: c.UserID,
 		Msg:    req.Message,
-		Att:    fileNames,
+		Att:    attachmentNames,
 	}
 	jsonBytes, err := json.Marshal(serverChatMsg)
 	if err != nil {
-		macros.ErrorSerializing(err.Error(), ADD_CHAT_MESSAGE, c.UserID)
+		macros.ErrorSerializing(err.Error(), packetType, c.UserID)
 	}
 
 	return BroadcastData{
-		MessageBytes:    macros.PreparePacket(ADD_CHAT_MESSAGE, jsonBytes),
-		Type:            ADD_CHAT_MESSAGE,
+		MessageBytes:    macros.PreparePacket(packetType, jsonBytes),
+		Type:            packetType,
 		AffectedChannel: req.ChannelID,
 	}, nil
 }
@@ -577,7 +608,7 @@ func (c *WsClient) onServerDeleteRequest(jsonBytes []byte) BroadcastData {
 	}
 }
 
-func (c *WsClient) onServerInviteRequest(packetJson []byte) []byte {
+func (c *WsClient) onServerInviteRequest(packetJson []byte, packetType byte) []byte {
 	type ServerInviteRequest struct {
 		ServerID   uint64
 		SingleUse  bool
@@ -587,7 +618,7 @@ func (c *WsClient) onServerInviteRequest(packetJson []byte) []byte {
 	var req = ServerInviteRequest{}
 
 	if err := json.Unmarshal(packetJson, &req); err != nil {
-		return macros.ErrorDeserializing(err.Error(), SERVER_INVITE_LINK, c.UserID)
+		return macros.ErrorDeserializing(err.Error(), packetType, c.UserID)
 	}
 
 	log.Trace("User ID [%d] is requesting to generate an invite link for server ID [%d]", c.UserID, req.ServerID)
@@ -608,9 +639,48 @@ func (c *WsClient) onServerInviteRequest(packetJson []byte) []byte {
 
 	messagesBytes, err := json.Marshal(strconv.FormatUint(inviteID, 10))
 	if err != nil {
-		macros.ErrorSerializing(err.Error(), SERVER_INVITE_LINK, c.UserID)
+		macros.ErrorSerializing(err.Error(), packetType, c.UserID)
 	}
-	return macros.PreparePacket(SERVER_INVITE_LINK, messagesBytes)
+	return macros.PreparePacket(packetType, messagesBytes)
+}
+
+func (c *WsClient) onServerDataUpdateRequest(packetJson []byte, packetType byte) {
+	type UpdateServerDataRequest struct {
+		ServerID uint64
+		Name     string
+		NewSN    bool
+	}
+
+	var req UpdateServerDataRequest
+
+	err := json.Unmarshal(packetJson, &req)
+	if err != nil {
+		c.WriteChan <- macros.ErrorDeserializing(err.Error(), packetType, c.UserID)
+	}
+
+	// update server name
+	if req.NewSN {
+		success := database.ChangeServerName(c.UserID, req.ServerID, req.Name)
+		if !success {
+			log.Hack("Couldnt' change name of server ID [%d] to [%s] requested by user ID [%d], possibly because they are not the owner", req.ServerID, req.Name, c.UserID)
+			c.WriteChan <- macros.RespondFailureReason("Failed changing name of server ID [%d]", req.ServerID)
+			return
+		}
+
+		members := *database.GetServerMembersList(req.ServerID)
+		onlineMembers := clients.FilterOnlineMembers(members)
+
+		jsonBytes, err := json.Marshal(req)
+		if err != nil {
+			macros.ErrorSerializing(err.Error(), packetType, c.UserID)
+		}
+
+		broadcastChan <- BroadcastData{
+			MessageBytes:   macros.PreparePacket(packetType, jsonBytes),
+			Type:           packetType,
+			AffectedUserID: onlineMembers,
+		}
+	}
 }
 
 func (c *WsClient) onInitialDataRequest() {
@@ -627,7 +697,7 @@ func (c *WsClient) onInitialDataRequest() {
 	c.WriteChan <- macros.PreparePacket(INITIAL_USER_DATA, jsonUserID)
 }
 
-func (c *WsClient) onUpdateUserDataRequest(packetJson []byte) {
+func (c *WsClient) onUpdateUserDataRequest(packetJson []byte, packetType byte) {
 	type UpdateUserDataRequest struct {
 		DisplayName string
 		Pronouns    string
@@ -641,7 +711,7 @@ func (c *WsClient) onUpdateUserDataRequest(packetJson []byte) {
 
 	err := json.Unmarshal(packetJson, &req)
 	if err != nil {
-		c.WriteChan <- macros.ErrorDeserializing(err.Error(), UPDATE_USER_DATA, c.UserID)
+		c.WriteChan <- macros.ErrorDeserializing(err.Error(), packetType, c.UserID)
 	}
 
 	response := UpdateUserDataRequest{
@@ -670,7 +740,7 @@ func (c *WsClient) onUpdateUserDataRequest(packetJson []byte) {
 
 			jsonBytes, err := json.Marshal(newDisplayName)
 			if err != nil {
-				macros.ErrorSerializing(err.Error(), UPDATE_USER_DATA, c.UserID)
+				macros.ErrorSerializing(err.Error(), packetType, c.UserID)
 			}
 
 			// get what servers are the user part of, so message will broadcast to members of these servers
@@ -707,12 +777,12 @@ func (c *WsClient) onUpdateUserDataRequest(packetJson []byte) {
 	if req.NewDN || req.NewP || req.NewST {
 		jsonBytes, err := json.Marshal(response)
 		if err != nil {
-			macros.ErrorSerializing(err.Error(), UPDATE_USER_DATA, c.UserID)
+			macros.ErrorSerializing(err.Error(), packetType, c.UserID)
 		}
 
 		broadcastChan <- BroadcastData{
-			MessageBytes:   macros.PreparePacket(UPDATE_USER_DATA, jsonBytes),
-			Type:           UPDATE_USER_DATA,
+			MessageBytes:   macros.PreparePacket(packetType, jsonBytes),
+			Type:           packetType,
 			AffectedUserID: []uint64{c.UserID},
 		}
 	}

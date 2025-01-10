@@ -92,3 +92,22 @@ func ChangeServerPic(userID uint64, serverID uint64, fileName string) bool {
 		return false
 	}
 }
+
+func ChangeServerName(userID uint64, serverID uint64, name string) bool {
+	const query string = "UPDATE servers SET name = ? WHERE user_id = ? AND server_id = ?"
+	log.Query(query, name, userID, serverID)
+
+	result, err := Conn.Exec(query, name, userID, serverID)
+	DatabaseErrorCheck(err)
+
+	rowsAffected, err := result.RowsAffected()
+	DatabaseErrorCheck(err)
+
+	if rowsAffected == 1 {
+		log.Debug("Updated name of server ID [%d] in database to [%s]", serverID, name)
+		return true
+	} else {
+		log.Debug("Couldn't change name of server ID [%d] in database to [%s]", serverID, name)
+		return false
+	}
+}

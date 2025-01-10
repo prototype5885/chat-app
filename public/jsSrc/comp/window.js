@@ -252,24 +252,51 @@ class Window {
     }
 }
 
-function pictureUploader(settings, pictureType, serverID) {
+
+async function pictureUploader(settings, pictureType, serverID) {
+    settings.innerHTML += `  
+    <div>
+        <label>Maximum: 1,5 MB</label>
+        <br>
+        <input type="file" accept=".jpg,.png,.gif" name="image" class="pic-uploader" accept="image/*" style="display: none">
+        <button class="select-pic"></button>
+        <br>
+        <button class="button send-pic-button noHover" disabled>Apply Picture</button>
+        <br>
+        <label class="pic-response-label"></label>
+    </div>`
+
+    let picture
+    if (pictureType === "server-pic") {
+        picture = window.getComputedStyle(document.getElementById(serverID)).backgroundImage
+    } else if (pictureType === "profile-pic") {
+        picture = `url(${ownProfilePic})`
+    } else {
+        console.error("Unknown picture type provided for picture loader")
+        return
+    }
+    settings.querySelector(".select-pic").style.backgroundImage = picture
+
+
+
     const sendButon = settings.querySelector(".send-pic-button")
     const responseLabel = settings.querySelector(".pic-response-label")
     // clicked on the pic
     settings.querySelector(".select-pic").addEventListener("click", async (event) => {
         settings.querySelector(".pic-uploader").click()
-        
+
         responseLabel.style.color = ""
         responseLabel.textContent = ""
     })
 
+    let previousPicture
+
     // added a pic
     const picUploader = settings.querySelector(".pic-uploader")
     picUploader.addEventListener("change", async (event) => {
-        const picPreview = settings.querySelector(".select-pic")
         if (picUploader.files.length === 0) {
             console.log("No picture has been selected")
-            picPreview.style.backgroundImage = `url(${ownProfilePic})`
+            // picPreview.style.backgroundImage = `url(${ownProfilePic})`
         } else {
             setButtonActive(sendButon, true)
             console.log("Picture selected")
@@ -277,6 +304,8 @@ function pictureUploader(settings, pictureType, serverID) {
             reader.readAsDataURL(picUploader.files[0])
 
             reader.onload = function (e) {
+                const picPreview = settings.querySelector(".select-pic")
+                previousPicture = picPreview.style.backgroundImage
                 picPreview.style.backgroundImage = `url(${e.target.result})`
             }
         }
@@ -298,25 +327,36 @@ function pictureUploader(settings, pictureType, serverID) {
         if (pictureType === "server-pic") {
             formData.append("serverID", serverID)
         }
-        
 
-        const response = await fetch(`/upload-${pictureType}`, {
-            method: "POST",
-            body: formData
-        })
+        // Initialize a new XMLHttpRequest object
+        const uploadRequest = new XMLHttpRequest()
 
-        const respText = await response.text()
-
-        if (response.ok) {
-            const successText = "Picture was uploaded successfully"
-            console.log(successText)
-            responseLabel.style.color = "green"
-            responseLabel.textContent = successText
-        } else {
-            console.error(respText)
-            responseLabel.style.color = "red"
-            responseLabel.textContent = respText
+        uploadRequest.upload.onprogress = function (e) {
+            if (e.lengthComputable) {
+                var percent = (e.loaded / e.total) * 100
+                responseLabel.textContent = Math.round(percent) + " %"
+                console.log(responseLabel.textContent)
+            }
         }
+
+        uploadRequest.onload = function () {
+            if (uploadRequest.status === 200) {
+                const successText = "Picture was uploaded successfully"
+                console.log(successText)
+                responseLabel.style.color = "green"
+                responseLabel.textContent = successText
+            } else {
+                console.error(uploadRequest.responseText)
+                responseLabel.style.color = "red"
+                responseLabel.textContent = uploadRequest.responseText
+                settings.querySelector(".select-pic").style.backgroundImage = previousPicture
+                setButtonActive(sendButon, false)
+            }
+        }
+
+        // Open the request and send the FormData
+        uploadRequest.open("POST", `/upload-${pictureType}`, true)
+        uploadRequest.send(formData)
     })
 }
 
@@ -383,41 +423,37 @@ function createSettingsLeftSide(windowMain, type, value) {
                                 <input class="change-status" placeholder="Was passiert?" value="${ownStatusText}">
                                 <br>
                                 <button class="button update-account-data">Apply</button>
-                            </div>
-                            <div>
-                                <input type="file" name="image" class="pic-uploader" accept="image/*" style="display: none">
-                                <button class="select-pic" style="background-image: url(${ownProfilePic})"></button>
-                                <br>
-                                <button class="button send-pic-button noHover" disabled>Apply Picture</button>
-                                <br>
-                                <label class="pic-response-label"></label>
                             </div>`
 
+                        pictureUploader(profileSettings, "profile-pic", "")
+
                         // applying username, pronouns, etc
-                        profileSettings.querySelector(".update-account-data").addEventListener('click', function () {
+                        profileSettings.querySelector(".update-account-data").addEventListener("click", function () {
                             const newDisplayName = profileSettings.querySelector(".change-display-name").value
-                            let displayNameChanged = true
-                            if (newDisplayName === ownDisplayName) {
-                                displayNameChanged = false
+                            let displayNameChanged = false
+                            if (newDisplayName !== ownDisplayName) {
+                                displayNameChanged = true
                             }
 
                             const newPronouns = profileSettings.querySelector(".change-pronoun").value
-                            let pronounsChanged = true
-                            if (newPronouns === ownPronouns) {
-                                pronounsChanged = false
+                            let pronounsChanged = false
+                            if (newPronouns !== ownPronouns) {
+                                pronounsChanged = true
                             }
 
                             const newStatusText = profileSettings.querySelector(".change-status").value
-                            let statusTextChanged = true
+                            let statusTextChanged = false
 
-                            if (newStatusText === ownStatusText) {
-                                statusTextChanged = false
+                            if (newStatusText !== ownStatusText) {
+                                statusTextChanged = true
                             }
 
-                            if (newDisplayName === ownDisplayName && newPronouns === ownPronouns && newStatusText === ownStatusText) {
+                            if (!displayNameChanged && !pronounsChanged && !statusTextChanged) {
                                 console.warn("No user settings was changed")
                                 return
                             }
+
+                            console.log("Sending updated user settings to server")
 
                             const updatedUserData = {
                                 DisplayName: newDisplayName,
@@ -430,8 +466,6 @@ function createSettingsLeftSide(windowMain, type, value) {
 
                             requestUpdateUserData(updatedUserData)
                         })
-
-                        pictureUploader(profileSettings, "profile-pic", "")
                         break
                     case "Account":
                         const accountSettings = document.createElement("div")
@@ -457,54 +491,38 @@ function createSettingsLeftSide(windowMain, type, value) {
                         serverSettings.className = "server-settings"
                         mainRight.appendChild(serverSettings)
 
-
-  
-
                         serverSettings.innerHTML = `
                             <div>
                                 <label class="input-label">Server name:</label>
-                                <input class="change-server-name" maxlength="32" value="${value}">
+                                <input class="change-server-name" maxlength="32" value="${getServerName(value)}">
                                 <br>
                                 <button class="button update-server-data">Apply</button>
-                            </div>
-                            <div>
-                                <input type="file" name="image" class="pic-uploader" accept="image/*" style="display: none">
-                                <button class="select-pic"></button>
-                                <br>
-                                <button class="button send-pic-button noHover" disabled>Apply Picture</button>
-                                <br>
-                                <label class="pic-response-label"></label>
                             </div>`
 
-                        const serverPic = window.getComputedStyle(document.getElementById(value)).backgroundImage
-                        serverSettings.querySelector(".select-pic").style.backgroundImage = serverPic
+                        console.log(`Changing picture of server ID [${value}]`)
+                        pictureUploader(serverSettings, "server-pic", value)
 
-                         // applying server name
+                        // updating server data
                         serverSettings.querySelector(".update-server-data").addEventListener('click', function () {
-                            const newServerName = profileSettings.querySelector(".change-server-name").value
+                            const newServerName = serverSettings.querySelector(".change-server-name").value
                             let serverNameChanged = false
                             if (newServerName !== this.id) {
                                 serverNameChanged = true
                             }
 
-
-
-                            if (newServerName ===  this.id) {
+                            if (!serverNameChanged) {
                                 console.warn("No server settings was changed")
                                 return
                             }
 
                             const updatedServerData = {
-                                ServerID: serverID,
-                                Servername: newServerName,
+                                ServerID: value,
+                                Name: newServerName,
                                 NewSN: serverNameChanged,
                             }
 
                             requestUpdateServerData(updatedServerData)
                         })
-
-                        console.log(`Changing picture of server ID [${value}]`)
-                        pictureUploader(serverSettings, "server-pic", value)
                         break
                 }
             })
@@ -526,8 +544,8 @@ function createSettingsLeftSide(windowMain, type, value) {
             leftSideContent.push({ text: "3" })
             break
         case "server-settings":
-            leftSideContent.push({ text: "Server"})
-            leftSideContent.push({ text: "Extra"})
+            leftSideContent.push({ text: "Server" })
+            leftSideContent.push({ text: "Extra" })
             break
     }
     addElementsLeftSide(leftSideContent)

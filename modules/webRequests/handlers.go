@@ -59,7 +59,6 @@ func loginRegisterHandler(w http.ResponseWriter, r *http.Request) {
 
 // on /chat GET request
 func chatHandler(w http.ResponseWriter, r *http.Request) {
-
 	// check if user requesting login/registration already has a token
 	userID := token.CheckIfTokenIsValid(w, r)
 	if userID == 0 { // if user tries to use the chat but has no token or expired
@@ -302,26 +301,28 @@ func uploadAvatarHandler(w http.ResponseWriter, r *http.Request) {
 
 	userID := token.CheckIfTokenIsValid(w, r)
 	if userID == 0 {
-		respondText(w, "Who are you?")
 		log.Hack("Someone is trying to upload a [%s] without token", picType)
+		http.Error(w, "Who are you?", http.StatusUnauthorized)
 		return
 	}
 
-	// TODO server ID
 	log.Trace("User ID [%d] wants to change [%s]", userID, picType)
 
-	err := r.ParseMultipartForm(100 << 10)
-	if err != nil {
-		log.WarnError(err.Error(), "Received [%s] from user ID [%d] is too big in size", picType, userID)
-		http.Error(w, "Uploaded picture is too big", http.StatusBadRequest)
+	// limit size
+	const maxSizeMb float32 = 1.5
+	const maxSize int64 = int64(1024 * 1024 * maxSizeMb)
+	if r.ContentLength > maxSize {
+		log.Warn("User ID [%d] tries to upload [%s] larger than [%f] MB", userID, picType, maxSizeMb)
+		http.Error(w, fmt.Sprintf("Uploaded picture is larger than allowed %f MB", maxSizeMb), http.StatusBadRequest)
 		return
 	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxSize)
 
 	// parse formfile
 	picFormFile, _, err := r.FormFile(picType)
 	if err != nil {
 		log.WarnError(err.Error(), "Error parsing picture formfile sent by user ID [%d]", userID)
-		http.Error(w, "error", http.StatusInternalServerError)
+		http.Error(w, "", http.StatusBadRequest)
 		return
 	}
 	defer picFormFile.Close()
@@ -330,20 +331,67 @@ func uploadAvatarHandler(w http.ResponseWriter, r *http.Request) {
 	imgBytes, err := io.ReadAll(picFormFile)
 	if err != nil {
 		log.WarnError(err.Error(), "Error reading picture formfile of [%s] from user ID [%d]", picType, userID)
-		http.Error(w, "error", http.StatusInternalServerError)
+		http.Error(w, "", http.StatusBadRequest)
 		return
 	}
 
-	// check if received avatar pic is in correct format
-	var issue string
-	imgBytes, issue = pictures.CheckAvatarPic(imgBytes, userID)
-	if issue != "" {
-		http.Error(w, issue, http.StatusBadRequest)
+	var extension string
+
+	mimeType := http.DetectContentType(imgBytes)
+	switch mimeType {
+	case "image/jpeg", "image/jpg", "image/png":
+		extension = ".jpg"
+	case "image/gif":
+		extension = ".gif"
+	default:
+		log.Hack("User ID [%d] tried to upload unsupported filetype as [%s]", userID, picType)
+		http.Error(w, "Unsupported filetype", http.StatusBadRequest)
 		return
+	}
+
+	// check if received avatar pic is in correct format and compress
+	if extension == ".jpg" {
+		issue := pictures.CheckAvatarPic(&imgBytes, userID)
+		if issue != "" {
+			http.Error(w, issue, http.StatusBadRequest)
+			return
+		}
+	} else if extension == ".gif" {
+		// gifData, _ := gif.DecodeAll(bytes.NewReader(imgBytes))
+
+		// const dimension = 128
+		// var resizedImages []*image.Paletted
+		// var delays []int
+
+		// originalPalette := gifData.Image[0].Palette
+
+		// for _, img := range gifData.Image {
+		// 	// Create a new image with the new size
+		// 	newImg := image.NewRGBA(image.Rect(0, 0, dimension, dimension))
+
+		// 	// Resize the current frame (img) to 256x256 using the nearest neighbor method
+		// 	draw.NearestNeighbor.Scale(newImg, newImg.Rect, img, img.Bounds(), draw.Over, nil)
+
+		// 	// Convert the resized RGBA image back to a paletted image using the original palette
+		// 	bounds := img.Bounds()
+		// 	palettedImg := image.NewPaletted(bounds, originalPalette)
+		// 	draw.Draw(palettedImg, bounds, img, image.Point{}, draw.Over)
+
+		// 	// Append the resized image and delay to the result arrays
+		// 	resizedImages = append(resizedImages, palettedImg)
+		// 	delays = append(delays, gifData.Delay[0])
+		// }
+
+		// var buf bytes.Buffer
+		// _ = gif.EncodeAll(&buf, &gif.GIF{
+		// 	Image: resizedImages,
+		// 	Delay: delays,
+		// })
+		// imgBytes = buf.Bytes()
 	}
 
 	hash := sha256.Sum256(imgBytes)
-	fileName := hex.EncodeToString(hash[:]) + ".jpg"
+	fileName := hex.EncodeToString(hash[:]) + extension
 	var pfpPath = "./public/content/avatars/" + fileName
 
 	// check if avatar pic file exists already, otherwise save as new
@@ -353,12 +401,12 @@ func uploadAvatarHandler(w http.ResponseWriter, r *http.Request) {
 		err = os.WriteFile(pfpPath, imgBytes, 0644)
 		if err != nil {
 			log.FatalError(err.Error(), "Error writing bytes to [%s] file from user ID [%d]", picType, userID)
-			http.Error(w, "error", http.StatusInternalServerError)
+			http.Error(w, "", http.StatusInternalServerError)
 			return
 		}
 	} else if err != nil {
 		log.FatalError(err.Error(), "Error creating file for [%s] from user ID [%d]", picType, userID)
-		http.Error(w, "error", http.StatusInternalServerError)
+		http.Error(w, "", http.StatusInternalServerError)
 		return
 	} else {
 		log.Trace("[%s] [%s] of same hash already exists, using that one...", picType, fileName)
@@ -376,13 +424,14 @@ func uploadAvatarHandler(w http.ResponseWriter, r *http.Request) {
 		serverID, err := strconv.ParseUint(r.FormValue("serverID"), 10, 64)
 		if err != nil {
 			log.WarnError(err.Error(), "Error parsing serverID as uint64 while changing picture of server of user ID [%d]", userID)
-			http.Error(w, "error", http.StatusInternalServerError)
+			http.Error(w, "", http.StatusBadRequest)
 			return
 		}
 		log.Trace("User ID [%d] wants to change picture of server ID [%d]", userID, serverID)
 		success := database.ChangeServerPic(userID, serverID, fileName)
 		if !success {
 			log.Hack("Failed updating picture of server ID [%d] requested by user ID [%d]", serverID, userID)
+			http.Error(w, "Failed updating picture of server", http.StatusForbidden)
 			return
 		}
 
@@ -391,13 +440,21 @@ func uploadAvatarHandler(w http.ResponseWriter, r *http.Request) {
 
 }
 
+func checkAttachmentHandler(w http.ResponseWriter, r *http.Request) {
+	userID := token.CheckIfTokenIsValid(w, r)
+	if userID == 0 {
+		http.Error(w, "", http.StatusUnauthorized)
+		log.Hack("Someone is trying to check if an attachment file exists without token")
+		return
+	}
+
+	log.Trace("User ID [%d] is checking if an attachment file exists", userID)
+}
+
 func uploadAttachmentHandler(w http.ResponseWriter, r *http.Request) {
 	userID := token.CheckIfTokenIsValid(w, r)
 	if userID == 0 {
-		_, err := fmt.Fprintf(w, "Who are you?")
-		if err != nil {
-			log.Error("%s", err.Error())
-		}
+		http.Error(w, "", http.StatusUnauthorized)
 		log.Hack("Someone is trying to upload an attachment without token")
 		return
 	}
@@ -406,11 +463,12 @@ func uploadAttachmentHandler(w http.ResponseWriter, r *http.Request) {
 
 	reader, err := r.MultipartReader()
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.WarnError(err.Error(), "Error parsing attachment from form file sent by user ID [%d]", userID)
+		http.Error(w, "", http.StatusBadRequest)
 		return
 	}
 
-	var fileNames []string
+	var awaitingAttachments = []attachments.UploadedAttachment{}
 
 	for {
 		part, err := reader.NextPart()
@@ -418,89 +476,51 @@ func uploadAttachmentHandler(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			http.Error(w, "", http.StatusBadRequest)
 			return
 
 		}
-
-		const attachmentsPath string = "./public/content/attachments/"
-
-		if part.FileName() != "" {
-			extension := filepath.Ext(part.FileName())
-
-			var fileBytes *bytes.Buffer = new(bytes.Buffer)
-			var fileName string
-
-			_, err := io.Copy(fileBytes, part)
-			if err != nil {
-				log.FatalError(err.Error(), "Error reading video sent by user ID [%d]", userID)
-				continue
-			}
-
-			var hash [32]byte = sha256.Sum256(fileBytes.Bytes())
-			fileName = hex.EncodeToString(hash[:]) + extension
-
-			log.Trace("Extension sent by user ID [%d] is [%s]", userID, extension)
-			// switch extension {
-			// case ".jpg", ".png", ".webp", ".jpeg", ".bmp":
-			// var img image.Image
-			// if extension == ".webp" {
-			// 	img, err = webp.Decode(fileBytes)
-			// } else if extension == ".bmp" {
-			// 	img, err = bmp.Decode(fileBytes)
-			// } else if extension == ".jpg" || extension == ".jpeg" {
-			// 	img, err = jpeg.Decode(fileBytes)
-			// } else if extension == ".png" {
-			// 	img, err = png.Decode(fileBytes)
-			// }
-			// if err != nil {
-			// 	log.Error("%s", err.Error())
-			// 	log.Hack("Received attachment picture of extension [%s] from user ID [%d] could not be decoded", extension, userID)
-			// 	continue
-			// }
-
-			// resizedImg := imaging.Resize(img, 2048, 0, imaging.Lanczos)
-
-			// opt := jpeg.Options{Quality: 75}
-			// err = jpeg.Encode(fileBytes, resizedImg, &opt)
-			// if err != nil {
-			// 	http.Error(w, "error", http.StatusInternalServerError)
-			// 	log.FatalError(err.Error(), "Error encoding image sent by user ID [%d]", userID)
-			// 	continue
-			// }
-			// fileName = hex.EncodeToString(hash[:]) + ".jpg"
-			// fileName = hex.EncodeToString(hash[:]) + extension
-			// case ".mp4", ".webm", ".mov":
-			// fileName = hex.EncodeToString(hash[:]) + extension
-			// default:
-			// log.Hack("User ID [%d] sent attachment of unknown extension [%s]", userID, extension)
-			// continue
-			// }
-
-			fileNames = append(fileNames, fileName)
-
-			path := attachmentsPath + fileName
-
-			_, err = os.Stat(path)
-			if err == nil {
-				log.Trace("Attachment at path [%s] already exists", path)
-			} else if os.IsNotExist(err) {
-				log.Trace("Attachment at path [%s] doesn't exist, creating...", path)
-				err = os.WriteFile(path, fileBytes.Bytes(), 0644)
-				if err != nil {
-					log.FatalError(err.Error(), "Error writing to file [%s]", path)
-					return
-				}
-			} else {
-				log.FatalError(err.Error(), "Error checking file [%s]", path)
-			}
-
+		if part.FileName() == "" {
+			return
 		}
+
+		var fileBytes *bytes.Buffer = new(bytes.Buffer)
+		_, err = io.Copy(fileBytes, part)
+		if err != nil {
+			log.FatalError(err.Error(), "Error reading video sent by user ID [%d]", userID)
+			continue
+		}
+
+		awaitingAttachment := attachments.UploadedAttachment{
+			Hash: sha256.Sum256(fileBytes.Bytes()),
+			Name: part.FileName(),
+		}
+
+		hashString := hex.EncodeToString(awaitingAttachment.Hash[:])
+		extension := filepath.Ext(part.FileName())
+		path := "./public/content/attachments/" + hashString + extension
+
+		_, err = os.Stat(path)
+		if err == nil {
+			log.Trace("Attachment at path [%s] already exists", path)
+		} else if os.IsNotExist(err) {
+			log.Trace("Attachment at path [%s] doesn't exist, creating...", path)
+			err = os.WriteFile(path, fileBytes.Bytes(), 0644)
+			if err != nil {
+				log.FatalError(err.Error(), "Error writing to file [%s]", path)
+				return
+			}
+		} else {
+			log.FatalError(err.Error(), "Error checking file [%s]", path)
+		}
+
+		awaitingAttachments = append(awaitingAttachments, awaitingAttachment)
+
 	}
 
 	log.Trace("[%s] POST request response was sent", r.URL.Path)
 
-	attachmentToken := *attachments.OnAttachmentUploaded(userID, fileNames)
+	attachmentToken := attachments.OnAttachmentUploaded(userID, awaitingAttachments)
 	encoded := base64.StdEncoding.EncodeToString(attachmentToken[:])
 
 	log.Trace("Response for [%s] POST request: [%s]", r.URL.Path, encoded)

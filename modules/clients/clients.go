@@ -1,6 +1,7 @@
 package clients
 
 import (
+	"proto-chat/modules/database"
 	log "proto-chat/modules/logging"
 	"proto-chat/modules/snowflake"
 	"sync"
@@ -57,6 +58,18 @@ func CheckIfUserIsOnline(userID uint64) bool {
 	}
 
 	return online
+}
+
+func FilterOnlineMembers(members []database.ServerMember) []uint64 {
+	var onlineMembers []uint64
+
+	// only get the online members
+	for i := 0; i < len(members); i++ {
+		if CheckIfUserIsOnline(members[i].UserID) {
+			onlineMembers = append(onlineMembers, members[i].UserID)
+		}
+	}
+	return onlineMembers
 }
 
 func GetUserSessions(userID uint64) []uint64 {

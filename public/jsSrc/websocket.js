@@ -8,6 +8,7 @@ const ADD_SERVER = 21
 const UPDATE_SERVER_PIC = 22
 const DELETE_SERVER = 23
 const SERVER_INVITE_LINK = 24
+const UPDATE_SERVER_DATA = 25
 
 const ADD_CHANNEL = 31
 const CHANNEL_LIST = 32
@@ -64,7 +65,7 @@ async function websocketConnected() {
     } else {
         selectServer(getLastServer())
     }
-    
+
 }
 
 function websocketBeforeConnected() {
@@ -74,7 +75,7 @@ function websocketBeforeConnected() {
 
     receivedInitialUserData = false
     receivedImageHostAddress = false
-    
+
     removeServers()
     createPlaceHolderServers()
 }
@@ -91,7 +92,7 @@ async function connectToWebsocket() {
 
     // make the websocket work with byte arrays
     wsClient.binaryType = "arraybuffer"
-    
+
     wsClient.onopen = async function (_event) {
         console.log("Connected to WebSocket successfully.")
         wsConnected = true
@@ -139,7 +140,10 @@ async function connectToWebsocket() {
 
         console.log("Received packet:", endIndex, packetType, packetJson)
 
-        packetJson = packetJson.replace(/([\[:])?(\d{16,})([,\}\]])/g, "$1\"$2\"$3");
+        if (packetType !== REJECTION_MESSAGE) {
+            packetJson = packetJson.replace(/([\[:])?(\d{16,})([,\}\]])/g, "$1\"$2\"$3");
+        }
+
         json = JSON.parse(packetJson)
         console.log(json)
 
@@ -178,6 +182,12 @@ async function connectToWebsocket() {
                 const inviteLink = `${window.location.protocol}//${window.location.host}/invite/${json}`
                 console.log(inviteLink)
                 await navigator.clipboard.writeText(inviteLink)
+                break
+            case UPDATE_SERVER_DATA: // server sent about a server data being updated
+                console.log(`Received updated data of server ID [${json.ServerID}]`)
+                if (json.NewSN) {
+                    setServerName(json.ServerID, json.Name)
+                }
                 break
             case ADD_CHANNEL: // Server responded to the add channel request
                 console.log(`Adding new channel called [${json.Name}]`)
@@ -500,4 +510,9 @@ function requestImageHostAddress() {
 function requestUpdateUserData(updatedUserData) {
     console.log("Requesting to update account data")
     preparePacket(UPDATE_USER_DATA, updatedUserData)
+}
+
+function requestUpdateServerData(updatedServerData) {
+    console.log(`Requesting to update data of server ID [${updatedServerData.ServerID}]`)
+    preparePacket(UPDATE_SERVER_DATA, updatedServerData)
 }

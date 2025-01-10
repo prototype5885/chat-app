@@ -34,3 +34,6 @@ add check if user is blocked when adding friends
 make expired cookie token deletion more efficient, so they are deleted in 1 query
 when sending non supported attachment file, keep original filename
 check what happens when non server owner tries to update picture/name of a server they don't own
+optimize how channel list are delivered so server ID is only included once
+check if upload picture button goes back to inactive when upload failed
+test if uploader percentage works properly

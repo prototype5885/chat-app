@@ -448,11 +448,8 @@ body {
 }
 
 #user-panel-pfp {
-    min-width: 36px;
-    max-width: 36px;
-    min-height: 36px;
-    max-height: 36px;
-    border-radius: 50%;
+    width: 36px;
+    height: 36px;
     margin-right: 8px;
     background-color: var(--main-color);
 }
@@ -635,8 +632,10 @@ body {
 }
 
 .profile-pic,
-.msg-profile-pic {
+.msg-profile-pic,
+#user-panel-pfp {
     border-radius: 50%;
+    object-fit: cover;
 }
 
 .message-attachment-pictures>*,
@@ -647,7 +646,7 @@ body {
     border-radius: 6px;
 }
 
-.message-attachment-audios>*{
+.message-attachment-audios>* {
     width: 512px;
 }
 

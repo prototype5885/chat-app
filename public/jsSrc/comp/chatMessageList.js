@@ -200,7 +200,7 @@ function addChatMessage(messageID, userID, message, attachments, ghost) {
                 case "webm":
                 case "mov":
                     attachmentContainer.className = "message-attachment-videos"
-                    
+
                     attachmentContainer.innerHTML += `
                         <video controls class="attachment-video">
                             <source src="${path}">
@@ -211,6 +211,7 @@ function addChatMessage(messageID, userID, message, attachments, ghost) {
                 case "jpeg":
                 case "webp":
                 case "png":
+                case "gif":
                     attachmentContainer.className = "message-attachment-pictures"
                     attachmentContainer.innerHTML += `<img src="${path}" class="attachment-pic">`
                     msgDataDiv.appendChild(attachmentContainer)

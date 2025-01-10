@@ -65,7 +65,7 @@ function addServer(serverID, userID, serverName, picture, className) {
             button.style.backgroundColor = "#5865F2"
             span.style.height = "24px"
         }
-        createbubble(button, serverName, "right", 15)
+        createbubble(button, getServerName(serverID), "right", 15)
     }
 
     function onHoverOut() {
@@ -189,6 +189,15 @@ function deleteServer(serverID) {
 function setServerPicture(serverID, picture) {
     picture = "content/avatars/" + picture
     document.getElementById(serverID).style.backgroundImage = `url("${picture}")`
+}
+
+function setServerName(serverID, name) {
+    console.log(`Changing name of server ID [${serverID}] to [${name}]`)
+    document.getElementById(serverID).setAttribute("name", name)
+}
+
+function getServerName(serverID) {
+    return document.getElementById(serverID).getAttribute("name")
 }
 
 function serversSeparatorVisibility() {

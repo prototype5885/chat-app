@@ -19,3 +19,4 @@ public/content/avatars/
 /public/content/attachments/
 go.sum
 database.sqlite
+proto-chat.exe

@@ -133,7 +133,10 @@ func maintenance() {
 	defer ticker.Stop()
 
 	task := func() {
+		startMaintetance := time.Now().UnixMilli()
 		token.DeleteExpiredTokens()
+		finished := time.Now().UnixMilli() - startMaintetance
+		log.Info("Maintenance finished in %d ms or %d seconds", finished, finished/1000)
 	}
 
 	task()

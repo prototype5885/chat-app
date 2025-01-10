@@ -18,6 +18,7 @@ async function chatEnterPressed(event) {
 async function readChatInput() {
     let attachmentToken = null
     if (AttachmentInput.files.length !== 0) {
+        await checkAttachments()
         attachmentToken = await sendAttachment()
         console.log("http response to uploading attachment:", attachmentToken)
     }
@@ -36,6 +37,27 @@ async function readChatInput() {
 
 function uploadAttachment() {
     AttachmentInput.click()
+}
+
+async function checkAttachments() {
+    const hash = await calculateSHA256(AttachmentInput.files[0])
+
+    let hashes = []
+    for (let i = 0; i < AttachmentInput.files.length; i++) {
+        const hash = await calculateSHA256(AttachmentInput.files[0])
+        hashes.push(hash)
+    }
+
+    const checkRequest = new XMLHttpRequest()
+
+    checkRequest.onload = function () {
+        if (checkRequest.status === 200) {
+            console.log("Response to check attachment request: ", checkRequest.responseText)
+        }
+    }
+
+    checkRequest.open("POST", "/check-attachment")
+    checkRequest.send(hashes)
 }
 
 async function sendAttachment() {

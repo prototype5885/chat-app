@@ -64,10 +64,13 @@ func MainHandler(w http.ResponseWriter, r *http.Request) {
 			loginRequestHandler(w, r)
 		case "/register":
 			registerRequestHandler(w, r)
+		// case "/check-profile-pic", "/check-server-pic":
 		case "/upload-profile-pic", "/upload-server-pic":
 			uploadAvatarHandler(w, r)
 		case "/upload-attachment":
 			uploadAttachmentHandler(w, r)
+		case "/check-attachment":
+			checkAttachmentHandler(w, r)
 		}
 	}
 }

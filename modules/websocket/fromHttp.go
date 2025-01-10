@@ -56,15 +56,7 @@ func OnServerPicChanged(serverID uint64, fileName string) {
 	}
 
 	members := *database.GetServerMembersList(serverID)
-
-	var onlineMembers []uint64
-
-	// only get the online members
-	for i := 0; i < len(members); i++ {
-		if clients.CheckIfUserIsOnline(members[i].UserID) {
-			onlineMembers = append(onlineMembers, members[i].UserID)
-		}
-	}
+	onlineMembers := clients.FilterOnlineMembers(members)
 
 	broadcastChan <- BroadcastData{
 		MessageBytes:   macros.PreparePacket(UPDATE_SERVER_PIC, jsonBytes),
