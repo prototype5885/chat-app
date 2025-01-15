@@ -55,7 +55,7 @@ func OnServerPicChanged(serverID uint64, fileName string) {
 		macros.ErrorSerializing(err.Error(), UPDATE_SERVER_PIC, serverID)
 	}
 
-	members := *database.GetServerMembersList(serverID)
+	members := database.GetServerMembersList(serverID)
 	onlineMembers := clients.FilterOnlineMembers(members)
 
 	broadcastChan <- BroadcastData{

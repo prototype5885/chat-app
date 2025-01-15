@@ -11,7 +11,7 @@
     --brighter-transparent: #656565d1;
     --chat-input-color: #383a40;
     --separator-color: #3c3c3c;
-    --loading-color: #00000080;
+    --loading-color: rgba(0, 0, 0, 0.71);
     --button-color: #b5bac1;
 }
 
@@ -104,12 +104,12 @@ input::placeholder {
     align-items: center;
 }
 
-.double-input>input {
+.double-input > input {
     flex-grow: 1;
     min-width: 0;
 }
 
-.double-input>div {
+.double-input > div {
     /* separator */
     font-size: x-large;
 }
@@ -136,7 +136,7 @@ input::placeholder {
     font-size: 16px;
 }
 
-#bubble {
+.bubble {
     font-size: smaller;
     z-index: 999;
     display: block;
@@ -146,7 +146,7 @@ input::placeholder {
     overflow-wrap: break-word;
 }
 
-#bubble div {
+.bubble div {
     padding: 8px;
     padding-left: 12px;
     padding-right: 12px;

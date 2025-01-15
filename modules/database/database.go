@@ -175,7 +175,7 @@ func Delete(structo any) bool {
 	var result sql.Result
 	switch s := structo.(type) {
 	case Channel:
-	case Server:
+	case ServerDelete:
 		log.Query(deleteServerQuery, s.ServerID, s.UserID)
 		result, err = Conn.Exec(deleteServerQuery, s.ServerID, s.UserID)
 	case Token:

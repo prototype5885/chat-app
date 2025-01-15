@@ -11,8 +11,8 @@ import (
 	"github.com/pquerna/otp/totp"
 )
 
-func printReceivedRequest(url string, method string) {
-	log.Trace("Received %s %s request", url, method)
+func printReceivedRequest(r *http.Request) {
+	log.Trace("Received %s %s request from IP address %s", r.URL.Path, r.Method, r.RemoteAddr)
 }
 
 func respondText(w http.ResponseWriter, response string, v ...any) {

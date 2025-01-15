@@ -3,6 +3,7 @@
 <html>
 
 <head>
+    <link href="manifest.json" rel="manifest"/>
     <meta content="width=device-width,height=device-height,user-scalable=no,initial-scale=1.0" name="viewport">
     <title>Discord Clone</title>
     <link href="global.css" rel="stylesheet">
@@ -10,103 +11,121 @@
 </head>
 
 <body>
-    <div id="loading">
-        <div>Loading</div>
+<div id="loading">
+    <div>Loading</div>
+</div>
+<div id="picture-viewer-container" style="display: none;">
+    <img id="picture-viewer" src="">
+</div>
+<!-- <img id="imagePreview" alt="Image Preview" style="display: none; max-width: 300px; margin-top: 20px;"> -->
+<input id="attachment-input" multiple style="display: none;" type="file">
+<ol id="server-list">
+    <div class="servers-separator" id="first-servers-separator" style="display: none;"></div>
+    <div class="servers-separator" id="second-servers-separator" style="display: none;"></div>
+    <li id="add-server">
+        <button id="add-server-button">+</button>
+        <span class="server-notification"></span>
+    </li>
+</ol>
+<div id="second-column">
+    <div id="above-friends-channels">
+        <button id="server-name-button">
+            <div id="server-name"></div>
+            <div id="server-name-arrow">></div>
+        </button>
     </div>
-    <!-- <img id="imagePreview" alt="Image Preview" style="display: none; max-width: 300px; margin-top: 20px;"> -->
-    <input id="attachment-input" multiple onchange="attachmentAdded()" style="display: none;" type="file">
-    <ol id="server-list">
-        <div class="servers-separator" id="first-servers-separator" style="display: none;"></div>
-        <div class="servers-separator" id="second-servers-separator" style="display: none;"></div>
-        <li id="add-server">
-            <button id="add-server-button" onclick="requestAddServer('server')">+</button>
-            <span class="server-notification"></span>
-        </li>
-    </ol>
-    <div id="second-column">
-        <div id="above-friends-channels">
-            <button id="server-name-button">
-                <div id="server-name"></div>
-                <div id="server-name-arrow">></div>
-            </button>
-        </div>
-        <div id="friends-channels">
-            <div id="channels" style="display: none;">
-                <div id="channels-visible-or-add-new">
-                    <button id="channels-visibility-button" onclick="toggleChannelsVisibility()">
-                        <div>></div>
-                        <div>text channels</div>
-                    </button>
-                    <button id="add-channel-button" onclick="requestAddChannel()">+</button>
-                </div>
-                <div id="channel-list"></div>
-            </div>
-            <div id="friends-chat" style="display: none;">
-                <div id="friends-chat-visible-or-add-new">
-                    <button id="friends-chat-visibility-button">
-                        <div>></div>
-                        <div>direct messages</div>
-                    </button>
-                    <button id="add-friends-button">+</button>
-                </div>
-                <div id="friends-chat-list"></div>
-            </div>
-        </div>
-        <div id="user-panel">
-            <div>
-                <button id="user-panel-user-container">
-                    <img id="user-panel-pfp" src="">
-                    <div id="user-panel-name-status">
-                        <div id="user-panel-name"></div>
-                        <div id="user-panel-status-text"></div>
-                    </div>
+    <div id="friends-channels">
+        <div id="channels" style="display: none;">
+            <div id="channels-visible-or-add-new">
+                <button id="channels-visibility-button" onclick="toggleChannelsVisibility()">
+                    <div>></div>
+                    <div>text channels</div>
                 </button>
-                <div id="user-panel-buttons">
-                    <button id="toggle-microphone-button" style="display: none"></button>
-                    <button id="user-settings-button" onclick="addWindow('user-settings')">
-                        <img src="/content/static/settings.svg"></img>
+                <button id="add-channel-button">+</button>
+            </div>
+            <div id="channel-list"></div>
+        </div>
+        <div id="friends-chat" style="display: none;">
+            <div id="friends-chat-visible-or-add-new">
+                <button id="friends-chat-visibility-button">
+                    <div>></div>
+                    <div>direct messages</div>
+                </button>
+                <button id="add-friends-button">+</button>
+            </div>
+            <div id="friends-chat-list"></div>
+        </div>
+    </div>
+    <div id="user-panel">
+        <div>
+            <button id="user-panel-user-container">
+                <img id="user-panel-pfp" src="">
+                <div id="user-panel-name-status">
+                    <div id="user-panel-name"></div>
+                    <div id="user-panel-status-text"></div>
+                </div>
+            </button>
+            <div id="user-panel-buttons">
+                <button id="toggle-microphone-button" style="display: none"></button>
+                <button id="user-settings-button">
+                    <img src="/content/static/settings.svg"></img>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+<div id="main-container">
+    <div id="main-top">
+        <div id="main-top-left">
+            <label id="channel-name-top">Channel</label>
+        </div>
+        <div id="main-top-right">
+            <button id="help-button"></button>
+            <button id="hide-member-list-button" onclick="toggleMemberListView()"></button>
+        </div>
+    </div>
+    <div id="main-bottom">
+        <div id="main-center-container">
+            <div id="chat-loading-indicator">Loading</div>
+            <ul id="chat-message-list"></ul>
+            <div id="attachment-container">
+                <div id="attachment-list"></div>
+            </div>
+            <div action="" id="chat-input-form-container">
+                <div id="chat-input-form">
+                    <label id="upload-percentage"></label>
+                    <button class="chat-button" id="attachment-button">
+                        <div class="chat-button-icon" id="attachment-button-icon"></div>
+                    </button>
+                    <textarea autocomplete="off" id="chat-input" placeholder="Message ..."></textarea>
+                    <button class="chat-button" id="send-button" onclick="readChatInput()">
+                        <div class="chat-button-icon" id="send-button-icon">Send</div>
                     </button>
                 </div>
             </div>
         </div>
+        <ol id="member-list" style="display: none;">
+            <!-- <li>Members</li> -->
+        </ol>
     </div>
-    <div id="main-container">
-        <div id="main-top">
-            <div id="main-top-left">
-                <label id="channel-name-top">Channel</label>
-            </div>
-            <div id="main-top-right">
-                <button id="help-button"></button>
-                <button id="hide-member-list-button" onclick="toggleMemberListView()"></button>
-            </div>
-        </div>
-        <div id="main-bottom">
-            <div id="main-center-container">
-                <div id="chat-loading-indicator">Loading</div>
-                <ul id="chat-message-list" onscroll="scrolledOnChat()"></ul>
-                <div id="attachment-container">
-                    <div id="attachment-list"></div>
-                </div>
-                <div action="" id="chat-input-form-container">
-                    <div id="chat-input-form">
-                        <button class="chat-button" id="attachment-button" onclick="uploadAttachment()">
-                            <div class="chat-button-icon" id="attachment-button-icon"></div>
-                        </button>
-                        <textarea autocomplete="off" id="chat-input" oninput="resizeChatInput()"
-                            onkeydown="chatEnterPressed(event)" placeholder="Message ..."></textarea>
-                        <button class="chat-button" id="send-button" onclick="readChatInput()">
-                            <div class="chat-button-icon" id="send-button-icon">Send</div>
-                        </button>
-                    </div>
-                </div>
-            </div>
-            <ol id="member-list" style="display: none;">
-                <!-- <li>Members</li> -->
-            </ol>
-        </div>
-    </div>
-    <audio id="notification-sound" preload="auto" src="sounds/discord-notification.mp3"></audio>
-    <script src="script.js"></script>
+</div>
+<audio id="notification-sound" preload="auto" src="sounds/discord-notification.mp3"></audio>
+<!--<script src="script.js"></script>-->
+<script src="jsSrc/main.js"></script>
+<script src="jsSrc/localStorage.js"></script>
+<script src="jsSrc/notification.js"></script>
+<script src="jsSrc/websocket.js"></script>
+<script src="jsSrc/comp/bubble.js"></script>
+<script src="jsSrc/comp/channelList.js"></script>
+<script src="jsSrc/comp/chatInput.js"></script>
+<script src="jsSrc/comp/chatMessageList.js"></script>
+<script src="jsSrc/comp/contextMenu.js"></script>
+<script src="jsSrc/comp/directMessages.js"></script>
+<script src="jsSrc/comp/loading.js"></script>
+<script src="jsSrc/comp/memberList.js"></script>
+<script src="jsSrc/comp/serverList.js"></script>
+<script src="jsSrc/comp/userPanel.js"></script>
+<script src="jsSrc/comp/window.js"></script>
 </body>
 
 </html>

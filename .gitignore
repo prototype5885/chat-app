@@ -1,6 +1,7 @@
 .directory
 .vscode/
 .idea/
+/certs/
 protochat
 protochat.log
 *.crt

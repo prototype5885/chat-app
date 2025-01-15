@@ -1,247 +1,266 @@
-const AddChannelButton = document.getElementById("add-channel-button")
-const ServerList = document.getElementById("server-list")
-const serverSeparators = ServerList.querySelectorAll(".servers-separator")
-const ChannelList = document.getElementById("channel-list")
-const MemberList = document.getElementById("member-list")
-const ChatMessagesList = document.getElementById("chat-message-list")
-const AddServerButton = document.getElementById("add-server-button")
-const UserSettingsButton = document.getElementById("user-settings-button")
-const ToggleMicrophoneButton = document.getElementById("toggle-microphone-button")
-const ChatInput = document.getElementById("chat-input")
-const ChatInputForm = document.getElementById("chat-input-form")
-const NotificationSound = document.getElementById("notification-sound")
-const ChannelNameTop = document.getElementById("channel-name-top")
-const AboveFriendsChannels = document.getElementById("above-friends-channels")
-const ServerNameButton = document.getElementById("server-name-button")
-const ServerName = document.getElementById("server-name")
-const AttachmentInput = document.getElementById("attachment-input")
-const AttachmentContainer = document.getElementById("attachment-container")
-const AttachmentList = document.getElementById("attachment-list")
-const Channels = document.getElementById("channels")
-const FriendsChat = document.getElementById("friends-chat")
-const FriendsChatList = document.getElementById("friends-chat-list")
+class ColorsClass {
+    static mainColor = "#36393f"
+    static hoverColor = "#313338"
+    static bitDarkerColor = "#2B2D31"
+    static darkColor = "#232428"
+    static darkerColor = "#1E1F22"
+    static grayTextColor = "#949BA4"
+    static darkTransparent = "#111214d1"
+    static darkNonTransparent = "#111214"
+    static brighterTransparent = "#656565d1"
+    static loadingColor = "#00000080"
 
-let ownUserID = ""
-let ownDisplayName = ""
-let ownProfilePic = ""
-let ownPronouns = ""
-let ownStatusText = ""
-let ownFriends = []
-let ownBlocks = []
+    static textColor = "#C5C7CB"
 
-let receivedInitialUserData = false // don't continue loading until own user data is received
-let receivedImageHostAddress = false // don't continue loading until host address of image server arrived
-let memberListLoaded = false // don't add chat history until server member list is received
+    static blue = "#5865F2"
+    static green = "#00b700"
+}
 
-let currentServerID = 2000
-let currentChannelID
-let lastChannelID
-let reachedBeginningOfChannel = false
 
-// let imageHost = "http://localhost:8000/"
-let imageHost = ""
-let translationJson
-let translation
-const defaultProfilePic = "/content/static/default_profilepic.webp"
+class MainClass {
+    constructor() {
+        this.myUserID = ""
+        this.myDisplayName = ""
+        this.myProfilePic = ""
+        this.myPronouns = ""
+        this.myStatusText = ""
+        this.myFriends = []
+        this.myBlocks = []
 
-function waitUntilBoolIsTrue(checkFunction, interval = 10) {
-    return new Promise((resolve) => {
-        const intervalId = setInterval(() => {
-            if (checkFunction()) {
-                clearInterval(intervalId)
-                resolve()
+        this.receivedInitialUserData = false // don't continue loading until own user data is received
+        this.receivedImageHostAddress = false // don't continue loading until host address of image server arrived
+        this.memberListLoaded = false // don't add chat history until server member list is received
+
+        this.currentServerID = 2000
+        this.currentChannelID = 0
+        this.lastChannelID = -1
+        this.reachedBeginningOfChannel = false
+
+        // this.imageHost = "http://localhost:8000/"
+        this.imageHost = ""
+        this.translationJson
+        this.translation
+
+        // this runs after webpage was loaded
+        document.addEventListener("DOMContentLoaded", async () => {
+            await this.getTranslationJson()
+            this.setLanguage(navigator.language)
+
+
+            const contextMenu = new ContextMenuClass(this)
+            const localStorage = new LocalStorageClass(this)
+
+            const notification = new NotificationClass()
+            const chatInput = new ChatInputClass()
+
+            const userPanel = new UserPanelClass(this)
+
+            const memberList = new MemberListClass()
+            const chatMessageList = new ChatMessageListClass(this, memberList, notification, contextMenu)
+            const channelList = new ChannelListServer(this, chatMessageList, localStorage, contextMenu)
+            const serverList = new ServerListClass(this, chatMessageList, memberList, channelList, localStorage, contextMenu)
+
+
+            const websocket = new WebsocketClass(this, serverList, chatMessageList, channelList, memberList, localStorage, userPanel)
+
+            // add the direct messages button
+            serverList.addServer("2000", 0, "Direct Messages", "content/static/hs.svg", "dm")
+
+            await websocket.connectToWebsocket()
+        })
+    }
+
+    static defaultProfilePic = "/content/static/default_profilepic.webp"
+
+
+    static waitUntilBoolIsTrue(checkFunction, interval = 10) {
+        return new Promise((resolve) => {
+            const intervalId = setInterval(() => {
+                if (checkFunction()) {
+                    clearInterval(intervalId)
+                    resolve()
+                }
+            }, interval)
+        })
+    }
+
+    getAvatarFullPath(pic) {
+        if (pic === "" || pic === undefined || pic == null) {
+            return MainClass.defaultProfilePic
+        } else {
+            return this.imageHost + "/content/avatars/" + pic
+        }
+    }
+
+    static checkDisplayName(displayName) {
+        if (displayName === "" || displayName === undefined || displayName === null) {
+            return ""
+        } else {
+            return displayName
+        }
+    }
+
+
+    setOwnUserID(userID) {
+        this.myUserID = userID
+        console.log(`Own user ID has been set to [${this.myUserID}]`)
+    }
+
+    setOwnDisplayName(displayName) {
+        displayName = MainClass.checkDisplayName(displayName)
+        this.myDisplayName = displayName
+
+        if (displayName === "") {
+            UserPanelClass.setUserPanelName(this.myUserID)
+        } else {
+            UserPanelClass.setUserPanelName(displayName)
+        }
+
+        console.log(`Own display name has been set to [${this.myDisplayName}]`)
+    }
+
+    setOwnPronouns(pronouns) {
+        this.myPronouns = pronouns
+        console.log(`Own pronouns have been set to [${this.myPronouns}]`)
+    }
+
+    setOwnStatusText(statusText) {
+        this.myStatusText = statusText
+        console.log(`Own status text has been set to [${this.myStatusText}]`)
+    }
+
+    setOwnProfilePic(pic) {
+        pic = this.getAvatarFullPath(pic)
+
+        this.myProfilePic = pic
+        UserPanelClass.setUserPanelPic(pic)
+        console.log(`Own profile pic has been set to [${this.myProfilePic}]`)
+    }
+
+    setMyFriends(friends) {
+        this.myFriends = friends
+        console.log(`You have [${this.myFriends.length}] friends, they are: [${this.myFriends}]`)
+    }
+
+    removeFriend(userID) {
+        for (let i = 0; i < this.myFriends.length; i++) {
+            if (this.myFriends[i] === userID) {
+                this.myFriends.splice(i, 1)
+                return
             }
-        }, interval)
-    })
-}
-
-function getAvatarFullPath(pic) {
-    if (pic === "" || pic === undefined || pic == null) {
-        return defaultProfilePic
-    } else {
-        return imageHost + "/content/avatars/" + pic
-    }
-}
-
-function checkDisplayName(displayName) {
-    if (displayName === "" || displayName === undefined || displayName === null) {
-        return ""
-    } else {
-        return displayName
-    }
-}
-
-function setMemberDisplayName(userID, displayName) {
-    displayName = checkDisplayName(displayName)
-
-    if (displayName === "") {
-        displayName = userID
+        }
+        console.error(`Local error: could not remove user ID [${userID}] from ownFriends array`)
     }
 
-    changeDisplayNameInMemberList(userID, displayName)
-    changeDisplayNameInChatMessageList(userID, displayName)
-}
-
-function setMemberProfilePic(userID, pic) {
-    pic = getAvatarFullPath(pic)
-    changeProfilePicInMemberList(userID, pic)
-    changeProfilePicInChatMessageList(userID, pic)
-    console.log(`User ID [${userID}] changed profile pic to [${pic}]`)
-}
-
-function setOwnUserID(userID) {
-    ownUserID = userID
-    console.log(`Own user ID has been set to [${ownUserID}]`)
-}
-
-function setOwnDisplayName(displayName) {
-    displayName = checkDisplayName(displayName)
-    ownDisplayName = displayName
-
-    if (displayName === "") {
-        setUserPanelName(ownUserID)
-    } else {
-        setUserPanelName(displayName)
+    setBlockedUsers(blocks) {
+        this.myBlocks = blocks
+        console.log(`You have blocked [${this.myBlocks.length}] users, they are: [${this.myBlocks}]`)
     }
 
-    console.log(`Own display name has been set to [${ownDisplayName}]`)
-}
 
-function setOwnPronouns(pronouns) {
-    ownPronouns = pronouns
-    console.log(`Own pronouns have been set to [${ownPronouns}]`)
-}
-
-function setOwnStatusText(statusText) {
-    ownStatusText = statusText
-    console.log(`Own status text has been set to [${ownStatusText}]`)
-}
-
-function setOwnProfilePic(pic) {
-    pic = getAvatarFullPath(pic)
-
-    ownProfilePic = pic
-    setUserPanelPic(pic)
-    console.log(`Own profile pic has been set to [${ownProfilePic}]`)
-}
-
-function setOwnFriends(friends) {
-    ownFriends = friends
-    console.log(`You have [${ownFriends.length}] friends, they are: [${ownFriends}]`)
-}
-
-function removeFriend(userID) {
-    for (i = 0; i < ownFriends.length; i++) {
-        if (ownFriends[i] === userID) {
-            ownFriends.splice(i, 1)
-            return
+    static setButtonActive(button, active) {
+        if (active) {
+            button.classList.remove("noHover")
+            button.disabled = false
+        } else {
+            button.classList.add("noHover")
+            button.disabled = true
         }
     }
-    console.error(`Local error: could not remove user ID [${userID}] from ownFriends array`)
-}
 
-function setBlockedUsers(blocks) {
-    ownBlocks = blocks
-    console.log(`You have blocked [${ownBlocks.length}] users, they are: [${ownBlocks}]`)
-}
-
-function setCurrentChannel(channelID) {
-    currentChannelID = channelID
-    updateLastChannelsStorage()
-}
-
-function setButtonActive(button, active) {
-    if (active) {
-        button.classList.remove("noHover")
-        button.disabled = false
-    } else {
-        button.classList.add("noHover")
-        button.disabled = true
-    }
-}
-
-function setLanguage(language) {
-    switch (language) {
-        case "de":
-            translation = translationJson.de
-            break
-        case "hu":
-            translation = translationJson.hu
-            break
-        case "en":
-        default:
-            translation = translationJson.en
-            break
-    }
-    console.log(translation)
-}
-
-async function getTranslationJson() {
-    const jsonFileUrl = `${location.protocol}//${location.host}/translation.json`;  // Correcting the URL
-    try {
-        const response = await fetch(jsonFileUrl);
-        if (!response.ok) {
-            throw new Error("Failed getting translation json file");
+    setLanguage(language) {
+        language = language.split('-')[0];
+        console.log("Language: " + language)
+        switch (language) {
+            case "de":
+                this.translation = this.translationJson.de
+                break
+            case "hu":
+                this.translation = this.translationJson.hu
+                break
+            case "ru":
+                this.translation = this.translationJson.ru
+                break
+            case "es":
+                this.translation = this.translationJson.es
+                break
+            case "en":
+            default:
+                this.translation = this.translationJson.en
+                break
         }
-        translationJson = await response.json();
-    } catch (error) {
-        console.error(error);
+        console.log(this.translation)
+    }
+
+    async getTranslationJson() {
+        const jsonFileUrl = `${location.protocol}//${location.host}/translation.json`;  // Correcting the URL
+        try {
+            const response = await fetch(jsonFileUrl);
+            if (!response.ok) {
+                console.error("Failed getting translation json file");
+            }
+            this.translationJson = await response.json();
+        } catch (error) {
+            console.error(error);
+        }
+    }
+
+
+    static getScrollDistanceFromBottom(e) {
+        return e.scrollHeight - e.scrollTop - e.clientHeight
+    }
+
+    static getScrollDistanceFromTop(e) {
+
+    }
+
+    static registerClick(element, callback) {
+        element.addEventListener("click", (event) => {
+            ContextMenuClass.deleteCtxMenu()
+            event.stopPropagation()
+            callback()
+        })
+    }
+
+    static registerHover(element, callbackIn, callbackOut) {
+        element.addEventListener('mouseover', (event) => {
+            // console.log('hovering over', element)
+            callbackIn()
+        })
+
+        element.addEventListener('mouseout', (event) => {
+            // console.log('hovering out', element)
+            callbackOut()
+        })
+    }
+
+    static async calculateSHA256(file) {
+        const arrayBuffer = await file.arrayBuffer()
+        const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer)
+        const hashArray = Array.from(new Uint8Array(hashBuffer))
+        const hashHex = hashArray.map(byte => byte.toString(16).padStart(2, '0')).join('')
+        console.log(hashHex)
+        return hashArray
+    }
+
+    static base64toSha256(base64) {
+        const base64str = atob(base64)
+
+        const byteArray = new Uint8Array(base64str.length);
+
+        for (let i = 0; i < base64str.length; i++) {
+            byteArray[i] = base64str.charCodeAt(i);
+        }
+        const hashArray = Array.from(new Uint8Array(byteArray))
+        return hashArray.map(byte => byte.toString(16).padStart(2, '0')).join('')
+    }
+
+    static areArraysEqual(arr1, arr2) {
+        if (arr1.length !== arr2.length) {
+            return false;
+        }
+        return arr1.every((element, index) => element === arr2[index]);
     }
 }
 
-
-function main() {
-
-
-
-    // this runs after webpage was loaded
-    document.addEventListener("DOMContentLoaded", async function () {
-        await getTranslationJson()
-        setLanguage("en")
-
-        initNotification()
-        initLocalStorage()
-        initContextMenu()
-
-        addServer("2000", 0, "Direct Messages", "content/static/hs.svg", "dm") // add the direct messages button
-        // this will continue when websocket connected
-        await connectToWebsocket()
-        // refreshWebsocketContent()
-
-        // // waits until server sends user's own ID and display name
-        // console.log("Waiting for server to send initial data...")
-        // await waitUntilBoolIsTrue(() => receivedInitialUserData)
-        // console.log("Initial data has already arrived")
-
-        // // request http address of image hosting server
-        // requestImageHostAddress()
-
-        // // wait until the address is received
-        // console.log("Waiting for server to send image host address..")
-        // await waitUntilBoolIsTrue(() => receivedImageHostAddress)
-        // console.log("Image host address has already arrived")
-
-        // registerHoverListeners() // add event listeners for hovering
-
-        // refreshWebsocketContent()
-    })
-}
-
-function getScrollDistanceFromBottom(e) {
-    return e.scrollHeight - e.scrollTop - e.clientHeight
-}
-
-function getScrollDistanceFromTop(e) {
-
-}
-
-async function calculateSHA256(file) {
-    const arrayBuffer = await file.arrayBuffer()
-    const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer)
-    const hashArray = Array.from(new Uint8Array(hashBuffer))
-    const hashHex = hashArray.map(byte => byte.toString(16).padStart(2, '0')).join('')
-    console.log(hashHex)
-    return hashHex
-}
-
-main()
+const main = new MainClass()

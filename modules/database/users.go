@@ -24,7 +24,7 @@ type InitialData struct {
 	StatusText  string
 	Friends     []uint64
 	Blocks      []uint64
-	Servers     []Server
+	Servers     []JoinedServer
 }
 
 const insertUserQuery = "INSERT INTO users (user_id, username, display_name, password) VALUES (?, ?, ?, ?)"
@@ -155,12 +155,15 @@ func GetInitialData(userID uint64) (*InitialData, bool) {
 	transactionErrorCheck(err)
 
 	defer tx.Rollback()
+	//if err != nil {
+	//	log.FatalError(err.Error(), "Error rolling back transaction in GetInitialData")
+	//}
 
 	initData := InitialData{
 		UserID:  userID,
 		Blocks:  []uint64{},
 		Friends: []uint64{},
-		Servers: []Server{},
+		Servers: []JoinedServer{},
 	}
 
 	// get user data
@@ -213,9 +216,17 @@ func GetInitialData(userID uint64) (*InitialData, bool) {
 	DatabaseErrorCheck(err)
 
 	for rows4.Next() {
-		var server Server
-		err := rows4.Scan(&server.ServerID, &server.UserID, &server.Name, &server.Picture)
+		var server JoinedServer
+		var ownerID uint64
+		err := rows4.Scan(&server.ServerID, &ownerID, &server.Name, &server.Picture)
 		DatabaseErrorCheck(err)
+		log.Trace("Owner ID: ", ownerID, " User ID: ", userID, "")
+		if ownerID == userID {
+			server.Owned = true
+		} else {
+			server.Owned = false
+		}
+
 		initData.Servers = append(initData.Servers, server)
 	}
 

@@ -2,6 +2,7 @@
 <html lang="en">
 
 <head>
+    <link href="manifest.json" rel="manifest"/>
     <meta charset="UTF-8">
     <meta content="width=device-width, initial-scale=1.0" name="viewport">
     <title>Login/Register</title>
@@ -33,8 +34,8 @@
             color: #ff0000;
         }
 
-        #login-container>form,
-        #register-container>form {
+        #login-container > form,
+        #register-container > form {
             display: flex;
             justify-content: center;
             flex-direction: column;
@@ -43,129 +44,129 @@
 </head>
 
 <body>
-    <div id="centered-window">
-        <div id="error-message"></div>
-        <br>
-        <div id="login-container">
-            <form onsubmit="sendLogin(event)">
-                <label class="input-label">Username:</label>
-                <input autocomplete="username" id="login-username" maxlength="16" oninput="asciiOnly(event)" required>
-                <br>
-                <label class="input-label">Password:</label>
-                <input autocomplete="current-password" id="login-password" type="password" maxlength="64" required>
-                <br>
-                <button class="button" type="submit">Login</button>
-            </form>
+<div id="centered-window">
+    <div id="error-message"></div>
+    <br>
+    <div id="login-container">
+        <form onsubmit="sendLogin(event)">
+            <label class="input-label">Username:</label>
+            <input autocomplete="username" id="login-username" maxlength="16" oninput="asciiOnly(event)" required>
             <br>
-            <button class="button" onclick="toRegister()">No account?</button>
-        </div>
-        <div id="register-container" style="display: none;">
-            <form onsubmit="sendRegister(event)">
-                <label class="input-label">Username:</label>
-                <input autocomplete="username" id="register-username" maxlength="16" oninput="asciiOnly(event)"
-                    required>
-                <br>
-                <label class="input-label">Password:</label>
-                <input autocomplete="new-password" type="password" id="register-password-first" maxlength="64" required>
-                <br>
-                <label class="input-label">Password again:</label>
-                <input autocomplete="new-password" type="password" id="register-password-second" maxlength="64"
-                    required>
-                <br>
-                <button class="button" type="submit">Register</button>
-            </form>
+            <label class="input-label">Password:</label>
+            <input autocomplete="current-password" id="login-password" type="password" maxlength="64" required>
             <br>
-            <button class="button" onclick="toLogin()">Login instead</button>
-        </div>
+            <button class="button" type="submit">Login</button>
+        </form>
         <br>
+        <button class="button" onclick="toRegister()">No account?</button>
     </div>
-    <script>
-        const errorMessage = document.getElementById("error-message")
+    <div id="register-container" style="display: none;">
+        <form onsubmit="sendRegister(event)">
+            <label class="input-label">Username:</label>
+            <input autocomplete="username" id="register-username" maxlength="16" oninput="asciiOnly(event)"
+                   required>
+            <br>
+            <label class="input-label">Password:</label>
+            <input autocomplete="new-password" type="password" id="register-password-first" maxlength="64" required>
+            <br>
+            <label class="input-label">Password again:</label>
+            <input autocomplete="new-password" type="password" id="register-password-second" maxlength="64"
+                   required>
+            <br>
+            <button class="button" type="submit">Register</button>
+        </form>
+        <br>
+        <button class="button" onclick="toLogin()">Login instead</button>
+    </div>
+    <br>
+</div>
+<script>
+    const errorMessage = document.getElementById("error-message")
 
-        function toLogin() {
-            errorMessage.textContent = ""
-            document.getElementById("register-container").style.display = "none"
-            document.getElementById("login-container").style.display = "block"
+    function toLogin() {
+        errorMessage.textContent = ""
+        document.getElementById("register-container").style.display = "none"
+        document.getElementById("login-container").style.display = "block"
+    }
+
+    function toRegister() {
+        errorMessage.textContent = ""
+        document.getElementById("register-container").style.display = "block"
+        document.getElementById("login-container").style.display = "none"
+    }
+
+    async function sendLogin(event) {
+        event.preventDefault()
+
+        const username = document.getElementById("login-username").value
+        const password = document.getElementById("login-password").value
+
+        const json = {
+            Username: username,
+            Password: await hashPassword(password)
         }
 
-        function toRegister() {
-            errorMessage.textContent = ""
-            document.getElementById("register-container").style.display = "block"
-            document.getElementById("login-container").style.display = "none"
-        }
-
-        async function sendLogin(event) {
-            event.preventDefault()
-
-            const username = document.getElementById("login-username").value
-            const password = document.getElementById("login-password").value
-
-            const json = {
-                Username: username,
-                Password: await hashPassword(password)
-            }
-
-            const response = await fetch("/login", {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(json)
-            })
-            if (response.ok) {
-                if (response.redirected) {
-                    window.location.href = response.url
-                } else {
-                    errorMessage.textContent = await response.text()
-                }
-            }
-        }
-
-        async function sendRegister(event) {
-            event.preventDefault()
-
-            const username = document.getElementById("register-username").value
-            const firstPassword = document.getElementById("register-password-first").value
-            const secondPassword = document.getElementById("register-password-second").value
-
-            if (firstPassword !== secondPassword) {
-                errorMessage.textContent = "Passwords don't match"
-                return
-            }
-
-            const json = {
-                Username: username,
-                Password: await hashPassword(firstPassword)
-            }
-
-            const response = await fetch("/register", {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(json)
-            })
-            if (response.ok) {
-                console.log(response)
-                if (response.redirected) {
-                    window.location.href = response.url
-                } else {
-                    errorMessage.textContent = await response.text()
-                }
+        const response = await fetch("/login", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(json)
+        })
+        if (response.ok) {
+            if (response.redirected) {
+                window.location.href = response.url
+            } else {
+                errorMessage.textContent = await response.text()
             }
         }
+    }
 
-        async function hashPassword(password) {
-            const passwordBuffer = new TextEncoder().encode(password)
-            const hashedPassword = await crypto.subtle.digest('SHA-512', passwordBuffer)
-            return btoa(String.fromCharCode.apply(null, new Uint8Array(hashedPassword)))
+    async function sendRegister(event) {
+        event.preventDefault()
+
+        const username = document.getElementById("register-username").value
+        const firstPassword = document.getElementById("register-password-first").value
+        const secondPassword = document.getElementById("register-password-second").value
+
+        if (firstPassword !== secondPassword) {
+            errorMessage.textContent = "Passwords don't match"
+            return
         }
 
-        function asciiOnly(event) {
-            event.target.value = event.target.value.replace(/[^\x00-\x7F]/g, '')
+        const json = {
+            Username: username,
+            Password: await hashPassword(firstPassword)
         }
 
-    </script>
+        const response = await fetch("/register", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(json)
+        })
+        if (response.ok) {
+            console.log(response)
+            if (response.redirected) {
+                window.location.href = response.url
+            } else {
+                errorMessage.textContent = await response.text()
+            }
+        }
+    }
+
+    async function hashPassword(password) {
+        const passwordBuffer = new TextEncoder().encode(password)
+        const hashedPassword = await crypto.subtle.digest('SHA-512', passwordBuffer)
+        return btoa(String.fromCharCode.apply(null, new Uint8Array(hashedPassword)))
+    }
+
+    function asciiOnly(event) {
+        event.target.value = event.target.value.replace(/[^\x00-\x7F]/g, '')
+    }
+
+</script>
 </body>
 
 </html>

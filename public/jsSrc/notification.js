@@ -1,18 +1,22 @@
-function initNotification() {
-    if (Notification.permission !== "granted") {
-        console.warn("Notifications are not enabled, requesting permission...")
-        Notification.requestPermission()
-    } else {
-        console.log("Notifications are enabled")
-    }
-}
+class NotificationClass {
+    constructor() {
+        this.NotificationSound = document.getElementById("notification-sound")
 
-function sendNotification(userID, message) {
-    const userInfo = getUserInfo(userID)
-    if (Notification.permission === "granted") {
-        new Notification(userInfo.username, {
-            body: message,
-            icon: userInfo.pic // Optional icon
-        })
+        if (Notification.permission !== "granted") {
+            console.warn("Notifications are not enabled, requesting permission...")
+            Notification.requestPermission()
+        } else {
+            console.log("Notifications are enabled")
+        }
+    }
+
+    sendNotification(userID, message) {
+        const userInfo = MemberListClass.getUserInfo(userID)
+        if (Notification.permission === "granted" && document.hidden) {
+            new Notification(userInfo.username, {
+                body: message,
+                icon: userInfo.pic // Optional icon
+            })
+        }
     }
 }

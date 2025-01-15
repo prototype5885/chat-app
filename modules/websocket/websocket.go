@@ -196,62 +196,43 @@ func (c *WsClient) readMessages(wg *sync.WaitGroup) {
 		switch packetType {
 		case ADD_CHAT_MESSAGE: // user sent a chat message on x channel
 			log.Trace("User ID [%d] sent a chat message", c.UserID)
-			broadcastData, failData := c.onChatMessageRequest(packetJson, packetType)
-			if failData != nil {
-				c.WriteChan <- failData
-			} else {
-				broadcastChan <- broadcastData
-			}
+			c.onChatMessageRequest(packetJson, packetType)
+			//if failData != nil {
+			//	c.WriteChan <- failData
+			//} else {
+			//	broadcastChan <- broadcastData
+			//}
 
 		case CHAT_HISTORY: // user entered a channel, requesting chat history
 			log.Trace("User ID [%d] is asking for a chat history", c.UserID)
-			chatHistoryBytes := c.onChatHistoryRequest(packetJson)
-			if chatHistoryBytes != nil {
-				c.WriteChan <- chatHistoryBytes
-			}
+			c.onChatHistoryRequest(packetJson, packetType)
 
 		case DELETE_CHAT_MESSAGE: // user deleting a chat message
 			log.Trace("User ID [%d] wants to delete a chat message", c.UserID)
-			broadcastData, failData := c.onChatMessageDeleteRequest(packetJson)
-			if failData != nil {
-				c.WriteChan <- failData
-			} else {
-				broadcastChan <- broadcastData
-			}
+			c.onChatMessageDeleteRequest(packetJson, packetType)
 
 		case ADD_SERVER: // user adding a server
 			log.Trace("User ID [%d] wants to create a server", c.UserID)
-			c.WriteChan <- c.onAddServerRequest(packetJson)
-
-		// case SERVER_LIST: // user requesting their server list
-		// 	log.Trace("User ID [%d] is requesting their joined server list", c.UserID)
-		// 	c.WriteChan <- macros.PreparePacket(22, *database.GetServerList(c.UserID))
+			c.onAddServerRequest(packetJson)
 
 		case DELETE_SERVER: // user deleting a server
 			log.Trace("User ID [%d] wants to delete a server", c.UserID)
-			broadcastChan <- c.onServerDeleteRequest(packetJson)
+			c.onServerDeleteRequest(packetJson, packetType)
 
 		case SERVER_INVITE_LINK: // user requested an invite link for a server
-			c.WriteChan <- c.onServerInviteRequest(packetJson, packetType)
+			c.onServerInviteRequest(packetJson, packetType)
 
 		case UPDATE_SERVER_DATA: // user is requesting to update server data of their server
 			c.onServerDataUpdateRequest(packetJson, packetType)
 
 		case ADD_CHANNEL: // user added a channel to their server
 			log.Trace("User ID [%d] wants to add a channel", c.UserID)
-			broadcastData, failData := c.onAddChannelRequest(packetJson, packetType)
-			if failData != nil {
-				c.WriteChan <- failData
-			} else {
-				broadcastChan <- broadcastData
-			}
+			c.onAddChannelRequest(packetJson, packetType)
 
 		case CHANNEL_LIST: // user entered a server, requesting channel list
 			log.Trace("User ID [%d] is requesting channel list of a server", c.UserID)
-			channelListbytes := c.onChannelListRequest(packetJson)
-			if channelListbytes != nil {
-				c.WriteChan <- channelListbytes
-			}
+			c.onChannelListRequest(packetJson, packetType)
+
 		case ADD_SERVER_MEMBER: // a new user connected to the server
 
 		case SERVER_MEMBER_LIST: // user entered a server, requesting member list
@@ -269,7 +250,7 @@ func (c *WsClient) readMessages(wg *sync.WaitGroup) {
 		case UPDATE_STATUS: // user wants to update their status value
 			log.Trace("User ID [%d] is requesting to update their status value", c.UserID)
 			c.onUpdateUserStatusValue(packetJson)
-		case ADD_FRIEND: // user wants to add an other user as friend
+		case ADD_FRIEND: // user wants to add another user as friend
 			c.onAddFriendRequest(packetJson)
 		case BLOCK_USER: // user wants to block a user
 			c.onBlockUserRequest(packetJson)

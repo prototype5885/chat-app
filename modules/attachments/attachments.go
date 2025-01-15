@@ -2,8 +2,8 @@ package attachments
 
 import (
 	"crypto/rand"
-	"encoding/base64"
 	log "proto-chat/modules/logging"
+	"proto-chat/modules/macros"
 	"sync"
 	"time"
 )
@@ -29,31 +29,33 @@ func OnAttachmentUploaded(userID uint64, uploadedAttachments []UploadedAttachmen
 
 	attachmentToken := generateAttachmentToken()
 
+	log.Trace("User ID [%d] uploaded [%d] attachments into waiting list as attachment token [%s], will expire in 15 seconds", userID, len(uploadedAttachments), macros.ShortenToken(attachmentToken[:]))
 	awaitingAttachmentsMap.Store(attachmentToken, uploadedAttachments)
 	go removeUnusedAttachmentToken(attachmentToken)
 	return attachmentToken
 }
 
 func GetWaitingAttachment(attachmentToken [64]byte) []UploadedAttachment {
-	log.Trace("Getting attachment token for a message [%s]", base64.StdEncoding.EncodeToString(attachmentToken[:]))
-	defer removeWaitingAttachment(&attachmentToken)
+	log.Trace("A user is claiming attachment token [%s]", macros.ShortenToken(attachmentToken[:]))
+	defer removeWaitingAttachment(attachmentToken)
 	value, loadOk := awaitingAttachmentsMap.Load(attachmentToken)
 	if loadOk {
 		uploadedAttachments, ok := value.([]UploadedAttachment)
 		if ok {
+			log.Trace("Retrieved [%d] attachments with attachment token [%s]", len(uploadedAttachments), macros.ShortenToken(attachmentToken[:]))
 			return uploadedAttachments
 		} else {
 			log.Impossible("Retrieved attachment from awaitingAttachments are not in AwaitingAttachment struct format")
 		}
 	} else {
-		log.Warn("No attachment filenames were found in attachment token [%s]", base64.StdEncoding.EncodeToString(attachmentToken[:]))
+		log.Warn("No attachment filenames were found in attachment token [%s]", macros.ShortenToken(attachmentToken[:]))
 	}
 	return []UploadedAttachment{}
 }
 
-func removeWaitingAttachment(attachmentToken *[64]byte) {
-	log.Trace("Removing attachment token [%s]", base64.StdEncoding.EncodeToString(attachmentToken[:]))
-	awaitingAttachmentsMap.Delete(*attachmentToken)
+func removeWaitingAttachment(attachmentToken [64]byte) {
+	log.Trace("Removing attachment token [%s]", macros.ShortenToken(attachmentToken[:]))
+	awaitingAttachmentsMap.Delete(attachmentToken)
 }
 
 func removeUnusedAttachmentToken(attachmentToken [64]byte) {
@@ -61,7 +63,7 @@ func removeUnusedAttachmentToken(attachmentToken [64]byte) {
 	time.Sleep(15 * time.Second)
 	_, found := awaitingAttachmentsMap.Load(attachmentToken)
 	if found {
-		log.Warn("Attachment token wasn't claimed by uploader, removing [%s]", base64.StdEncoding.EncodeToString(attachmentToken[:]))
+		log.Warn("Attachment token wasn't claimed by uploader, removing [%s]", macros.ShortenToken(attachmentToken[:]))
 		awaitingAttachmentsMap.Delete(attachmentToken)
 	}
 }

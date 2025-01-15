@@ -44,22 +44,7 @@ func CreateChatMessagesTable() {
 	}
 }
 
-// func AddChatMessage(messageID uint64, channelID uint64, userID uint64, chatMessage string, hasAttachments bool) bool {
-// 	err := Insert(Message{
-// 		MessageID:   messageID,
-// 		ChannelID:   channelID,
-// 		UserID:      userID,
-// 		Message:     chatMessage,
-// 		Attachments: hasAttachments,
-// 	})
-// 	if err != nil {
-// 		return false
-// 	} else {
-// 		return true
-// 	}
-// }
-
-func GetChatHistory(channelID uint64, fromMessageID uint64, older bool, userID uint64) *[]byte {
+func GetChatHistory(channelID uint64, fromMessageID uint64, older bool, userID uint64) []byte {
 	const query = "SELECT message_id, user_id, message, has_attachments FROM messages WHERE channel_id = ? AND (message_id < ? OR ? = 0) ORDER BY message_id DESC LIMIT 50"
 	log.Query(query, channelID, fromMessageID, fromMessageID)
 
@@ -76,36 +61,37 @@ func GetChatHistory(channelID uint64, fromMessageID uint64, older bool, userID u
 	}
 
 	var userMessages []UserMessages
-	for i := 0; i < len(retrievedMsgs); i++ {
+	for m := 0; m < len(retrievedMsgs); m++ {
 		found := false
 		index := 0
-		for i := 0; i < len(userMessages); i++ {
-			if userMessages[i].UserID == retrievedMsgs[i].UserID {
+		for u := 0; u < len(userMessages); u++ {
+			if userMessages[u].UserID == retrievedMsgs[m].UserID {
 				found = true
-				index = i
+				index = u
 				break
 			}
 		}
 
 		if !found {
-			userMessages = append(userMessages, UserMessages{UserID: userID})
+			userMessages = append(userMessages, UserMessages{UserID: retrievedMsgs[m].UserID})
+			log.Trace("wtf: %d", userID)
 			index = len(userMessages) - 1
 		}
 
-		var attachmentHistory []string
-		if retrievedMsgs[i].HasAttachments {
-			attachmentHistory = GetAttachmentsOfMessage(retrievedMsgs[i].MessageID)
+		var attachmentHistory []AttachmentResponse
+		if retrievedMsgs[m].HasAttachments {
+			attachmentHistory = GetAttachmentsOfMessage(retrievedMsgs[m].MessageID)
 		}
 
-		log.Trace("Message ID [%d] has [%d] attachments", retrievedMsgs[i].MessageID, len(attachmentHistory))
+		log.Trace("Message ID [%d] has [%d] attachments", retrievedMsgs[m].MessageID, len(attachmentHistory))
 
-		userMessages[index].Msgs = append(userMessages[index].Msgs, []interface{}{retrievedMsgs[i].MessageID, retrievedMsgs[i].Message, attachmentHistory})
+		userMessages[index].Msgs = append(userMessages[index].Msgs, []interface{}{retrievedMsgs[m].MessageID, retrievedMsgs[m].Message, attachmentHistory})
 	}
 
 	if len(userMessages) == 0 {
 		log.Trace("Channel ID [%d] does not have any messages or user reached top of chat", channelID)
 		var emptyResponse []byte = []byte(fmt.Sprintf("[%d, []]", channelID))
-		return &emptyResponse
+		return emptyResponse
 	} else {
 		log.Trace("Retrieved [%d] messages from channel ID [%d]", len(userMessages), channelID)
 	}
@@ -117,7 +103,7 @@ func GetChatHistory(channelID uint64, fromMessageID uint64, older bool, userID u
 		macros.ErrorSerializing(err.Error(), 2, userID)
 	}
 
-	return &jsonResult
+	return jsonResult
 }
 
 func DeleteChatMessage(messageID uint64, userID uint64) uint64 {
@@ -133,4 +119,12 @@ func DeleteChatMessage(messageID uint64, userID uint64) uint64 {
 	}
 
 	return channelID
+}
+
+func RemoveHasAttachmentFlag(messageID uint64) {
+	const query string = "UPDATE messages SET has_attachments = FALSE WHERE message_id = ?"
+	log.Query(query, messageID)
+
+	_, err := Conn.Exec(query, messageID)
+	DatabaseErrorCheck(err)
 }

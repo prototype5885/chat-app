@@ -1,13 +1,14 @@
 package main
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"golang.org/x/crypto/acme/autocert"
 	"net/http"
 	"os"
 	"os/signal"
 	"proto-chat/modules/database"
-	jsfilesmerger "proto-chat/modules/jsFilesMerger"
 	log "proto-chat/modules/logging"
 	"proto-chat/modules/snowflake"
 	"proto-chat/modules/token"
@@ -80,7 +81,7 @@ func main() {
 	config := readConfigFile()
 	log.SetupLogging("TRACE", config.LogConsole, config.LogFile)
 
-	jsfilesmerger.Init()
+	//jsfilesmerger.Init()
 
 	// database
 	if config.Sqlite {
@@ -112,13 +113,37 @@ func main() {
 	}
 
 	if config.TLS {
-		const certFile = "./sslcert/cert.crt"
-		const keyFile = "./sslcert/key.key"
+		//const certFile = "./sslcert/cert.crt"
+		//const keyFile = "./sslcert/key.key"
+		//
+		//log.Info("Listening on https://%s", address)
+		//if err := http.ListenAndServeTLS(address, certFile, keyFile, nil); err != nil {
+		//	log.FatalError(err.Error(), "Error starting TLS server")
+		//}
+		certManager := autocert.Manager{
+			Prompt:     autocert.AcceptTOS,
+			HostPolicy: autocert.HostWhitelist("prototype585.ddns.net"), //Your domain here
+			Cache:      autocert.DirCache("certs"),                      //Folder for storing certificates
+		}
 
-		log.Info("Listening on https://%s", address)
-		if err := http.ListenAndServeTLS(address, certFile, keyFile, nil); err != nil {
+		server := &http.Server{
+			Addr: ":https",
+			TLSConfig: &tls.Config{
+				GetCertificate: certManager.GetCertificate,
+				MinVersion:     tls.VersionTLS12, // improves cert reputation score at https://www.ssllabs.com/ssltest/
+			},
+		}
+
+		//if err := http.ListenAndServeTLS(address, certFile, keyFile, nil); err != nil {
+		//	log.FatalError(err.Error(), "Error starting TLS server")
+		//}
+
+		go http.ListenAndServe(":http", certManager.HTTPHandler(nil))
+
+		if err := server.ListenAndServeTLS("", ""); err != nil {
 			log.FatalError(err.Error(), "Error starting TLS server")
 		}
+
 	} else {
 		log.Info("Listening on http://%s", address)
 		if err := http.ListenAndServe(address, nil); err != nil {

@@ -1,22 +1,23 @@
-function fadeOutLoading() {
-    const loading = document.getElementById("loading")
-    setTimeout(() => {
-        loading.style.display = "none"
-    }, 250)
+class LoadingClass {
+    static loading = document.getElementById("loading")
 
-    loading.style.pointerEvents = "none"
-    loading.style.opacity = "0%"
-}
+    static fadeOutLoading() {
+        setTimeout(() => {
+            LoadingClass.loading.style.display = "none"
+        }, 250)
 
-function fadeInLoading() {
-    const loading = document.getElementById("loading")
-    loading.style.display = "block"
-    loading.style.opacity = "100%"
-    loading.style.pointerEvents = "auto"
-    setLoadingText("Connection lost, reconnecting...")
-}
+        LoadingClass.loading.style.pointerEvents = "none"
+        LoadingClass.loading.style.opacity = "0%"
+    }
 
-function setLoadingText(text) {
-    const loading = document.getElementById("loading")
-    loading.querySelector("div").innerText = text
+    static fadeInLoading() {
+        LoadingClass.loading.style.display = "block"
+        LoadingClass.loading.style.opacity = "100%"
+        LoadingClass.loading.style.pointerEvents = "auto"
+        LoadingClass.setLoadingText("Connection lost, reconnecting...")
+    }
+
+    static setLoadingText(text) {
+        LoadingClass.loading.querySelector("div").innerText = text
+    }
 }

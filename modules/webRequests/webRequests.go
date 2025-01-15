@@ -11,7 +11,7 @@ import (
 const publicFolder string = "./public"
 
 func MainHandler(w http.ResponseWriter, r *http.Request) {
-	printReceivedRequest(r.URL.Path, r.Method)
+	printReceivedRequest(r)
 
 	if r.Method == "GET" {
 		var extension string = filepath.Ext(r.URL.Path)
@@ -31,7 +31,7 @@ func MainHandler(w http.ResponseWriter, r *http.Request) {
 				jsfilesmerger.CheckForChanges()
 			}
 
-			log.Debug("Serving file: %s", r.URL.Path)
+			log.Debug("Serving file: [%s] to IP address [%s]", r.URL.Path, r.RemoteAddr)
 			http.ServeFile(w, r, publicFolder+r.URL.Path)
 			return
 		}
@@ -64,7 +64,6 @@ func MainHandler(w http.ResponseWriter, r *http.Request) {
 			loginRequestHandler(w, r)
 		case "/register":
 			registerRequestHandler(w, r)
-		// case "/check-profile-pic", "/check-server-pic":
 		case "/upload-profile-pic", "/upload-server-pic":
 			uploadAvatarHandler(w, r)
 		case "/upload-attachment":

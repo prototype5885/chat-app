@@ -10,12 +10,11 @@ import (
 	"strings"
 )
 
-var jsFilePaths = [17]string{
+var jsFilePaths = [15]string{
 	"main.js",
 	"notification.js",
 	"localStorage.js",
 	"comp/loading.js",
-	"comp/httpRequests.js",
 	"comp/userPanel.js",
 	"comp/contextMenu.js",
 	"comp/bubble.js",
@@ -26,7 +25,6 @@ var jsFilePaths = [17]string{
 	"comp/window.js",
 	"comp/chatInput.js",
 	"comp/directMessages.js",
-	"dynamicContent.js",
 	"websocket.js",
 }
 
@@ -34,7 +32,7 @@ var jsFiles = make(map[string][20]byte)
 
 const jsHashesFilename string = "jsHashes.bin"
 
-const DynamicMergedJsGeneration = true // so script.js regenerates when a script is changed
+const DynamicMergedJsGeneration = false // so script.js regenerates when a script is changed
 
 func Init() {
 	if !DynamicMergedJsGeneration {

@@ -449,6 +449,33 @@ func checkAttachmentHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Trace("User ID [%d] is checking if an attachment file exists", userID)
+
+	var hashes [][32]byte
+	_ = json.NewDecoder(r.Body).Decode(&hashes)
+
+	log.Trace("User ID [%d] sent hashes of [%d] attachment(s) to check if they exist", userID, len(hashes))
+
+	var hashesThatExist [][32]byte
+
+	for i := 0; i < len(hashes); i++ {
+		exists := database.CheckIfAttachmentExists(hashes[i][:])
+		if exists {
+			hashesThatExist = append(hashesThatExist, hashes[i])
+		}
+	}
+
+	jsonBytes, err := json.Marshal(hashesThatExist)
+	if err != nil {
+		log.FatalError(err.Error(), "Error serializing attachment hashes that were confirmed for user ID [%d]", userID)
+		http.Error(w, "", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_, err = w.Write(jsonBytes)
+	if err != nil {
+		log.WarnError(err.Error(), "Error sending attachment hashes that were confirmed for user ID [%d]", userID)
+	}
 }
 
 func uploadAttachmentHandler(w http.ResponseWriter, r *http.Request) {
@@ -459,6 +486,12 @@ func uploadAttachmentHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	//err := r.ParseMultipartForm(100 << 20) // 10 MB limit
+	//if err != nil {
+	//	http.Error(w, "Unable to parse form", http.StatusBadRequest)
+	//	return
+	//}
+
 	log.Trace("User ID [%d] is uploading an attachment", userID)
 
 	reader, err := r.MultipartReader()
@@ -468,53 +501,84 @@ func uploadAttachmentHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var awaitingAttachments = []attachments.UploadedAttachment{}
+	var awaitingAttachments []attachments.UploadedAttachment
 
 	for {
 		part, err := reader.NextPart()
-		if err == io.EOF {
-			break
-		}
 		if err != nil {
-			http.Error(w, "", http.StatusBadRequest)
-			return
-
-		}
-		if part.FileName() == "" {
-			return
+			if err == io.EOF {
+				break
+			} else {
+				http.Error(w, "", http.StatusBadRequest)
+				return
+			}
 		}
 
-		var fileBytes *bytes.Buffer = new(bytes.Buffer)
-		_, err = io.Copy(fileBytes, part)
+		//if part.FileName() == "" {
+		//	log.Warn("An attachment sent by user ID [%d] doesn't have a filename", userID)
+		//	continue
+		//}
+
+		log.Trace("Name: %s", part.FormName())
+
+		buf := new(bytes.Buffer)
+		_, err = io.Copy(buf, part)
 		if err != nil {
-			log.FatalError(err.Error(), "Error reading video sent by user ID [%d]", userID)
+			log.WarnError(err.Error(), "Error reading attachment sent by user ID [%d]", userID)
 			continue
 		}
 
-		awaitingAttachment := attachments.UploadedAttachment{
-			Hash: sha256.Sum256(fileBytes.Bytes()),
-			Name: part.FileName(),
-		}
-
-		hashString := hex.EncodeToString(awaitingAttachment.Hash[:])
-		extension := filepath.Ext(part.FileName())
-		path := "./public/content/attachments/" + hashString + extension
-
-		_, err = os.Stat(path)
-		if err == nil {
-			log.Trace("Attachment at path [%s] already exists", path)
-		} else if os.IsNotExist(err) {
-			log.Trace("Attachment at path [%s] doesn't exist, creating...", path)
-			err = os.WriteFile(path, fileBytes.Bytes(), 0644)
-			if err != nil {
-				log.FatalError(err.Error(), "Error writing to file [%s]", path)
-				return
+		if part.FormName() == "a" { // attachment
+			log.Trace("User ID [%d] uploaded an attachment, reading and saving it...", userID)
+			awaitingAttachment := attachments.UploadedAttachment{
+				Hash: sha256.Sum256(buf.Bytes()),
+				Name: part.FileName(),
 			}
-		} else {
-			log.FatalError(err.Error(), "Error checking file [%s]", path)
-		}
 
-		awaitingAttachments = append(awaitingAttachments, awaitingAttachment)
+			hashString := hex.EncodeToString(awaitingAttachment.Hash[:])
+			extension := filepath.Ext(part.FileName())
+			path := "./public/content/attachments/" + hashString + extension
+
+			_, err = os.Stat(path)
+			if err == nil {
+				log.Trace("Attachment at path [%s] already exists", path)
+			} else if os.IsNotExist(err) {
+				log.Trace("Attachment at path [%s] doesn't exist, creating...", path)
+				err = os.WriteFile(path, buf.Bytes(), 0644)
+				if err != nil {
+					log.FatalError(err.Error(), "Error writing to file [%s]", path)
+					return
+				}
+			} else {
+				log.FatalError(err.Error(), "Error checking file [%s]", path)
+			}
+
+			awaitingAttachments = append(awaitingAttachments, awaitingAttachment)
+		} else if part.FormName() == "h" { //hash
+			log.Trace("User ID [%d] sent name and hash of file that already exists on server", userID)
+
+			type ExistingAttachment struct {
+				Hash [32]byte
+				Name string
+			}
+
+			var existingAttachment ExistingAttachment
+
+			err := json.Unmarshal(buf.Bytes(), &existingAttachment)
+			if err != nil {
+				log.WarnError(err.Error(), "Error decoding hash from form file sent by user ID [%d]", userID)
+				continue
+			}
+
+			log.Trace("Name: [%s]", existingAttachment.Name)
+			log.Trace("Hash: [%s]", hex.EncodeToString(existingAttachment.Hash[:]))
+
+			awaitingAttachment := attachments.UploadedAttachment{
+				Hash: existingAttachment.Hash,
+				Name: existingAttachment.Name,
+			}
+			awaitingAttachments = append(awaitingAttachments, awaitingAttachment)
+		}
 
 	}
 

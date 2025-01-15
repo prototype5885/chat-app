@@ -25,7 +25,8 @@ body {
     }
 }
 
-#loading {
+#loading,
+#picture-viewer-container {
     position: absolute;
     top: 0;
     left: 0;
@@ -36,31 +37,46 @@ body {
     text-align: center;
     align-content: center;
     font-size: 96px;
+    z-index: 9999;
 }
 
-#loading>div {
+#picture-viewer-container {
+    background-color: var(--loading-color);
+}
+
+#picture-viewer {
+    max-height: 90%;
+    max-width: 90%;
+
+}
+
+.attachment-pic:hover {
+    cursor: pointer;
+}
+
+#loading > div {
     animation: rotate 5s infinite;
 }
 
-#bubble,
+.bubble,
 #right-click-menu,
 .window {
     position: absolute;
 }
 
-#bubble,
+.bubble,
 #right-click-menu {
     border-radius: 5px;
 }
 
-#bubble,
+.bubble,
 #right-click-menu,
 .window-top-bar {
     backdrop-filter: blur(3px);
 }
 
 
-#bubble,
+.bubble,
 #right-click-menu {
     background-color: var(--dark-transparent);
     box-shadow: 5px 5px 5px rgba(0, 0, 0, 0.25);
@@ -182,9 +198,9 @@ body {
     align-items: center;
 }
 
-.profile-settings>div,
-.account-settings>div,
-.server-settings>div {
+.profile-settings > div,
+.account-settings > div,
+.server-settings > div {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -268,7 +284,7 @@ body {
 
 
 /* this holds the server button and its notification thing */
-#server-list>li {
+#server-list > li {
     /* background-color: green; */
     height: 60px;
     width: 72px;
@@ -406,7 +422,7 @@ body {
     font-size: large;
 }
 
-#channel-list button>div {
+#channel-list button > div {
     padding-left: 12px;
 }
 
@@ -421,7 +437,7 @@ body {
 }
 
 /* this is below channel/friend list */
-#user-panel>div {
+#user-panel > div {
     display: flex;
     align-items: center;
     width: 100%;
@@ -570,7 +586,7 @@ body {
     justify-content: flex-end;
 }
 
-#main-top-right>button {
+#main-top-right > button {
     width: 32px;
     height: 32px;
     background-color: var(--main-color);
@@ -611,18 +627,18 @@ body {
     padding: 0;
 }
 
-#chat-message-list>li {
+#chat-message-list > li {
     padding: 8px 24px;
     display: flex;
     flex-direction: row;
 }
 
-#chat-message-list>li:hover {
+#chat-message-list > li:hover {
     background-color: #2E3035;
 }
 
 /* chat scroll gap */
-#chat-message-list>div {
+#chat-message-list > div {
     order: 2;
     min-height: 20px;
 }
@@ -638,15 +654,15 @@ body {
     object-fit: cover;
 }
 
-.message-attachment-pictures>*,
-.message-attachment-videos>* {
+.message-attachment-pictures > *,
+.message-attachment-videos > * {
     margin-right: 4px;
     margin-bottom: 8px;
     max-width: 1024px;
     border-radius: 6px;
 }
 
-.message-attachment-audios>* {
+.message-attachment-audios > * {
     width: 512px;
 }
 
@@ -732,7 +748,7 @@ body {
     padding-bottom: 8px;
 }
 
-.ghost-msg> {
+.ghost-msg > {
     opacity: 25%;
 }
 
@@ -756,7 +772,7 @@ body {
     border-top-right-radius: 12px;
 }
 
-#attachment-list>div {
+#attachment-list > div {
     /* height: 200px; */
     width: 200px;
     background-color: var(--bit-darker-color);
@@ -776,7 +792,7 @@ body {
     /* background-color: red; */
 }
 
-.attachment-preview>img {
+.attachment-preview > img {
     width: 100%;
     height: 100%;
     object-fit: scale-down;
@@ -795,14 +811,14 @@ body {
     color: grey;
 }
 
-.date-between-msgs>div {
+.date-between-msgs > div {
     display: flex;
     width: 100%;
     border-top: thin solid;
 
 }
 
-.date-between-msgs>span {
+.date-between-msgs > span {
     margin-left: 4px;
     margin-right: 4px;
     white-space: nowrap;
@@ -865,7 +881,7 @@ body {
 }
 
 /* same as above but change color of the icon inside the button too */
-.chat-button:hover>.chat-button-icon {
+.chat-button:hover > .chat-button-icon {
     background-color: red;
 }
 

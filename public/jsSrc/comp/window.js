@@ -1,13 +1,31 @@
-let openWindows = [] // this stores every open windows as hashmap by type value
-let lastSelected = new Map()
+class WindowManagerClass {
 
-// this is called when something creates as new window
-function addWindow(type, id) {
-    openWindows.push(new Window(type, id))
+    static openWindows = [] // this stores every open windows as hashmap by type value
+    static lastSelected = new Map()
+    static currentUpdateUserDataLabel
+
+
+    // this is called when something creates as new window
+    static addWindow(main, type, id) {
+        WindowManagerClass.openWindows.push(new Window(main, type, id))
+    }
+
+    static setCurrentUpdateUserDataResponseLabel(success) {
+        if (success) {
+            WindowManagerClass.currentUpdateUserDataLabel.style.color = "green"
+            WindowManagerClass.currentUpdateUserDataLabel.textContent = "Success"
+        } else {
+            WindowManagerClass.currentUpdateUserDataLabel.style.color = "red"
+            WindowManagerClass.currentUpdateUserDataLabel.textContent = "Failure"
+        }
+        WindowManagerClass.currentUpdateUserDataLabel = undefined
+    }
 }
 
 class Window {
-    constructor(type, id) {
+    constructor(main, type, id) {
+        this.main = main
+
         this.window
         this.id = id
         this.topBar
@@ -39,10 +57,10 @@ class Window {
         // remove from lastSelected
 
         // find and delete from array
-        for (let i = 0; i < openWindows.length; i++) {
-            if (openWindows[i] === this) {
-                openWindows.splice(i, 1)
-                lastSelected.delete(i)
+        for (let i = 0; i < WindowManagerClass.openWindows.length; i++) {
+            if (WindowManagerClass.openWindows[i] === this) {
+                WindowManagerClass.openWindows.splice(i, 1)
+                WindowManagerClass.lastSelected.delete(i)
             }
         }
     }
@@ -70,18 +88,18 @@ class Window {
 
             this.maximized = true
 
-            this.topBar.style.backgroundColor = darkNonTransparent
+            this.topBar.style.backgroundColor = ColorsClass.darkNonTransparent
             this.window.style.border = ""
         }
     }
 
     makeActive() {
-        this.topBar.style.backgroundColor = darkTransparent
+        this.topBar.style.backgroundColor = ColorsClass.darkTransparent
         this.window.style.border = "1px solid var(--dark-transparent)"
     }
 
     makeInactive() {
-        this.topBar.style.backgroundColor = brighterTransparent
+        this.topBar.style.backgroundColor = ColorsClass.brighterTransparent
         this.window.style.border = "1px solid var(--brighter-transparent)"
     }
 
@@ -130,9 +148,9 @@ class Window {
         this.makeActive()
 
         // set order 0 for selected window
-        for (let i = 0; i < openWindows.length; i++) {
-            if (openWindows[i] === this) {
-                lastSelected.set(i, 0)
+        for (let i = 0; i < WindowManagerClass.openWindows.length; i++) {
+            if (WindowManagerClass.openWindows[i] === this) {
+                WindowManagerClass.lastSelected.set(i, 0)
                 break
             }
         }
@@ -140,10 +158,10 @@ class Window {
         // add + 1 for the order value of each other windows
         // also look for highest value among them
         let highestValue = 0
-        for (let i = 0; i < openWindows.length; i++) {
-            if (openWindows[i] !== this) {
-                const value = lastSelected.get(i) + 1
-                lastSelected.set(i, value)
+        for (let i = 0; i < WindowManagerClass.openWindows.length; i++) {
+            if (WindowManagerClass.openWindows[i] !== this) {
+                const value = WindowManagerClass.lastSelected.get(i) + 1
+                WindowManagerClass.lastSelected.set(i, value)
                 if (value > highestValue) {
                     highestValue = value
                 }
@@ -153,7 +171,7 @@ class Window {
         // order the values here
         const orderedKeys = []
         for (let i = 0; i < highestValue + 1; i++) {
-            for (const [key, value] of lastSelected.entries()) {
+            for (const [key, value] of WindowManagerClass.lastSelected.entries()) {
                 if (value === i) {
                     orderedKeys.push(key)
                 }
@@ -162,22 +180,22 @@ class Window {
         // then trim the array
         // for example 0 1 6 8 would be 0 1 2 3
         for (let i = 0; i < orderedKeys.length; i++) {
-            lastSelected.set(orderedKeys[i], i)
+            WindowManagerClass.lastSelected.set(orderedKeys[i], i)
         }
 
         // set the z index for each window
-        for (const [key, value] of lastSelected.entries()) {
-            if (openWindows[key] != null) {
-                openWindows[key].window.style.zIndex = (900 - value).toString()
-                if (openWindows[key] !== this) {
-                    openWindows[key].makeInactive()
+        for (const [key, value] of WindowManagerClass.lastSelected.entries()) {
+            if (WindowManagerClass.openWindows[key] != null) {
+                WindowManagerClass.openWindows[key].window.style.zIndex = (900 - value).toString()
+                if (WindowManagerClass.openWindows[key] !== this) {
+                    WindowManagerClass.openWindows[key].makeInactive()
                 }
 
             }
         }
     }
 
-    createWindow() {
+    async createWindow() {
         // create main window div
         this.window = document.createElement("div")
         this.window.className = "window"
@@ -197,7 +215,7 @@ class Window {
         // this will be the top bar that holds title and exit buttons etc
         this.topBar = document.createElement("div")
         this.topBar.className = "window-top-bar"
-        this.topBar.style.backgroundColor = darkTransparent
+        this.topBar.style.backgroundColor = ColorsClass.darkTransparent
         this.window.appendChild(this.topBar)
 
         // the left part that holds title name
@@ -220,7 +238,9 @@ class Window {
         this.windowMain.className = "window-main"
         this.window.appendChild(this.windowMain)
 
-        registerClick(maximizeButton, () => { this.maximizeWindow() })
+        MainClass.registerClick(maximizeButton, () => {
+            this.maximizeWindow()
+        })
 
         // button that closes the window
         const exitButton = document.createElement("button")
@@ -228,7 +248,9 @@ class Window {
         topBarRight.appendChild(exitButton)
 
         // register the exit button
-        registerClick(exitButton, () => { this.deleteWindow() })
+        MainClass.registerClick(exitButton, () => {
+            this.deleteWindow()
+        })
 
         // and finally add it to html
         document.body.appendChild(this.window)
@@ -242,19 +264,17 @@ class Window {
         switch (this.type) {
             case "user-settings":
                 this.topBarLeft.textContent = "User settings"
-                createSettingsLeftSide(this.windowMain, this.type)
+                await this.createSettingsLeftSide(this.windowMain, this.type, 0)
                 break
             case "server-settings":
                 this.topBarLeft.textContent = "Server settings"
-                createSettingsLeftSide(this.windowMain, this.type, this.id)
+                await this.createSettingsLeftSide(this.windowMain, this.type, this.id)
                 break
         }
     }
-}
 
-
-async function pictureUploader(settings, pictureType, serverID) {
-    settings.innerHTML += `  
+    async pictureUploader(settings, pictureType, serverID) {
+        settings.innerHTML += `  
     <div>
         <label>Maximum: 1,5 MB</label>
         <br>
@@ -266,213 +286,231 @@ async function pictureUploader(settings, pictureType, serverID) {
         <label class="pic-response-label"></label>
     </div>`
 
-    let picture
-    if (pictureType === "server-pic") {
-        picture = window.getComputedStyle(document.getElementById(serverID)).backgroundImage
-    } else if (pictureType === "profile-pic") {
-        picture = `url(${ownProfilePic})`
-    } else {
-        console.error("Unknown picture type provided for picture loader")
-        return
-    }
-    settings.querySelector(".select-pic").style.backgroundImage = picture
-
-
-
-    const sendButon = settings.querySelector(".send-pic-button")
-    const responseLabel = settings.querySelector(".pic-response-label")
-    // clicked on the pic
-    settings.querySelector(".select-pic").addEventListener("click", async (event) => {
-        settings.querySelector(".pic-uploader").click()
-
-        responseLabel.style.color = ""
-        responseLabel.textContent = ""
-    })
-
-    let previousPicture
-
-    // added a pic
-    const picUploader = settings.querySelector(".pic-uploader")
-    picUploader.addEventListener("change", async (event) => {
-        if (picUploader.files.length === 0) {
-            console.log("No picture has been selected")
-            // picPreview.style.backgroundImage = `url(${ownProfilePic})`
+        let picture
+        if (pictureType === "server-pic") {
+            picture = window.getComputedStyle(document.getElementById(serverID)).backgroundImage
+        } else if (pictureType === "profile-pic") {
+            picture = `url(${main.myProfilePic})`
         } else {
-            setButtonActive(sendButon, true)
-            console.log("Picture selected")
-            const reader = new FileReader()
-            reader.readAsDataURL(picUploader.files[0])
-
-            reader.onload = function (e) {
-                const picPreview = settings.querySelector(".select-pic")
-                previousPicture = picPreview.style.backgroundImage
-                picPreview.style.backgroundImage = `url(${e.target.result})`
-            }
-        }
-    })
-
-    // upload the pic
-    sendButon.addEventListener("click", async (event) => {
-        console.log(`Uploading ${pictureType}...`)
-        event.preventDefault()
-
-        if (picUploader.files.length === 0) {
-            console.warn("No new profile was attached")
+            console.error("Unknown picture type provided for picture loader")
             return
         }
+        settings.querySelector(".select-pic").style.backgroundImage = picture
 
-        const formData = new FormData()
 
-        formData.append(`${pictureType}`, picUploader.files[0])
-        if (pictureType === "server-pic") {
-            formData.append("serverID", serverID)
-        }
+        const sendButton = settings.querySelector(".send-pic-button")
+        const responseLabel = settings.querySelector(".pic-response-label")
+        // clicked on the pic
+        settings.querySelector(".select-pic").addEventListener("click", async (event) => {
+            settings.querySelector(".pic-uploader").click()
 
-        // Initialize a new XMLHttpRequest object
-        const uploadRequest = new XMLHttpRequest()
+            responseLabel.style.color = ""
+            responseLabel.textContent = ""
+        })
 
-        uploadRequest.upload.onprogress = function (e) {
-            if (e.lengthComputable) {
-                var percent = (e.loaded / e.total) * 100
-                responseLabel.textContent = Math.round(percent) + " %"
-                console.log(responseLabel.textContent)
-            }
-        }
+        let previousPicture
 
-        uploadRequest.onload = function () {
-            if (uploadRequest.status === 200) {
-                const successText = "Picture was uploaded successfully"
-                console.log(successText)
-                responseLabel.style.color = "green"
-                responseLabel.textContent = successText
+        // added a pic
+        const picUploader = settings.querySelector(".pic-uploader")
+        picUploader.addEventListener("change", async (event) => {
+            if (picUploader.files.length === 0) {
+                console.log("No picture has been selected")
+                // picPreview.style.backgroundImage = `url(${ownProfilePic})`
             } else {
-                console.error(uploadRequest.responseText)
-                responseLabel.style.color = "red"
-                responseLabel.textContent = uploadRequest.responseText
-                settings.querySelector(".select-pic").style.backgroundImage = previousPicture
-                setButtonActive(sendButon, false)
-            }
-        }
+                MainClass.setButtonActive(sendButton, true)
+                console.log("Picture selected")
+                const reader = new FileReader()
+                reader.readAsDataURL(picUploader.files[0])
 
-        // Open the request and send the FormData
-        uploadRequest.open("POST", `/upload-${pictureType}`, true)
-        uploadRequest.send(formData)
-    })
-}
-
-function createSettingsLeftSide(windowMain, type, value) {
-    const leftSide = document.createElement("div")
-    leftSide.className = "settings-left"
-    const rightSide = document.createElement("div")
-    rightSide.className = "settings-right"
-
-    windowMain.appendChild(leftSide)
-    windowMain.appendChild(rightSide)
-
-    function addElementsLeftSide(elements) {
-        const settingsLeft = windowMain.querySelector(".settings-left")
-
-        const top = document.createElement("div")
-        top.className = "settings-left-top"
-
-        settingsLeft.appendChild(top)
-
-        const settingsList = document.createElement("div")
-        settingsList.className = "settings-list"
-
-        for (let i = 0; i < elements.length; i++) {
-            const button = document.createElement("button")
-            button.className = "left-side-button"
-
-            const textDiv = document.createElement("div")
-            button.textContent = elements[i].text
-            button.appendChild(textDiv)
-
-            const settingsRight = windowMain.querySelector(".settings-right")
-
-            registerClick(button, () => {
-                // reset selection of items on left
-                for (const b of settingsList.children) {
-                    if (b !== button) {
-                        b.removeAttribute("style")
-                    } else {
-                        b.style.backgroundColor = mainColor
-                    }
+                reader.onload = function (e) {
+                    const picPreview = settings.querySelector(".select-pic")
+                    previousPicture = picPreview.style.backgroundImage
+                    picPreview.style.backgroundImage = `url(${e.target.result})`
                 }
+            }
+        })
 
-                // reset the right side
-                settingsRight.textContent = ""
+        // upload the pic
+        sendButton.addEventListener("click", async (event) => {
+            console.log(`Uploading ${pictureType}...`)
+            event.preventDefault()
 
-                console.log("Selected my", elements[i].text)
-                const mainRight = createSettingsRightSideMyAccount(elements[i].text, settingsRight)
-                switch (elements[i].text) {
-                    case "Profile":
-                        const profileSettings = document.createElement("div")
-                        profileSettings.className = "profile-settings"
-                        mainRight.appendChild(profileSettings)
+            if (picUploader.files.length === 0) {
+                console.warn("No new profile was attached")
+                return
+            }
 
-                        profileSettings.innerHTML = `
+            const formData = new FormData()
+
+            formData.append(`${pictureType}`, picUploader.files[0])
+            if (pictureType === "server-pic") {
+                formData.append("serverID", serverID)
+            }
+
+            // Initialize a new XMLHttpRequest object
+            const uploadRequest = new XMLHttpRequest()
+
+            uploadRequest.upload.onprogress = function (e) {
+                if (e.lengthComputable) {
+                    var percent = (e.loaded / e.total) * 100
+                    responseLabel.textContent = Math.round(percent) + " %"
+                    console.log(responseLabel.textContent)
+                }
+            }
+
+            uploadRequest.onload = function () {
+                if (uploadRequest.status === 200) {
+                    const successText = "Picture was uploaded successfully"
+                    console.log(successText)
+                    responseLabel.style.color = "green"
+                    responseLabel.textContent = successText
+                } else {
+                    console.error(uploadRequest.responseText)
+                    responseLabel.style.color = "red"
+                    responseLabel.textContent = uploadRequest.responseText
+                    settings.querySelector(".select-pic").style.backgroundImage = previousPicture
+                    MainClass.setButtonActive(sendButton, false)
+                }
+            }
+
+            // Open the request and send the FormData
+            uploadRequest.open("POST", `/upload-${pictureType}`, true)
+            uploadRequest.send(formData)
+        })
+    }
+
+    createSettingsLeftSide = async (windowMain, type, value) => {
+        const leftSide = document.createElement("div")
+        leftSide.className = "settings-left"
+        const rightSide = document.createElement("div")
+        rightSide.className = "settings-right"
+
+        windowMain.appendChild(leftSide)
+        windowMain.appendChild(rightSide)
+
+        const addElementsLeftSide = (elements) => {
+            const settingsLeft = windowMain.querySelector(".settings-left")
+
+            const top = document.createElement("div")
+            top.className = "settings-left-top"
+
+            settingsLeft.appendChild(top)
+
+            const settingsList = document.createElement("div")
+            settingsList.className = "settings-list"
+
+            for (let i = 0; i < elements.length; i++) {
+                const button = document.createElement("button")
+                button.className = "left-side-button"
+
+                const textDiv = document.createElement("div")
+                button.textContent = elements[i].text
+                button.appendChild(textDiv)
+
+                const settingsRight = windowMain.querySelector(".settings-right")
+
+                MainClass.registerClick(button, async () => {
+                    // reset selection of items on left
+                    for (const b of settingsList.children) {
+                        if (b !== button) {
+                            b.removeAttribute("style")
+                        } else {
+                            b.style.backgroundColor = ColorsClass.mainColor
+                        }
+                    }
+
+                    // reset the right side
+                    settingsRight.textContent = ""
+
+                    console.log("Selected my", elements[i].text)
+
+                    const topRight = document.createElement("div")
+                    topRight.className = "settings-right-top"
+
+                    const label = document.createElement("div")
+                    label.className = "settings-right-label"
+                    label.textContent = elements[i].text
+                    topRight.appendChild(label)
+
+                    settingsRight.appendChild(topRight)
+
+                    const mainRight = document.createElement("div")
+                    mainRight.className = "settings-right-main"
+
+                    settingsRight.appendChild(mainRight)
+
+                    switch (elements[i].text) {
+                        case "Profile":
+                            const profileSettings = document.createElement("div")
+                            profileSettings.className = "profile-settings"
+                            mainRight.appendChild(profileSettings)
+
+                            profileSettings.innerHTML = `
                             <div>
                                 <label class="input-label">Display name:</label>
-                                <input class="change-display-name" maxlength="32" value="${ownDisplayName}">
+                                <input class="change-display-name" maxlength="32" value="${main.myDisplayName}">
                                 <br>
                                 <label class="input-label">Pronouns:</label>
-                                <input class="change-pronoun" placeholder="they/them" maxlength="16" value="${ownPronouns}">
+                                <input class="change-pronoun" placeholder="they/them" maxlength="16" value="${main.myPronouns}">
                                 <br>
                                 <label class="input-label">Status:</label>
-                                <input class="change-status" placeholder="Was passiert?" value="${ownStatusText}">
+                                <input class="change-status" placeholder="Was passiert?" value="${main.myStatusText}">
                                 <br>
                                 <button class="button update-account-data">Apply</button>
+                                <br>
+                                <label class="update-data-response-label"></label>
                             </div>`
 
-                        pictureUploader(profileSettings, "profile-pic", "")
+                            await this.pictureUploader(profileSettings, "profile-pic", "")
 
-                        // applying username, pronouns, etc
-                        profileSettings.querySelector(".update-account-data").addEventListener("click", function () {
-                            const newDisplayName = profileSettings.querySelector(".change-display-name").value
-                            let displayNameChanged = false
-                            if (newDisplayName !== ownDisplayName) {
-                                displayNameChanged = true
-                            }
+                            // applying username, pronouns, etc
+                            profileSettings.querySelector(".update-account-data").addEventListener("click", function () {
+                                const newDisplayName = profileSettings.querySelector(".change-display-name").value
+                                let displayNameChanged = false
+                                if (newDisplayName !== main.myDisplayName) {
+                                    displayNameChanged = true
+                                }
 
-                            const newPronouns = profileSettings.querySelector(".change-pronoun").value
-                            let pronounsChanged = false
-                            if (newPronouns !== ownPronouns) {
-                                pronounsChanged = true
-                            }
+                                const newPronouns = profileSettings.querySelector(".change-pronoun").value
+                                let pronounsChanged = false
+                                if (newPronouns !== main.myPronouns) {
+                                    pronounsChanged = true
+                                }
 
-                            const newStatusText = profileSettings.querySelector(".change-status").value
-                            let statusTextChanged = false
+                                const newStatusText = profileSettings.querySelector(".change-status").value
+                                let statusTextChanged = false
 
-                            if (newStatusText !== ownStatusText) {
-                                statusTextChanged = true
-                            }
+                                if (newStatusText !== main.myStatusText) {
+                                    statusTextChanged = true
+                                }
 
-                            if (!displayNameChanged && !pronounsChanged && !statusTextChanged) {
-                                console.warn("No user settings was changed")
-                                return
-                            }
+                                if (!displayNameChanged && !pronounsChanged && !statusTextChanged) {
+                                    console.warn("No user settings was changed")
+                                    return
+                                }
 
-                            console.log("Sending updated user settings to server")
+                                console.log("Sending updated user settings to server")
 
-                            const updatedUserData = {
-                                DisplayName: newDisplayName,
-                                Pronouns: newPronouns,
-                                StatusText: newStatusText,
-                                NewDN: displayNameChanged,
-                                NewP: pronounsChanged,
-                                NewST: statusTextChanged
-                            }
+                                const updatedUserData = {
+                                    DisplayName: newDisplayName,
+                                    Pronouns: newPronouns,
+                                    StatusText: newStatusText,
+                                    NewDN: displayNameChanged,
+                                    NewP: pronounsChanged,
+                                    NewST: statusTextChanged
+                                }
 
-                            requestUpdateUserData(updatedUserData)
-                        })
-                        break
-                    case "Account":
-                        const accountSettings = document.createElement("div")
-                        accountSettings.className = "account-settings"
-                        mainRight.appendChild(accountSettings)
+                                WindowManagerClass.currentUpdateUserDataLabel = profileSettings.querySelector(".update-data-response-label")
+                                WebsocketClass.requestUpdateUserData(updatedUserData)
 
-                        accountSettings.innerHTML = `
+                            })
+                            break
+                        case "Account":
+                            const accountSettings = document.createElement("div")
+                            accountSettings.className = "account-settings"
+                            mainRight.appendChild(accountSettings)
+
+                            accountSettings.innerHTML = `
                             <div>
                                 <label class="input-label">Current Password:</label>
                                 <input type="password" class="change-password-current" maxlength="32">
@@ -485,89 +523,76 @@ function createSettingsLeftSide(windowMain, type, value) {
                                 <br>
                                 <button class="button update-password">Apply</button>
                             </div>`
-                        break
-                    case "Server":
-                        const serverSettings = document.createElement("div")
-                        serverSettings.className = "server-settings"
-                        mainRight.appendChild(serverSettings)
+                            break
+                        case "Server":
+                            const serverSettings = document.createElement("div")
+                            serverSettings.className = "server-settings"
+                            mainRight.appendChild(serverSettings)
 
-                        serverSettings.innerHTML = `
+                            const serverName = ServerListClass.getServerName(value)
+
+                            serverSettings.innerHTML = `
                             <div>
                                 <label class="input-label">Server name:</label>
-                                <input class="change-server-name" maxlength="32" value="${getServerName(value)}">
+                                <input class="change-server-name" maxlength="32" value="${serverName}">
                                 <br>
                                 <button class="button update-server-data">Apply</button>
+                                <br>
+                                <label class="update-data-response-label"></label>
                             </div>`
 
-                        console.log(`Changing picture of server ID [${value}]`)
-                        pictureUploader(serverSettings, "server-pic", value)
+                            console.log(`Changing picture of server ID [${value}]`)
+                            await this.pictureUploader(serverSettings, "server-pic", value)
 
-                        // updating server data
-                        serverSettings.querySelector(".update-server-data").addEventListener('click', function () {
-                            const newServerName = serverSettings.querySelector(".change-server-name").value
-                            let serverNameChanged = false
-                            if (newServerName !== this.id) {
-                                serverNameChanged = true
-                            }
+                            // updating server data
+                            serverSettings.querySelector(".update-server-data").addEventListener('click', function () {
+                                const newServerName = serverSettings.querySelector(".change-server-name").value
+                                let serverNameChanged = false
+                                if (newServerName !== this.id) {
+                                    serverNameChanged = true
+                                }
 
-                            if (!serverNameChanged) {
-                                console.warn("No server settings was changed")
-                                return
-                            }
+                                if (!serverNameChanged) {
+                                    console.warn("No server settings was changed")
+                                    return
+                                }
 
-                            const updatedServerData = {
-                                ServerID: value,
-                                Name: newServerName,
-                                NewSN: serverNameChanged,
-                            }
+                                const updatedServerData = {
+                                    ServerID: value,
+                                    Name: newServerName,
+                                    NewSN: serverNameChanged,
+                                }
 
-                            requestUpdateServerData(updatedServerData)
-                        })
-                        break
-                }
-            })
+                                WindowManagerClass.currentUpdateUserDataLabel = serverSettings.querySelector(".update-data-response-label")
+                                WebsocketClass.requestUpdateServerData(updatedServerData)
+                            })
+                            break
+                    }
+                })
 
-            settingsList.appendChild(button)
+                settingsList.appendChild(button)
+            }
+
+            settingsLeft.appendChild(settingsList)
         }
 
-        settingsLeft.appendChild(settingsList)
+        const leftSideContent = []
+        // add these elements to the left side
+        switch (type) {
+            case "user-settings":
+                leftSideContent.push({text: "Profile"})
+                leftSideContent.push({text: "Account"})
+                leftSideContent.push({text: "1"})
+                leftSideContent.push({text: "2"})
+                leftSideContent.push({text: "3"})
+                break
+            case "server-settings":
+                leftSideContent.push({text: "Server"})
+                leftSideContent.push({text: "Extra"})
+                break
+        }
+        addElementsLeftSide(leftSideContent)
+
+        leftSide.querySelector(".settings-list").firstElementChild.click()
     }
-
-    const leftSideContent = []
-    // add these elements to the left side
-    switch (type) {
-        case "user-settings":
-            leftSideContent.push({ text: "Profile" })
-            leftSideContent.push({ text: "Account" })
-            leftSideContent.push({ text: "1" })
-            leftSideContent.push({ text: "2" })
-            leftSideContent.push({ text: "3" })
-            break
-        case "server-settings":
-            leftSideContent.push({ text: "Server" })
-            leftSideContent.push({ text: "Extra" })
-            break
-    }
-    addElementsLeftSide(leftSideContent)
-
-    leftSide.querySelector(".settings-list").firstElementChild.click()
-}
-
-function createSettingsRightSideMyAccount(labelText, settingsRight) {
-    const topRight = document.createElement("div")
-    topRight.className = "settings-right-top"
-
-    const label = document.createElement("div")
-    label.className = "settings-right-label"
-    label.textContent = labelText
-    topRight.appendChild(label)
-
-    settingsRight.appendChild(topRight)
-
-    const mainRight = document.createElement("div")
-    mainRight.className = "settings-right-main"
-
-    settingsRight.appendChild(mainRight)
-
-    return mainRight
 }
