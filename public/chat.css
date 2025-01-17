@@ -2,7 +2,7 @@ body {
     display: flex;
     margin: 0;
     height: 100vh;
-    overflow: hidden;
+    width: 100vw;
 }
 
 .url {
@@ -47,7 +47,56 @@ body {
 #picture-viewer {
     max-height: 90%;
     max-width: 90%;
+}
 
+#file-drop-zone {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: var(--loading-color);
+}
+
+#file-drop-window {
+    width: 384px;
+    height: 192px;
+    background-color: var(--blue);
+    pointer-events: none;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: 12px;
+}
+
+#file-drop-deco {
+    width: 352px;
+    height: 160px;;
+    border: 2px dashed lightgray;
+    border-radius: 8px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#file-drop-msg {
+    color: white;
+    font-size: 24px;
+    text-align: center;
+    white-space: pre-line; /* this will allow to use newline n\ */
+}
+
+#update-client {
+    position: absolute;
+    left: 50%;
+    transform: translate(-50%, 0%);
+
+    width: 256px;
+    height: 32px;
+    background-color: green;
 }
 
 .attachment-pic:hover {
@@ -59,25 +108,25 @@ body {
 }
 
 .bubble,
-#right-click-menu,
+#ctx-menu,
 .window {
     position: absolute;
 }
 
 .bubble,
-#right-click-menu {
+#ctx-menu {
     border-radius: 5px;
 }
 
 .bubble,
-#right-click-menu,
+#ctx-menu,
 .window-top-bar {
     backdrop-filter: blur(3px);
 }
 
 
 .bubble,
-#right-click-menu {
+#ctx-menu {
     background-color: var(--dark-transparent);
     box-shadow: 5px 5px 5px rgba(0, 0, 0, 0.25);
 }
@@ -122,14 +171,23 @@ body {
 .window-exit-button {
     height: 28px;
     width: 28px;
+    padding: 0;
 }
 
-.window-maximize-button {
-    background-color: blue;
+/*.window-maximize-button {*/
+/*    background-color: blue;*/
+/*}*/
+
+/*.window-exit-button {*/
+/*    background-color: violet;*/
+/*}*/
+
+.window-maximize-button:hover {
+    background-color: rgba(128, 128, 128, 0.29);
 }
 
-.window-exit-button {
-    background-color: violet;
+.window-exit-button:hover {
+    background-color: red;
 }
 
 .window-main {
@@ -182,15 +240,7 @@ body {
     height: fit-content;
 }
 
-
-.settings-right-label {
-    font-size: x-large;
-    color: white;
-}
-
-.profile-settings,
-.account-settings,
-.server-settings {
+.settings-right-main > div {
     background-color: var(--bit-darker-color);
     border-radius: 16px;
     display: flex;
@@ -198,13 +248,16 @@ body {
     align-items: center;
 }
 
-.profile-settings > div,
-.account-settings > div,
-.server-settings > div {
+.settings-right-main > div > div {
     display: flex;
     flex-direction: column;
     align-items: center;
     padding: 16px;
+}
+
+.settings-right-label {
+    font-size: x-large;
+    color: white;
 }
 
 .pronoun-input {
@@ -233,6 +286,7 @@ body {
     flex-direction: column;
     padding: 8px 0 0;
     margin: 0;
+    user-select: none;
 }
 
 /* all the server buttons on the left side */
@@ -307,6 +361,10 @@ body {
     order: 5;
 }
 
+#add-server:hover button {
+    border-radius: 35%;
+}
+
 /* color and font of add server button */
 #add-server-button {
     font-size: x-large;
@@ -326,6 +384,7 @@ body {
     background-color: var(--bit-darker-color);
     display: flex;
     flex-direction: column;
+    user-select: none;
 }
 
 #above-friends-channels {
@@ -341,18 +400,24 @@ body {
     align-items: center;
 }
 
-#server-name {
-    display: flex;
-    justify-content: flex-start;
-    margin-left: 12px;
-    /* background-color: red; */
-    width: 100%;
+#server-name-button > label {
+    pointer-events: none;
+    /*pointer-events: inherit;*/
 }
 
-#server-name-arrow {
-    justify-content: flex-end;
+#server-name-button-arrow {
+    /*padding-right: 8px;*/
+}
+
+#server-name {
+    width: 85%;
+    padding-left: 8px;
+}
+
+#server-name-button-arrow {
+    justify-content: center;
+    align-items: center;
     /* background-color: green; */
-    width: 25%;
 }
 
 #server-name-button,
@@ -384,8 +449,9 @@ body {
 }
 
 /* the text inside it */
-#channels-visible-or-add-new button:first-child div,
-#friends-chat-visible-or-add-new button:first-child div {
+#channels-visible-or-add-new button:first-child label,
+#friends-chat-visible-or-add-new button:first-child label {
+    cursor: inherit;
     margin-left: 6px;
     font-variant: small-caps;
 }
@@ -398,6 +464,12 @@ body {
     flex: 1;
     height: 32px;
     align-items: center;
+    flex-direction: row;
+}
+
+#channels-visibility-arrow {
+    transition: transform 0.25s ease;
+    transform-origin: 50% 50%;
 }
 
 #channel-list {
@@ -412,8 +484,13 @@ body {
     align-items: center;
     border-radius: 8px;
     border: none;
-    font-size: medium;
+    font-size: 14px;
     transition: font-size 0.2s ease, height 0.2s ease;
+    padding-left: 0;
+}
+
+.settings-list button {
+    padding-left: 8px;
 }
 
 #channel-list button:hover,
@@ -423,7 +500,7 @@ body {
 }
 
 #channel-list button > div {
-    padding-left: 12px;
+    padding-left: 4px;
 }
 
 #user-panel {
@@ -483,10 +560,11 @@ body {
     width: 108px;
 }
 
-#user-panel-status,
+#user-panel-status-text,
 #user-panel-name,
 .user-name,
-.user-status-text {
+.user-status-text,
+#server-name {
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
@@ -567,6 +645,7 @@ body {
     display: flex;
     padding-left: 24px;
     padding-right: 24px;
+    user-select: none;
 }
 
 #main-top-left,
@@ -591,10 +670,8 @@ body {
     height: 32px;
     background-color: var(--main-color);
     margin-left: 16px;
-    border-radius: 50%;
-    border: 1px;
-    background-color: #4f545c;
     border-radius: 35%;
+    border: 1px;
 }
 
 #main-bottom {
@@ -607,7 +684,8 @@ body {
 #main-center-container {
     display: flex;
     flex-direction: column;
-    flex: 1;
+    /*flex: 1;*/
+    width: 100%;
 }
 
 #chat-loading-indicator {
@@ -628,7 +706,9 @@ body {
 }
 
 #chat-message-list > li {
-    padding: 8px 24px;
+    padding-top: 16px;
+    padding-left: 24px;
+    padding-right: 24px;
     display: flex;
     flex-direction: row;
 }
@@ -652,6 +732,7 @@ body {
 #user-panel-pfp {
     border-radius: 50%;
     object-fit: cover;
+    user-select: none;
 }
 
 .message-attachment-pictures > *,
@@ -664,14 +745,17 @@ body {
 
 .message-attachment-audios > * {
     width: 512px;
+    user-select: none;
 }
 
 .attachment-pic {
     max-height: 256px;
+    user-select: none;
 }
 
 .attachment-video {
     max-height: 512px;
+    user-select: none;
 }
 
 .profile-pic-container {
@@ -718,6 +802,7 @@ body {
 .msg-name-and-date {
     display: flex;
     flex-direction: row;
+    /*margin-bottom: 0px;*/
 }
 
 .msg-user-name {
@@ -745,31 +830,36 @@ body {
 .msg-text {
     vertical-align: baseline;
     overflow-wrap: anywhere;
-    padding-bottom: 8px;
+    padding-top: 4px;
+    padding-bottom: 4px;
 }
 
 .ghost-msg > {
     opacity: 25%;
 }
 
-#attachment-container,
-#chat-input-form-container {
+#chat-input-container {
     padding-left: 16px;
     padding-right: 16px;
+    display: flex;
+    flex-direction: column;
+    padding-bottom: 24px;
+    overflow-x: hidden;
 }
 
-#attachment-container {
-    display: none;
-}
+/*#attachment-container {*/
+/*    */
+/*}*/
 
 #attachment-list {
-    display: flex;
+    display: none;
     flex-direction: row;
     background-color: var(--chat-input-color);
     align-items: center;
     padding: 6px;
     border-top-left-radius: 12px;
     border-top-right-radius: 12px;
+    box-sizing: border-box;
 }
 
 #attachment-list > div {
@@ -796,6 +886,8 @@ body {
     width: 100%;
     height: 100%;
     object-fit: scale-down;
+    pointer-events: none;
+    user-select: none;
 }
 
 .attachment-name {
@@ -809,6 +901,7 @@ body {
     align-items: center;
     pointer-events: none;
     color: grey;
+    user-select: none;
 }
 
 .date-between-msgs > div {
@@ -825,25 +918,17 @@ body {
     color: lightgray;
 }
 
-/* chat input */
-#chat-input-form-container {
-    display: flex;
-    padding-bottom: 24px;
-}
 
 /* this holds the chat text input and buttons such as attachment */
 #chat-input-form {
     resize: none;
     display: flex;
-    min-height: 32px;
+    min-height: 24px;
     flex: 1;
     border-width: 1px;
     border-top: var(--light-color);
     border-top-style: none;
-    border-top-left-radius: 12px;
-    border-top-right-radius: 12px;
-    border-bottom-left-radius: 12px;
-    border-bottom-right-radius: 12px;
+    border-radius: 12px;
     background-color: var(--chat-input-color);
 }
 
@@ -857,20 +942,22 @@ body {
     resize: none;
     color: var(--text-color);
     overflow: auto;
-    margin-top: 16px;
+    margin-top: 8px;
+    margin-right: 8px;
 }
 
 /* every button inside chat input */
 .chat-button {
     border: none;
     display: flex;
-    align-items: flex-end;
+    align-items: center;
+    justify-content: center;
 }
 
 /* the icon inside every chat input buttons */
 .chat-button-icon {
-    height: 32px;
-    width: 32px;
+    height: 24px;
+    width: 24px;
     background: var(--button-color);
     margin: 8px;
     border-radius: 50%;
@@ -880,9 +967,14 @@ body {
     align-items: center;
 }
 
+
 /* same as above but change color of the icon inside the button too */
 .chat-button:hover > .chat-button-icon {
     background-color: red;
+}
+
+.chat-button:hover > #attachment-button-icon {
+    background-color: white;
 }
 
 /* disable outline when typing message */
@@ -899,13 +991,7 @@ body {
     max-width: 240px;
     flex: 1;
     overflow-y: auto;
-    /* width: 240px; */
-    /* display: flex; */
-    /* float: right; */
-    /* flex-direction: column; */
-
-
-    /* padding: 10px; */
+    user-select: none;
 }
 
 #member-list li,
@@ -944,19 +1030,19 @@ body {
     width: 160px;
 }
 
-#right-click-menu {
+#ctx-menu {
     z-index: 1000;
     width: 150px;
 }
 
-#right-click-menu ul {
+#ctx-menu ul {
     list-style: none;
     margin: 5%;
     padding: 0;
 }
 
 /* context menu items */
-#right-click-menu li {
+#ctx-menu li {
     padding: 8px;
     padding-left: 12px;
     padding-right: 12px;
@@ -965,16 +1051,26 @@ body {
     border-radius: 5px;
 }
 
-#right-click-menu li:hover {
+#ctx-menu li:hover {
     background-color: #505cdc;
     color: white;
 }
 
-#right-click-menu li.cm-red {
+#ctx-menu li.cm-red {
     color: #F23F42;
 }
 
-#right-click-menu li.cm-red:hover {
+#ctx-menu li.cm-red:hover {
     background-color: #F23F42;
     color: white;
 }
+
+/* @media screen and (max-width: 768px) {
+    #server-list {
+        display: none;
+    }
+
+    #second-column {
+        display: none;
+    }
+} */

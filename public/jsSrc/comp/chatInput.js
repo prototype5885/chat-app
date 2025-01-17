@@ -1,20 +1,62 @@
 class ChatInputClass {
-    constructor() {
+    constructor(main) {
+        this.main = main
+        // this.AttachmentContainer = document.getElementById("attachment-container")
         this.AttachmentList = document.getElementById("attachment-list")
-
-        this.AttachmentInput = document.getElementById("attachment-input")
-        this.AttachmentInput.addEventListener("change", this.attachmentAdded.bind(this))
-
-        this.AttachmentContainer = document.getElementById("attachment-container")
 
         this.ChatInput = document.getElementById("chat-input")
         this.ChatInput.addEventListener("keydown", this.chatEnterPressed.bind(this))
         this.ChatInput.addEventListener("input", this.resizeChatInput.bind(this))
 
-        this.AttachmentButton = document.getElementById("attachment-button")
-        this.AttachmentButton.addEventListener("click", this.uploadAttachment.bind(this))
+        document.getElementById("attachment-button").addEventListener("click", () => {
+            this.AttachmentInput.click()
+        })
 
-        this.AttachmentsToSkip = [false, false, false, false]
+        // this is when user clicks on attachment button and uploads files from there
+        this.AttachmentInput = document.getElementById("attachment-input")
+        this.AttachmentInput.addEventListener("change", () => {
+            for (let i = 0; i < this.AttachmentInput.files.length; i++) {
+                this.addAttachment(this.AttachmentInput.files[i])
+            }
+        })
+
+        this.fileDropZone = document.getElementById("file-drop-zone")
+        this.fileDropMsg = document.getElementById("file-drop-msg")
+
+        document.addEventListener("dragover", e => {
+            e.preventDefault()
+            this.fileDropZone.style.display = "flex"
+            this.fileDropMsg.textContent = "Upload to:\n\n" + this.main.currentChannelID
+        })
+
+        // this when user drags files into webpage
+        this.fileDropZone.addEventListener("drop", e => {
+            e.preventDefault()
+            console.log("dropped file")
+
+            for (let i = 0; i < e.dataTransfer.items.length; i++) {
+                const file = e.dataTransfer.items[i]
+                if (e.dataTransfer.items[i].kind === "file") {
+                    const file = e.dataTransfer.items[i].getAsFile();
+                    this.addAttachment(file)
+                }
+            }
+            this.hideFileDropUI()
+        })
+
+        this.fileDropZone.addEventListener("dragenter", e => {
+            e.preventDefault()
+            console.log("Started dragging a file into window")
+        })
+
+        this.fileDropZone.addEventListener("dragleave", e => {
+            e.preventDefault()
+            console.log("Cancelled file dragging")
+            this.hideFileDropUI()
+        })
+
+        this.maxFiles = 10
+        this.files = []
     }
 
     // dynamically resize the chat input textarea to fit the text content
@@ -30,8 +72,8 @@ class ChatInputClass {
         if (event.key === "Enter" && !event.shiftKey) {
             event.preventDefault()
             let attachmentToken = null
-            if (this.AttachmentInput.files.length !== 0) {
-                console.log(`Chat message has [${this.AttachmentInput.files.length}] attachments, sending those first...`)
+            if (this.files.length !== 0) {
+                console.log(`Chat message has [${this.files.length}] attachments, sending those first...`)
 
                 // these hashes are of the attachments that already exist on server, no need to upload them
                 const existingHashes = await this.checkAttachments()
@@ -50,13 +92,11 @@ class ChatInputClass {
                 this.ChatInput.value = ""
                 this.AttachmentInput.value = ""
                 this.resizeChatInput()
+
             }
         }
     }
 
-    uploadAttachment() {
-        this.AttachmentInput.click()
-    }
 
     async checkAttachments() {
         console.log("Checking if prepare attachments already exist on server")
@@ -104,37 +144,37 @@ class ChatInputClass {
         const formData = new FormData()
 
         // loops through added attachments
-        for (let i = 0; i < this.AttachmentInput.files.length; i++) {
-            // skip attachment that were removed from attachment list above chat input
-            if (this.AttachmentsToSkip[i] === false) {
-                console.log(`Preparing attachment index [${i}] called [${this.AttachmentInput.files[i].name}] for sending`)
-                const hash = await MainClass.calculateSHA256(this.AttachmentInput.files[i])
+        for (let i = 0; i < this.files.length; i++) {
+            if (i > this.maxFiles - 1) {
+                console.warn("Too many attachments, ignoring those after 4th...")
+                continue
+            }
 
-                let exists = false
-                if (existingHashes === null) {
-                    console.warn(`existingHashes is null, uploading attachment index [${i}]`)
-                    exists = false
-                } else {
-                    for (let h = 0; h < existingHashes.length; h++) {
-                        console.log(`Comparing [${hash}] with [${existingHashes[h]}]`)
-                        if (MainClass.areArraysEqual(hash, existingHashes[h])) {
-                            exists = true
-                            break
-                        }
+            console.log(`Preparing attachment index [${i}] called [${this.files[i].name}] for sending`)
+            const hash = await MainClass.calculateSHA256(this.files[i])
+
+            let exists = false
+            if (existingHashes === null) {
+                console.warn(`existingHashes is null, uploading attachment index [${i}]`)
+                exists = false
+            } else {
+                for (let h = 0; h < existingHashes.length; h++) {
+                    console.log(`Comparing [${hash}] with [${existingHashes[h]}]`)
+                    if (MainClass.areArraysEqual(hash, existingHashes[h])) {
+                        exists = true
+                        break
                     }
                 }
+            }
 
-                if (!exists) {
-                    console.log(`Attachment index [${i}] doesn't exist on server, uploading...`)
-                    formData.append("a", this.AttachmentInput.files[i])
-                } else {
-                    console.log(`Attachment index [${i}] exists on server, sending hash only...`)
-                    const name = this.AttachmentInput.files[i].name
-                    const jsonString = JSON.stringify({Hash: hash, Name: name})
-                    formData.append("h", jsonString)
-                }
+            if (!exists) {
+                console.log(`Attachment index [${i}] doesn't exist on server, uploading...`)
+                formData.append("a", this.files[i])
             } else {
-                console.log(`Skipping attachment index [${i}] called [${this.AttachmentInput.files[i].name}] from sending]`)
+                console.log(`Attachment index [${i}] exists on server, sending hash only...`)
+                const name = this.files[i].name
+                const jsonString = JSON.stringify({Hash: hash, Name: name})
+                formData.append("h", jsonString)
             }
         }
 
@@ -187,90 +227,95 @@ class ChatInputClass {
 
     }
 
+    resetAttachments() {
+        console.log("Resetting attachments")
+        this.AttachmentList.innerHTML = ""
+        this.files = []
+    }
 
-    attachmentAdded() {
-        // reset previously added attachments
-        this.resetAttachments()
-
-        if (this.AttachmentInput.files.length >= 4) {
-            console.warn("Too many attachments were added, will only use first 4")
+    addAttachment(entry) {
+        if (this.files.length >= this.maxFiles) {
+            console.warn("Too many attachments, ignoring those after 4th...")
+            return
         }
+        this.files.push(entry)
+        console.log(`Added attachment [${entry.name}], current attachment count: [${this.files.length}]`)
 
-        for (let i = 0; i < this.AttachmentInput.files.length; i++) {
-            // stop if there are more attachments than 4
-            if (i >= 4) {
-                break
-            }
+        const reader = new FileReader()
+        reader.readAsDataURL(entry)
 
-            const reader = new FileReader()
-            reader.readAsDataURL(this.AttachmentInput.files[i])
+        // when the file is loaded into the browser
+        reader.onload = (e) => {
+            const attachmentContainer = document.createElement("div")
+            this.AttachmentList.appendChild(attachmentContainer)
 
-            // when the file is loaded into the browser
-            reader.onload = (e) => {
-                const attachmentContainer = document.createElement("div")
-                this.AttachmentList.appendChild(attachmentContainer)
-
-                // when clicked on the attachment, it removes it
-                attachmentContainer.addEventListener("click", () => {
-                    attachmentContainer.remove()
-                    this.AttachmentsToSkip[i] = true
-                    if (this.AttachmentList.length <= 0) {
-                        this.AttachmentInput.value = ""
-                    }
-                    this.calculateAttachments()
-                })
-
-                const text = false
-
-                const attachmentPreview = document.createElement("div")
-                attachmentPreview.className = "attachment-preview"
-                if (text) {
-                    attachmentContainer.style.height = "224px"
-                } else {
-                    attachmentContainer.style.height = "200px"
+            // when clicked on the attachment, it removes it
+            attachmentContainer.addEventListener("click", () => {
+                attachmentContainer.remove()
+                this.removeAttachment(entry)
+                if (this.AttachmentList.length <= 0) {
+                    this.AttachmentInput.value = ""
                 }
-                const imgElement = document.createElement("img")
-                imgElement.src = e.target.result
-                imgElement.style.display = 'block'
-                attachmentPreview.appendChild(imgElement)
-                attachmentContainer.appendChild(attachmentPreview)
-
-                if (text) {
-                    const attachmentName = document.createElement("div")
-                    attachmentName.className = "attachment-name"
-                    attachmentName.textContent = "test.jpg"
-                    attachmentContainer.appendChild(attachmentName)
-                }
+                console.log(`Removed attachment [${entry.name}], current attachment count: [${this.files.length}]`)
                 this.calculateAttachments()
+            })
+
+            const text = false
+
+            const attachmentPreview = document.createElement("div")
+            attachmentPreview.className = "attachment-preview"
+            if (text) {
+                attachmentContainer.style.height = "224px"
+            } else {
+                attachmentContainer.style.height = "200px"
             }
+            const imgElement = document.createElement("img")
+            imgElement.src = e.target.result
+            imgElement.style.display = 'block'
+            attachmentPreview.appendChild(imgElement)
+            attachmentContainer.appendChild(attachmentPreview)
+
+            if (text) {
+                const attachmentName = document.createElement("div")
+                attachmentName.className = "attachment-name"
+                attachmentName.textContent = "test.jpg"
+                attachmentContainer.appendChild(attachmentName)
+            }
+            this.calculateAttachments()
         }
+    }
+
+    removeAttachment(entry) {
+        this.files.splice(this.files.indexOf(entry), 1)
+    }
+
+    hideFileDropUI() {
+        this.fileDropZone.style.display = "none"
     }
 
     calculateAttachments() {
         const count = this.AttachmentList.children.length
-        console.log(`Amount of attachments changed to [${count}]`)
 
         const ChatInputForm = document.getElementById("chat-input-form")
 
-        if (count > 0 && this.AttachmentContainer.style.display !== "block") {
-            this.AttachmentContainer.style.display = "block"
+        if (count > 0 && this.AttachmentList.style.display !== "flex") {
+            this.AttachmentList.style.display = "flex"
             ChatInputForm.style.borderTopLeftRadius = "0px"
             ChatInputForm.style.borderTopRightRadius = "0px"
             ChatInputForm.style.borderTopStyle = "solid"
-        } else if (count <= 0 && this.AttachmentContainer.style.display === "block") {
-            this.AttachmentContainer.style.display = "none"
+        } else if (count <= 0 && this.AttachmentList.style.display === "flex") {
+            this.AttachmentList.style.display = "none"
             ChatInputForm.style.borderTopLeftRadius = "12px"
             ChatInputForm.style.borderTopRightRadius = "12px"
             ChatInputForm.style.borderTopStyle = "none"
-
-            this.resetAttachments()
         }
     }
 
+    disableChatInput() {
+        document.getElementById("chat-input-container").style.display = "none"
+    }
 
-    resetAttachments() {
-        console.log("Resetting attachments")
-        this.AttachmentList.innerHTML = ""
-        this.AttachmentsToSkip = [false, false, false, false]
+    enableChatInput() {
+        document.getElementById("chat-input-container").style.display = "block"
     }
 }

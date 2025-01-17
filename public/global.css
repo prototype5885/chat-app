@@ -13,6 +13,7 @@
     --separator-color: #3c3c3c;
     --loading-color: rgba(0, 0, 0, 0.71);
     --button-color: #b5bac1;
+    --blue: #5865F2
 }
 
 body {
@@ -42,6 +43,7 @@ button:hover {
 /* global scrollbar settings, only on chromium */
 ::-webkit-scrollbar {
     width: 6px;
+    height: 6px;
 }
 
 /* ::-webkit-scrollbar-track { */

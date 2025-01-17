@@ -22,13 +22,13 @@ func MeasureTime(start int64, msg string) {
 	log.Time("%s took [%d μs] [%d ms]", msg, duration, durationMs)
 }
 
-func ErrorDeserializing(errStr string, jsonType byte, userID uint64) []byte {
-	log.WarnError(errStr, "Error deserializing json packet type [%d] of user ID [%d]", jsonType, userID)
-	return RespondFailureReason("%s", fmt.Sprintf("Couldn't deserialize json of type [%d] request", jsonType))
+func ErrorDeserializing(errStr string, packetType byte, userID uint64) []byte {
+	log.WarnError(errStr, "Error deserializing json packet type [%d] of user ID [%d]", packetType, userID)
+	return RespondFailureReason("%s", fmt.Sprintf("Couldn't deserialize json of type [%d] request", packetType))
 }
 
-func ErrorSerializing(errStr string, jsonType byte, userID uint64) {
-	log.FatalError(errStr, "Fatal error serializing response to packet type [%d] for user ID [%d]", jsonType, userID)
+func ErrorSerializing(errStr string, packetType byte, userID uint64) {
+	log.FatalError(errStr, "Fatal error serializing response to packet type [%d] for user ID [%d]", packetType, userID)
 }
 
 func RespondFailureReason(format string, v ...any) []byte {

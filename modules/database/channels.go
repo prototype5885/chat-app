@@ -11,7 +11,13 @@ type Channel struct {
 	Name      string
 }
 
+type ChannelDelete struct {
+	ChannelID uint64
+	ServerID  uint64
+}
+
 const insertChannelQuery = "INSERT INTO channels (channel_id, server_id, name) VALUES (?, ?, ?)"
+const deleteChannelQuery = "DELETE FROM channels WHERE channel_id = ? AND server_id = ?"
 
 const defaultChannelName = "Default Channel"
 
@@ -43,7 +49,7 @@ func GetChannelList(serverID uint64) []byte {
 	}
 
 	if len(channels) == 0 {
-		log.Trace("Server ID [%d] does't have any channels", serverID)
+		log.Trace("Server ID [%d] doesn't have any channels", serverID)
 		return emptyArray
 	}
 
@@ -70,4 +76,23 @@ func GetServerIdOfChannel(channelID uint64) uint64 {
 	}
 
 	return serverID
+}
+
+func ChangeChannelName(channelID uint64, name string) bool {
+	const query string = "UPDATE channels SET name = ? WHERE channel_id = ?"
+	log.Query(query, name, channelID)
+
+	result, err := Conn.Exec(query, name, channelID)
+	DatabaseErrorCheck(err)
+
+	rowsAffected, err := result.RowsAffected()
+	DatabaseErrorCheck(err)
+
+	if rowsAffected == 1 {
+		log.Debug("Updated name of channel ID [%d] in database to [%s]", channelID, name)
+		return true
+	} else {
+		log.Debug("Couldn't change name of channel ID [%d] in database to [%s]", channelID, name)
+		return false
+	}
 }

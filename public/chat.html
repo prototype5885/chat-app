@@ -3,7 +3,7 @@
 <html>
 
 <head>
-    <link href="manifest.json" rel="manifest"/>
+    <link rel="manifest" href="./manifest.json">
     <meta content="width=device-width,height=device-height,user-scalable=no,initial-scale=1.0" name="viewport">
     <title>Discord Clone</title>
     <link href="global.css" rel="stylesheet">
@@ -14,11 +14,23 @@
 <div id="loading">
     <div>Loading</div>
 </div>
+
 <div id="picture-viewer-container" style="display: none;">
     <img id="picture-viewer" src="">
 </div>
-<!-- <img id="imagePreview" alt="Image Preview" style="display: none; max-width: 300px; margin-top: 20px;"> -->
+
+<div id="file-drop-zone" style="display: none;">
+    <div id="file-drop-window">
+        <div id="file-drop-deco">
+            <label id="file-drop-msg"></label>
+        </div>
+    </div>
+</div>
+
 <input id="attachment-input" multiple style="display: none;" type="file">
+
+<!-- <button id="update-client" onclick="location.reload()">Version: 1<br></button> -->
+
 <ol id="server-list">
     <div class="servers-separator" id="first-servers-separator" style="display: none;"></div>
     <div class="servers-separator" id="second-servers-separator" style="display: none;"></div>
@@ -30,16 +42,22 @@
 <div id="second-column">
     <div id="above-friends-channels">
         <button id="server-name-button">
-            <div id="server-name"></div>
-            <div id="server-name-arrow">></div>
+            <label id="server-name"></label>
+            <svg id="server-name-button-arrow" width="16px" height="16px">
+                <line x1="0" y1="4" x2="8" y2="12" stroke="grey" stroke-width="2"/>
+                <line x1="8" y1="12" x2="16" y2="4" stroke="grey" stroke-width="2"/>
+            </svg>
         </button>
     </div>
     <div id="friends-channels">
         <div id="channels" style="display: none;">
             <div id="channels-visible-or-add-new">
-                <button id="channels-visibility-button" onclick="toggleChannelsVisibility()">
-                    <div>></div>
-                    <div>text channels</div>
+                <button id="channels-visibility-button">
+                    <svg id="channels-visibility-arrow" width="10px" height="10px">
+                        <line x1="0" y1="2" x2="5" y2="8" stroke="grey" stroke-width="1.5"/>
+                        <line x1="5" y1="8" x2="10" y2="2" stroke="grey" stroke-width="1.5"/>
+                    </svg>
+                    <label>text channels</label>
                 </button>
                 <button id="add-channel-button">+</button>
             </div>
@@ -48,8 +66,7 @@
         <div id="friends-chat" style="display: none;">
             <div id="friends-chat-visible-or-add-new">
                 <button id="friends-chat-visibility-button">
-                    <div>></div>
-                    <div>direct messages</div>
+                    <label>direct messages</label>
                 </button>
                 <button id="add-friends-button">+</button>
             </div>
@@ -87,30 +104,37 @@
     <div id="main-bottom">
         <div id="main-center-container">
             <div id="chat-loading-indicator">Loading</div>
+
             <ul id="chat-message-list"></ul>
-            <div id="attachment-container">
+
+            <div id="chat-input-container">
                 <div id="attachment-list"></div>
-            </div>
-            <div action="" id="chat-input-form-container">
                 <div id="chat-input-form">
                     <label id="upload-percentage"></label>
                     <button class="chat-button" id="attachment-button">
-                        <div class="chat-button-icon" id="attachment-button-icon"></div>
+                        <svg class="chat-button-icon" id="attachment-button-icon" width="24" height="24"
+                             xmlns="http://www.w3.org/2000/svg">
+                            <line x1="12" y1="5" x2="12" y2="19" stroke="#383a40" stroke-width="2"/>
+                            <line x1="5" y1="12" x2="19" y2="12" stroke="#383a40" stroke-width="2"/>
+                        </svg>
                     </button>
                     <textarea autocomplete="off" id="chat-input" placeholder="Message ..."></textarea>
-                    <button class="chat-button" id="send-button" onclick="readChatInput()">
-                        <div class="chat-button-icon" id="send-button-icon">Send</div>
-                    </button>
+                    <!--                    <button class="chat-button" id="send-button" onclick="readChatInput()">-->
+                    <!--                        <div class="chat-button-icon" id="send-button-icon">Send</div>-->
+                    <!--                    </button>-->
                 </div>
+
             </div>
+
         </div>
         <ol id="member-list" style="display: none;">
-            <!-- <li>Members</li> -->
+
         </ol>
     </div>
 </div>
-<audio id="notification-sound" preload="auto" src="sounds/discord-notification.mp3"></audio>
+<!--<audio id="notification-sound" preload="auto" src="sounds/discord-notification.mp3"></audio>-->
 <!--<script src="script.js"></script>-->
+<script src="jsSrc/translation.js"></script>
 <script src="jsSrc/main.js"></script>
 <script src="jsSrc/localStorage.js"></script>
 <script src="jsSrc/notification.js"></script>

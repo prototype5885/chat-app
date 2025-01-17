@@ -30,6 +30,7 @@ class LocalStorageClass {
         localStorage.setItem("lastServer", value)
     }
 
+
     updateLastChannelsStorage() {
         if (!this.localStorageSupported) {
             console.warn("Local storage isn't enabled in browser, can't update lastChannels value")
@@ -87,7 +88,7 @@ class LocalStorageClass {
         }
     }
 
-// delete a single server from lastChannels
+    // delete a single server from lastChannels
     removeServerFromLastChannels(serverID) {
         if (!this.localStorageSupported) {
             console.warn(`Local storage isn't enabled in browser, can't delete server ID [${serverID}] from lastChannels value`)

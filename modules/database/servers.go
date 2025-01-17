@@ -123,3 +123,17 @@ func ChangeServerName(userID uint64, serverID uint64, name string) bool {
 		return false
 	}
 }
+
+func GetServerData(serverID uint64) Server {
+	const query = "SELECT user_id, name, picture FROM servers WHERE server_id = ?"
+	log.Query(query, serverID)
+
+	server := Server{
+		ServerID: serverID,
+	}
+
+	err := Conn.QueryRow(query, serverID).Scan(&server.UserID, &server.Name, &server.Picture)
+	DatabaseErrorCheck(err)
+
+	return server
+}

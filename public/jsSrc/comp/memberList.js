@@ -164,7 +164,7 @@ class MemberListClass {
         return document.getElementById(userID)
     }
 
-    setMemberOnlineStatusText(userID, newStatusText) {
+    setMemberStatusText(userID, newStatusText) {
         const userStatusText = this.findMember(userID).querySelector(".user-status-text")
         userStatusText.textContent = newStatusText
     }

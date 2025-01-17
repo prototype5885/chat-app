@@ -31,6 +31,10 @@ func MainHandler(w http.ResponseWriter, r *http.Request) {
 				jsfilesmerger.CheckForChanges()
 			}
 
+			if extension == ".js" {
+
+			}
+
 			log.Debug("Serving file: [%s] to IP address [%s]", r.URL.Path, r.RemoteAddr)
 			http.ServeFile(w, r, publicFolder+r.URL.Path)
 			return

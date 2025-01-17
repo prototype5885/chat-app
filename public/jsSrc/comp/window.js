@@ -233,6 +233,11 @@ class Window {
         maximizeButton.className = "window-maximize-button"
         topBarRight.appendChild(maximizeButton)
 
+        maximizeButton.innerHTML = `
+            <svg width="28" height="28" xmlns="http://www.w3.org/2000/svg">
+                <rect x="4" y="4" width="20" height="20" stroke="grey" fill="none" stroke-width="2"/>
+            </svg>`
+
         // this is the main part under the top bar that holds content
         this.windowMain = document.createElement("div")
         this.windowMain.className = "window-main"
@@ -246,6 +251,12 @@ class Window {
         const exitButton = document.createElement("button")
         exitButton.className = "window-exit-button"
         topBarRight.appendChild(exitButton)
+
+        exitButton.innerHTML = `
+            <svg width="28" height="28" xmlns="http://www.w3.org/2000/svg">
+              <line x1="4" y1="4" x2="24" y2="24" stroke="grey" stroke-width="2"/>
+              <line x1="4" y1="24" x2="24" y2="4" stroke="grey" stroke-width="2"/>
+            </svg>`
 
         // register the exit button
         MainClass.registerClick(exitButton, () => {
@@ -268,6 +279,10 @@ class Window {
                 break
             case "server-settings":
                 this.topBarLeft.textContent = "Server settings"
+                await this.createSettingsLeftSide(this.windowMain, this.type, this.id)
+                break
+            case "channel-settings":
+                this.topBarLeft.textContent = "Channel settings"
                 await this.createSettingsLeftSide(this.windowMain, this.type, this.id)
                 break
         }
@@ -454,7 +469,7 @@ class Window {
                                 <input class="change-pronoun" placeholder="they/them" maxlength="16" value="${main.myPronouns}">
                                 <br>
                                 <label class="input-label">Status:</label>
-                                <input class="change-status" placeholder="Was passiert?" value="${main.myStatusText}">
+                                <input class="change-status" placeholder="Was passiert?" value="${main.myStatusText}" maxlength="32">
                                 <br>
                                 <button class="button update-account-data">Apply</button>
                                 <br>
@@ -548,12 +563,12 @@ class Window {
                             serverSettings.querySelector(".update-server-data").addEventListener('click', function () {
                                 const newServerName = serverSettings.querySelector(".change-server-name").value
                                 let serverNameChanged = false
-                                if (newServerName !== this.id) {
+                                if (newServerName !== ServerListClass.getServerName(value)) {
                                     serverNameChanged = true
                                 }
 
                                 if (!serverNameChanged) {
-                                    console.warn("No server settings was changed")
+                                    console.warn("No server settings were changed")
                                     return
                                 }
 
@@ -565,6 +580,47 @@ class Window {
 
                                 WindowManagerClass.currentUpdateUserDataLabel = serverSettings.querySelector(".update-data-response-label")
                                 WebsocketClass.requestUpdateServerData(updatedServerData)
+                            })
+                            break
+                        case "Channel":
+                            const channelSettings = document.createElement("div")
+                            channelSettings.className = "channel-settings"
+                            mainRight.appendChild(channelSettings)
+
+                            const channelName = ChannelListClass.getChannelName(value)
+
+                            channelSettings.innerHTML = `
+                            <div>
+                                <label class="input-label">Channel name:</label>
+                                <input class="change-channel-name" maxlength="16" value="${channelName}">
+                                <br>
+                                <button class="button update-channel-data">Apply</button>
+                                <br>
+                                <label class="update-data-response-label"></label>
+                            </div>`
+
+
+                            // updating channel data
+                            channelSettings.querySelector(".update-channel-data").addEventListener('click', function () {
+                                const newChannelName = channelSettings.querySelector(".change-channel-name").value
+                                let channelNameChanged = false
+                                if (newChannelName !== ChannelListClass.getChannelName(value)) {
+                                    channelNameChanged = true
+                                }
+
+                                if (!channelNameChanged) {
+                                    console.warn("No channel settings were changed")
+                                    return
+                                }
+
+                                const updatedChannelData = {
+                                    ChannelID: value,
+                                    Name: newChannelName,
+                                    NewCN: channelNameChanged,
+                                }
+
+                                WindowManagerClass.currentUpdateUserDataLabel = channelSettings.querySelector(".update-data-response-label")
+                                WebsocketClass.requestUpdateChannelData(updatedChannelData)
                             })
                             break
                     }
@@ -582,14 +638,12 @@ class Window {
             case "user-settings":
                 leftSideContent.push({text: "Profile"})
                 leftSideContent.push({text: "Account"})
-                leftSideContent.push({text: "1"})
-                leftSideContent.push({text: "2"})
-                leftSideContent.push({text: "3"})
                 break
             case "server-settings":
                 leftSideContent.push({text: "Server"})
-                leftSideContent.push({text: "Extra"})
                 break
+            case "channel-settings":
+                leftSideContent.push({text: "Channel"})
         }
         addElementsLeftSide(leftSideContent)
 

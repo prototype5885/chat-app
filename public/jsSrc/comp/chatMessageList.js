@@ -1,9 +1,8 @@
 class ChatMessageListClass {
-    constructor(main, memberList, notification, contextMenu) {
+    constructor(main, notification, chatInput) {
         this.main = main
-        this.memberList = memberList
         this.notification = notification
-        this.contextMenu = contextMenu
+        this.chatInput = chatInput
 
         this.ChatLoadingIndicator = document.getElementById("chat-loading-indicator")
         this.ChatMessagesList = document.getElementById("chat-message-list")
@@ -24,8 +23,8 @@ class ChatMessageListClass {
         })
 
         // const pictureViewer = document.getElementById("picture-viewer")
-        // this.contextMenu.registerContextMenu(pictureViewer, (pageX, pageY) => {
-        //     this.contextMenu.pictureCtxMenu(pictureViewer.src, pictureViewer.getAttribute("name"), pageX, pageY)
+        // ContextMenuClass.registerContextMenu(pictureViewer, (pageX, pageY) => {
+        //     ContextMenuClass.pictureCtxMenu(pictureViewer.src, pictureViewer.getAttribute("name"), pageX, pageY)
         // })
     }
 
@@ -75,9 +74,8 @@ class ChatMessageListClass {
         }
     }
 
-// adds the new chat message into html
+    // adds the new chat message into html
     addChatMessage(messageID, userID, message, attachments, ghost) {
-        // console.log("Message from: ", userID)
         if (document.getElementById(messageID) !== null) {
             console.error("A message already exists in chat list, won't add it again")
             return
@@ -88,7 +86,7 @@ class ChatMessageListClass {
         if (ghost) {
             msgDate = new Date()
         } else {
-            msgDate = new Date(Number((BigInt(messageID) >> BigInt(22))))
+            msgDate = MainClass.extractDateFromId(messageID)
         }
 
         let msgDateStr = ""
@@ -99,7 +97,7 @@ class ChatMessageListClass {
         yesterday.setDate(yesterday.getDate() - 1)
 
         if (msgDate.toLocaleDateString() === today.toLocaleDateString()) {
-            msgDateStr = main.translation.today + msgDate.toLocaleTimeString(this.locale, this.dateHourShort)
+            msgDateStr = Translation.translation.today + msgDate.toLocaleTimeString(this.locale, this.dateHourShort)
         } else if (msgDate.toLocaleDateString() === yesterday.toLocaleDateString()) {
             msgDateStr = "Yesterday at " + msgDate.toLocaleTimeString(this.locale, this.dateHourShort)
         } else {
@@ -123,8 +121,8 @@ class ChatMessageListClass {
             owner = true
         }
 
-        this.contextMenu.registerContextMenu(li, (pageX, pageY) => {
-            this.contextMenu.messageCtxMenu(messageID, owner, pageX, pageY)
+        ContextMenuClass.registerContextMenu(li, (pageX, pageY) => {
+            ContextMenuClass.messageCtxMenu(messageID, owner, pageX, pageY)
         })
 
         // create a <img> that shows profile pic on the left
@@ -134,11 +132,12 @@ class ChatMessageListClass {
         if (userInfo.pic !== "") {
             img.src = userInfo.pic
         } else {
-            img.src = "discord.webp"
+            img.src = "/content/static/discord.webp"
         }
 
         img.width = 40
         img.height = 40
+
 
         MainClass.registerClick(img, () => {
             const pictureViewerContainer = document.getElementById("picture-viewer-container")
@@ -147,8 +146,8 @@ class ChatMessageListClass {
             pictureViewerContainer.style.display = "block"
             pictureViewer.src = img.src
 
-            this.contextMenu.registerContextMenu(pictureViewer, (pageX, pageY) => {
-                this.contextMenu.pictureCtxMenu(img.src, img.src, pageX, pageY)
+            ContextMenuClass.registerContextMenu(pictureViewer, (pageX, pageY) => {
+                ContextMenuClass.pictureCtxMenu(img.src, img.src, pageX, pageY)
             })
 
             MainClass.registerClick(pictureViewerContainer, () => {
@@ -158,8 +157,8 @@ class ChatMessageListClass {
         })
 
 
-        this.contextMenu.registerContextMenu(img, (pageX, pageY) => {
-            this.contextMenu.userCtxMenu(userID, pageX, pageY)
+        ContextMenuClass.registerContextMenu(img, (pageX, pageY) => {
+            ContextMenuClass.userCtxMenu(userID, pageX, pageY)
         })
 
         // create a nested <div> that will contain sender name, message and date
@@ -175,8 +174,8 @@ class ChatMessageListClass {
         msgNameDiv.className = "msg-user-name"
         msgNameDiv.textContent = userInfo.username
 
-        this.contextMenu.registerContextMenu(msgNameDiv, (pageX, pageY) => {
-            this.contextMenu.userCtxMenu(userID, pageX, pageY)
+        ContextMenuClass.registerContextMenu(msgNameDiv, (pageX, pageY) => {
+            ContextMenuClass.userCtxMenu(userID, pageX, pageY)
         })
 
         // and next to it create a <div> that displays the date of msg on the right
@@ -278,8 +277,8 @@ class ChatMessageListClass {
                         // attachmentContainer.innerHTML += `<img src="${path}" class="attachment-pic">`
                         msgDataDiv.appendChild(attachmentContainer)
 
-                        this.contextMenu.registerContextMenu(img, (pageX, pageY) => {
-                            this.contextMenu.pictureCtxMenu(path, attachments[i].Name, pageX, pageY)
+                        ContextMenuClass.registerContextMenu(img, (pageX, pageY) => {
+                            ContextMenuClass.pictureCtxMenu(path, attachments[i].Name, pageX, pageY)
                         })
 
 
@@ -306,13 +305,90 @@ class ChatMessageListClass {
                 }
             }
         }
+        this.checkPreviousMessage(messageID)
+    }
+
+    checkPreviousMessage(messageID) {
+        const li = document.getElementById(messageID)
+        const userID = li.getAttribute("user-id")
+        const img = li.querySelector(".msg-profile-pic")
+        const msgDataDiv = li.querySelector(".msg-data")
+        const msgNameAndDateDiv = li.querySelector(".msg-name-and-date")
+
+        function normal() {
+            img.style.display = ""
+            msgNameAndDateDiv.style.display = ""
+            msgDataDiv.style.marginLeft = "14px"
+            li.style.paddingTop = "16px"
+        }
+
+        function short() {
+            img.style.display = "none"
+            msgNameAndDateDiv.style.display = "none"
+            msgDataDiv.style.marginLeft = "54px"
+            li.style.paddingTop = "0px"
+        }
+
+        const previousElement = li.previousElementSibling
+        if (previousElement === undefined) {
+            return
+        }
+
+        if (previousElement.className === "date-between-msgs") {
+            normal()
+        }
+
+        if (previousElement.className !== "msg") {
+            normal()
+        }
+
+
+        // this is to make sure if previous message was before 00:00, the one after 00:00 will show up as full
+        const messageDate = MainClass.extractDateFromId(messageID)
+        const prevMessageDate = MainClass.extractDateFromId(previousElement.id)
+
+        const messageUnixMin = Math.floor(messageDate.getTime() / 1000 / 60)
+        const prevMessageUnixMin = Math.floor(prevMessageDate.getTime() / 1000 / 60)
+
+        const elapsedMinutes = messageUnixMin - prevMessageUnixMin
+
+        let sameUser = false
+        if (previousElement.getAttribute("user-id") === userID) {
+            sameUser = true
+        }
+
+        let sameDay = false
+        if (messageDate.toLocaleDateString() === prevMessageDate.toLocaleDateString()) {
+            sameDay = true
+        }
+
+        let older = false
+        if (elapsedMinutes > 5) {
+            older = true
+        }
+
+        if (sameUser && !older && sameDay) {
+            short()
+        } else {
+            normal()
+        }
     }
 
     deleteChatMessage(json) {
         const messageID = json.MessageID
+
+        const nextMessage = document.getElementById(messageID).nextElementSibling
+        let nextMessageID
+        if (nextMessage !== null) {
+            nextMessageID = nextMessage.id
+        }
+
         console.log(`Deleting message ID [${messageID}]`)
         document.getElementById(messageID).remove()
         this.amountOfMessagesChanged()
+        if (nextMessage !== null) {
+            this.checkPreviousMessage(nextMessageID)
+        }
     }
 
     async chatMessageReceived(json) {
@@ -466,5 +542,25 @@ class ChatMessageListClass {
             this.ChatLoadingIndicator.style.display = "none"
             this.ChatMessagesList.style.overflowY = ""
         }
+    }
+
+    setMessagePic(messageID, pic) {
+        const msgPic = document.getElementById(messageID).querySelector(".msg-profile-pic")
+        if (pic !== "") {
+            msgPic.src = pic
+        } else {
+            msgPic.src = "content/static/questionmark.svg"
+        }
+    }
+
+    disableChat() {
+        console.warn("Disabling chat")
+        this.resetChatMessages()
+        this.chatInput.disableChatInput()
+        this.main.currentChannelID = "0"
+    }
+
+    enableChat() {
+        this.chatInput.enableChatInput()
     }
 }

@@ -70,11 +70,12 @@ import (
 // 	}
 // }
 
-func setUserStatusText(userID uint64, statusText string) {
+func setUserStatusText(userID uint64, statusText string) bool {
 	log.Trace("Changing status text of user ID [%d] to [%s]", userID, statusText)
 	if !database.UpdateUserValue(userID, statusText, "status_text") {
-		return
+		return false
 	}
+	return true
 }
 
 func setUserOnline(userID uint64, online bool) {

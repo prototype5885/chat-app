@@ -27,6 +27,14 @@ type InitialData struct {
 	Servers     []JoinedServer
 }
 
+type UserData struct {
+	UserID     uint64
+	Name       string
+	Pic        string
+	Status     byte
+	StatusText string
+}
+
 const insertUserQuery = "INSERT INTO users (user_id, username, display_name, password) VALUES (?, ?, ?, ?)"
 
 func CreateUsersTable() {
@@ -253,4 +261,18 @@ func UpdateUserValue(userID uint64, value string, column string) bool {
 		log.Debug("No changes were made to [%s] of user ID [%d] in database", column, userID)
 		return false
 	}
+}
+
+func GetUserData(userID uint64) ServerMember {
+	const query = "SELECT display_name, picture, status, status_text FROM users WHERE user_id = ?"
+	log.Query(query, userID)
+
+	serverMember := ServerMember{
+		UserID: userID,
+	}
+
+	err := Conn.QueryRow(query, userID).Scan(&serverMember.Name, &serverMember.Pic, &serverMember.Status, &serverMember.StatusText)
+	DatabaseErrorCheck(err)
+
+	return serverMember
 }

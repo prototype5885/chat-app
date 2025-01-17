@@ -27,11 +27,12 @@ class WebsocketClass {
     static ADD_CHANNEL = 31
     static CHANNEL_LIST = 32
     static DELETE_CHANNEL = 33
+    static UPDATE_CHANNEL_DATA = 34
 
     static ADD_SERVER_MEMBER = 41
     static SERVER_MEMBER_LIST = 42
     static DELETE_SERVER_MEMBER = 43
-    static UPDATE_MEMBER_DISPLAY_NAME = 44
+    static UPDATE_MEMBER_DATA = 44
     static UPDATE_MEMBER_PROFILE_PIC = 45
 
     static UPDATE_STATUS = 53
@@ -45,6 +46,10 @@ class WebsocketClass {
     static IMAGE_HOST_ADDRESS = 242
     static UPDATE_USER_DATA = 243
     static UPDATE_USER_PROFILE_PIC = 244
+
+    // static canSendPacket = true
+    static timerStage = 0
+    static lastSendAttempt
 
     async websocketConnected() {
         console.log("Refreshing websocket connections")
@@ -209,6 +214,7 @@ class WebsocketClass {
                     console.log("Requested channel list arrived")
                     if (json.length === 0) {
                         console.warn("No channels on server ID", main.currentServerID)
+                        this.channelList.selectChannel("0")
                         break
                     }
                     for (let i = 0; i < json.length; i++) {
@@ -221,10 +227,21 @@ class WebsocketClass {
                         this.channelList.selectChannel(json[0].ChannelID)
                     }
                     break
+                case WebsocketClass.DELETE_CHANNEL:
+                    console.log(`Channel ID [${json.ChannelID}] has been removed]`)
+                    this.channelList.removeChannel(json.ChannelID)
+                    break
+                case WebsocketClass.UPDATE_CHANNEL_DATA:
+                    if (json.NewCN) {
+                        ChannelListClass.setChannelName(json.ChannelID, json.Name)
+                    }
+                    break
                 case WebsocketClass.ADD_SERVER_MEMBER: // A user connected to the server
                     console.log("A user connected to the server")
-                    if (json.UserID !== main.myUserID) {
-                        this.memberList.addMember(json.UserID, json.Name, json.Picture, json.Status, json.StatusText)
+                    if (json.ServerID === main.currentServerID) {
+                        this.memberList.addMember(json.Data.UserID, json.Data.Name, json.Data.Pic, json.Data.Online, json.Data.Status, json.Data.StatusText)
+                    } else {
+                        console.warn(`Received that User ID [${json.Data.UserID}] connected to server ID [${json.ServerID}] but the current server ID is [${main.currentServerID}]`)
                     }
                     break
                 case WebsocketClass.SERVER_MEMBER_LIST: // Server sent the requested member list
@@ -248,9 +265,17 @@ class WebsocketClass {
                         this.memberList.removeMember(json.UserID)
                     }
                     break
-                case WebsocketClass.UPDATE_MEMBER_DISPLAY_NAME: // a member changed their display name
-                    this.memberList.setMemberDisplayName(json.UserID, json.DisplayName)
-                    this.chatMessageList.changeDisplayNameInChatMessageList(json.UserID, json.DisplayName)
+                case WebsocketClass.UPDATE_MEMBER_DATA: // a member changed user data
+                    if (json.NewDN) {
+                        this.memberList.setMemberDisplayName(json.UserID, json.DisplayName)
+                        this.chatMessageList.changeDisplayNameInChatMessageList(json.UserID, json.DisplayName)
+                    }
+                    if (json.NewP) {
+                        // TODO set pronouns
+                    }
+                    if (json.NewST) {
+                        this.memberList.setMemberStatusText(json.UserID, json.StatusText)
+                    }
                     break
                 case WebsocketClass.UPDATE_MEMBER_PROFILE_PIC: // a member changed their profile pic
                     json.Pic = main.getAvatarFullPath(json.Pic)
@@ -366,6 +391,15 @@ class WebsocketClass {
         // wait if websocket is not on yet
         await MainClass.waitUntilBoolIsTrue(() => WebsocketClass.wsConnected)
 
+        // if (WebsocketClass.lastSendAttempt !== undefined) {
+        //     const difference = Date.now() - this.lastSendAttempt
+        //     if (difference < 200) {
+        //         console.log(`too early, last attempt was ${difference} ms ago`)
+        //         await new Promise(resolve => setTimeout(resolve, 200 - difference))
+        //     }
+        // }
+        // WebsocketClass.lastSendAttempt = Date.now()
+
         // convert the type value into a single byte value that will be the packet type
         const typeByte = new Uint8Array([1])
         typeByte[0] = type
@@ -403,6 +437,11 @@ class WebsocketClass {
         console.log("Prepared packet:", endIndex, packet[4], json)
 
         WebsocketClass.wsClient.send(packet)
+
+        // WebsocketClass.canSendPacket = false
+        // setTimeout(() => {
+        //     WebsocketClass.canSendPacket = true
+        // }, 100)
     }
 
     static async sendChatMessage(message, channelID, attachmentToken) { // type is 1
@@ -416,6 +455,7 @@ class WebsocketClass {
             Message: message,
             AttTok: attachmentToken
         })
+
     }
 
     static async requestChatHistory(channelID, lastMessageID) {
@@ -441,7 +481,7 @@ class WebsocketClass {
         })
     }
 
-    static requestRenameServer(serverID) {
+    static async requestRenameServer(serverID) {
         console.log("Requesting to rename server ID:", serverID)
     }
 
@@ -473,6 +513,20 @@ class WebsocketClass {
         await WebsocketClass.preparePacket(WebsocketClass.ADD_CHANNEL, {
             Name: "Channel",
             ServerID: main.currentServerID
+        })
+    }
+
+    static async requestRemoveChannel(channelID) {
+        console.log(`Requesting to remove channel ID [${channelID}] from server ID [${main.currentServerID}]`)
+        if (document.getElementById(main.currentServerID).getAttribute("owned") === "false") return
+
+        // if (document.getElementById(channelID).parentElement.childElementCount <= 1) {
+        //     console.warn("You can't remove last channel of a server")
+        //     return
+        // }
+
+        await WebsocketClass.preparePacket(WebsocketClass.DELETE_CHANNEL, {
+            ChannelID: channelID,
         })
     }
 
@@ -550,5 +604,10 @@ class WebsocketClass {
     static async requestUpdateServerData(updatedServerData) {
         console.log(`Requesting to update data of server ID [${updatedServerData.ServerID}]`)
         await WebsocketClass.preparePacket(WebsocketClass.UPDATE_SERVER_DATA, updatedServerData)
+    }
+
+    static async requestUpdateChannelData(updatedChannelData) {
+        console.log(`Requesting to update data of channel ID [${updatedChannelData.ChannelID}]`)
+        await WebsocketClass.preparePacket(WebsocketClass.UPDATE_CHANNEL_DATA, updatedChannelData)
     }
 }

@@ -8,7 +8,7 @@ class ColorsClass {
     static darkTransparent = "#111214d1"
     static darkNonTransparent = "#111214"
     static brighterTransparent = "#656565d1"
-    static loadingColor = "#00000080"
+    static loadingColor = "#000000b5"
 
     static textColor = "#C5C7CB"
 
@@ -31,44 +31,46 @@ class MainClass {
         this.receivedImageHostAddress = false // don't continue loading until host address of image server arrived
         this.memberListLoaded = false // don't add chat history until server member list is received
 
-        this.currentServerID = 2000
-        this.currentChannelID = 0
-        this.lastChannelID = -1
+        this.currentServerID = "2000"
+        this.currentChannelID = "0"
         this.reachedBeginningOfChannel = false
 
         // this.imageHost = "http://localhost:8000/"
         this.imageHost = ""
-        this.translationJson
-        this.translation
 
         // this runs after webpage was loaded
         document.addEventListener("DOMContentLoaded", async () => {
-            await this.getTranslationJson()
-            this.setLanguage(navigator.language)
+            Translation.setLanguage(navigator.language)
 
-
-            const contextMenu = new ContextMenuClass(this)
+            const contextMenu = new ContextMenuClass()
             const localStorage = new LocalStorageClass(this)
 
             const notification = new NotificationClass()
-            const chatInput = new ChatInputClass()
+
+            const chatInput = new ChatInputClass(this)
 
             const userPanel = new UserPanelClass(this)
 
             const memberList = new MemberListClass()
-            const chatMessageList = new ChatMessageListClass(this, memberList, notification, contextMenu)
-            const channelList = new ChannelListServer(this, chatMessageList, localStorage, contextMenu)
-            const serverList = new ServerListClass(this, chatMessageList, memberList, channelList, localStorage, contextMenu)
+            const chatMessageList = new ChatMessageListClass(this, notification, chatInput)
+            const channelList = new ChannelListClass(this, chatMessageList, localStorage, chatInput)
+            const serverList = new ServerListClass(this, chatMessageList, memberList, channelList, localStorage)
 
 
             const websocket = new WebsocketClass(this, serverList, chatMessageList, channelList, memberList, localStorage, userPanel)
 
             // add the direct messages button
-            serverList.addServer("2000", 0, "Direct Messages", "content/static/hs.svg", "dm")
+            serverList.addServer("2000", 0, "Direct Messages", "content/static/mail.svg", "2000")
 
             await websocket.connectToWebsocket()
+
+            // setInterval(this.checkForUpdates, 3000)
         })
     }
+
+    // checkForUpdates() {
+    //     console.log("Checking for update")
+    // }
 
     static defaultProfilePic = "/content/static/default_profilepic.webp"
 
@@ -126,6 +128,7 @@ class MainClass {
 
     setOwnStatusText(statusText) {
         this.myStatusText = statusText
+        UserPanelClass.setUserPanelStatusText(statusText)
         console.log(`Own status text has been set to [${this.myStatusText}]`)
     }
 
@@ -165,43 +168,6 @@ class MainClass {
         } else {
             button.classList.add("noHover")
             button.disabled = true
-        }
-    }
-
-    setLanguage(language) {
-        language = language.split('-')[0];
-        console.log("Language: " + language)
-        switch (language) {
-            case "de":
-                this.translation = this.translationJson.de
-                break
-            case "hu":
-                this.translation = this.translationJson.hu
-                break
-            case "ru":
-                this.translation = this.translationJson.ru
-                break
-            case "es":
-                this.translation = this.translationJson.es
-                break
-            case "en":
-            default:
-                this.translation = this.translationJson.en
-                break
-        }
-        console.log(this.translation)
-    }
-
-    async getTranslationJson() {
-        const jsonFileUrl = `${location.protocol}//${location.host}/translation.json`;  // Correcting the URL
-        try {
-            const response = await fetch(jsonFileUrl);
-            if (!response.ok) {
-                console.error("Failed getting translation json file");
-            }
-            this.translationJson = await response.json();
-        } catch (error) {
-            console.error(error);
         }
     }
 
@@ -260,6 +226,10 @@ class MainClass {
             return false;
         }
         return arr1.every((element, index) => element === arr2[index]);
+    }
+
+    static extractDateFromId(id) {
+        return new Date(Number((BigInt(id) >> BigInt(22))))
     }
 }
 

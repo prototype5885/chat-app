@@ -5,11 +5,11 @@ class ServerListClass {
         this.channelList = channelList
         this.memberList = memberList
         this.localStorage = localStorage
-        this.contextMenu = contextMenu
 
         this.ServerList = document.getElementById("server-list")
         this.serverSeparators = this.ServerList.querySelectorAll(".servers-separator")
         this.FriendsChat = document.getElementById("friends-chat")
+        this.ServerNameButton = document.getElementById("server-name-button")
         this.ServerName = document.getElementById("server-name")
         this.AddServerButton = document.getElementById("add-server-button")
 
@@ -28,6 +28,15 @@ class ServerListClass {
             WebsocketClass.requestAddServer("server")
         })
 
+        ContextMenuClass.registerLeftClickContextMenu(this.ServerNameButton, () => {
+            const rect = this.ServerNameButton.getBoundingClientRect()
+
+            const absoluteBottom = (rect.bottom + window.scrollY) + 8
+            const absoluteCenter = (rect.left + window.scrollX) + (rect.width / 2) - 75
+
+            const serverID = this.main.currentServerID
+            ContextMenuClass.serverCtxMenu(serverID, ServerListClass.getServerOwned(serverID), absoluteCenter, absoluteBottom)
+        })
     }
 
     createPlaceHolderServers() {
@@ -95,8 +104,8 @@ class ServerListClass {
         MainClass.registerClick(button, () => {
             this.selectServer(serverID)
         })
-        this.contextMenu.registerContextMenu(button, (pageX, pageY) => {
-            this.contextMenu.serverCtxMenu(serverID, owned, pageX, pageY)
+        ContextMenuClass.registerContextMenu(button, (pageX, pageY) => {
+            ContextMenuClass.serverCtxMenu(serverID, owned, pageX, pageY)
         })
         MainClass.registerHover(button, () => {
             if (serverID !== main.currentServerID) {
@@ -134,19 +143,18 @@ class ServerListClass {
         let dm = false
         if (serverID === "2000") {
             dm = true
+            this.main.currentChannelID = "0"
+            this.chatMessageList.disableChat()
         }
 
         if (dm) {
             console.log("Selected direct messages")
             this.FriendsChat.removeAttribute("style")
             this.channelList.Channels.style.display = "none"
-            document.getElementById("chat-input-form-container").style.display = "none"
-            this.main.currentChannelID = "0"
         } else {
             console.log("Selected server ID", serverID, ", requesting list of channels...")
             this.channelList.Channels.removeAttribute("style")
             this.FriendsChat.style.display = "none"
-            document.getElementById("chat-input-form-container").style.display = ""
         }
 
         const serverButton = document.getElementById(serverID)
@@ -174,7 +182,7 @@ class ServerListClass {
         serverButton.nextElementSibling.style.height = "36px"
 
         if (!dm) {
-            const owned = serverButton.getAttribute("owned")
+            const owned = ServerListClass.getServerOwned(serverID)
 
             // hide add channel button if server isn't own
             if (owned === "true") {
@@ -220,7 +228,14 @@ class ServerListClass {
 
     setServerName(serverID, name) {
         console.log(`Changing name of server ID [${serverID}] to [${name}]`)
-        document.getElementById(serverID).setAttribute("name", name)
+        const server = document.getElementById(serverID)
+        server.setAttribute("name", name)
+        if (serverID === this.main.currentServerID) {
+            this.ServerName.textContent = name
+        }
+        if (server.style.backgroundImage === "") {
+            server.textContent = name[0].toUpperCase()
+        }
     }
 
     static getServerName(serverID) {
@@ -243,8 +258,20 @@ class ServerListClass {
         }
     }
 
+    static getServerOwned(serverID) {
+        console.log(`Getting if server ID [${serverID}] is owned by me`)
+        const server = document.getElementById(serverID)
+        if (server === null) {
+            console.error(`Server ID [${serverID}] doesn't exist`)
+        } else {
+            return server.getAttribute("owned")
+        }
+
+    }
 
     serverWhiteThingSize(thing, newSize) {
         thing.style.height = `${newSize}px`
     }
+
+
 }

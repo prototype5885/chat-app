@@ -1,7 +1,5 @@
 class ContextMenuClass {
-    constructor(main) {
-        this.main = main
-
+    constructor() {
         this.defaultRightClick = false
 
         // delete context menu if left-clicked somewhere that's not
@@ -18,10 +16,18 @@ class ContextMenuClass {
             }
             ContextMenuClass.deleteCtxMenu()
         })
-
     }
 
-    registerContextMenu(element, callback) {
+    static registerLeftClickContextMenu(element, callback) {
+        element.addEventListener("click", (event) => {
+            event.preventDefault()
+            ContextMenuClass.deleteCtxMenu()
+            event.stopPropagation()
+            callback(event.pageX, event.pageY)
+        })
+    }
+
+    static registerContextMenu(element, callback) {
         element.addEventListener("contextmenu", (event) => {
             event.preventDefault()
             ContextMenuClass.deleteCtxMenu()
@@ -30,14 +36,14 @@ class ContextMenuClass {
         })
     }
 
-    createContextMenu(actions, pageX, pageY) {
+    static createContextMenu(actions, pageX, pageY) {
         if (actions.length === 0) {
             return
         }
 
         // create the right click menu
         const rightClickMenu = document.createElement("div")
-        rightClickMenu.id = "right-click-menu"
+        rightClickMenu.id = "ctx-menu"
         document.body.appendChild(rightClickMenu)
 
         // create ul that holds the menu items
@@ -66,10 +72,15 @@ class ContextMenuClass {
     }
 
     static deleteCtxMenu() {
-        const rightClickMenu = document.getElementById("right-click-menu")
-        if (rightClickMenu != null) {
-            rightClickMenu.remove()
+        console.log("Deleting ctx menu")
+        const existingCtxMenus = document.querySelectorAll("#ctx-menu")
+        for (let i = 0; i < existingCtxMenus.length; i++) {
+            existingCtxMenus[i].remove()
         }
+        // const rightClickMenu = document.getElementById("ctx-menu")
+        // if (rightClickMenu != null) {
+        //     rightClickMenu.remove()
+        // }
     }
 
     pictureCtxMenu(path, name, pageX, pageY) {
@@ -92,10 +103,11 @@ class ContextMenuClass {
             {text: "Open in new tab", color: "", func: () => openPicture()},
         ]
 
-        this.createContextMenu(actions, pageX, pageY)
+        ContextMenuClass.createContextMenu(actions, pageX, pageY)
     }
 
-    serverCtxMenu(serverID, owned, pageX, pageY) {
+    static serverCtxMenu(serverID, owned, pageX, pageY) {
+        console.log("serverctxmenu")
         const actions = []
 
         if (owned) {
@@ -119,26 +131,34 @@ class ContextMenuClass {
         }
         // if (!owned) { actions.push({ text: "Report Server", color: "red" }) }
 
-        this.createContextMenu(actions, pageX, pageY)
+        ContextMenuClass.createContextMenu(actions, pageX, pageY)
     }
 
-    channelCtxMenu(channelID, pageX, pageY) {
-        function renameChannel(channelID) {
-            console.log("renaming channel", channelID)
+    static channelCtxMenu(channelID, owned, pageX, pageY) {
+        const actions = []
+        if (owned) {
+            actions.push({
+                text: "Channel Settings",
+                func: () => WindowManagerClass.addWindow(main, "channel-settings", channelID)
+            })
+        }
+        if (owned) {
+            actions.push({text: "Delete channel", color: "red", func: () => deleteChannel(channelID)})
+        }
+
+
+        function channelSettings(channelID) {
+            console.log("TODO renaming channel", channelID)
         }
 
         function deleteChannel(channelID) {
-            console.log("deleting channel", channelID)
+            WebsocketClass.requestRemoveChannel(channelID)
         }
 
-        const actions = [
-            {text: "Rename channel", color: "", func: () => renameChannel(channelID)},
-            {text: "Delete channel", color: "red", func: () => deleteChannel(channelID)}
-        ]
         this.createContextMenu(actions, pageX, pageY)
     }
 
-    userCtxMenu(userID, pageX, pageY) {
+    static userCtxMenu(userID, pageX, pageY) {
         function reportUser(userID) {
             console.log("Reporting user", userID)
         }
@@ -163,10 +183,10 @@ class ContextMenuClass {
         }
         actions.push({text: "Copy user ID", func: () => copyUserID(userID)})
 
-        this.createContextMenu(actions, pageX, pageY)
+        ContextMenuClass.createContextMenu(actions, pageX, pageY)
     }
 
-    messageCtxMenu(messageID, owner, pageX, pageY) {
+    static messageCtxMenu(messageID, owner, pageX, pageY) {
         function copyText() {
             const chatMsg = document.getElementById(messageID).querySelector(".msg-text").textContent
             console.log("Copied to clipboard:", chatMsg)
@@ -185,7 +205,7 @@ class ContextMenuClass {
         if (!owner) {
             actions.push({text: "Report message", color: "red"})
         }
-        this.createContextMenu(actions, pageX, pageY)
+        ContextMenuClass.createContextMenu(actions, pageX, pageY)
     }
 }
 

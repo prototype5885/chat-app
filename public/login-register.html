@@ -49,10 +49,10 @@
     <br>
     <div id="login-container">
         <form onsubmit="sendLogin(event)">
-            <label class="input-label">Username:</label>
+            <label for="login-username" class="input-label">Username:</label>
             <input autocomplete="username" id="login-username" maxlength="16" oninput="asciiOnly(event)" required>
             <br>
-            <label class="input-label">Password:</label>
+            <label for="login-password" class="input-label">Password:</label>
             <input autocomplete="current-password" id="login-password" type="password" maxlength="64" required>
             <br>
             <button class="button" type="submit">Login</button>
@@ -62,17 +62,20 @@
     </div>
     <div id="register-container" style="display: none;">
         <form onsubmit="sendRegister(event)">
-            <label class="input-label">Username:</label>
+            <label for="register-username" class="input-label">Username:</label>
             <input autocomplete="username" id="register-username" maxlength="16" oninput="asciiOnly(event)"
                    required>
             <br>
-            <label class="input-label">Password:</label>
+            <label for="register-password-first" class="input-label">Password:</label>
             <input autocomplete="new-password" type="password" id="register-password-first" maxlength="64" required>
             <br>
-            <label class="input-label">Password again:</label>
+            <label for="register-password-second" class="input-label">Password again:</label>
             <input autocomplete="new-password" type="password" id="register-password-second" maxlength="64"
                    required>
             <br>
+            <!--            <label for="invite-code" class="input-label">Invite code</label>-->
+            <!--            <input id="invite-code" maxlength="16" required>-->
+            <!--            <br>-->
             <button class="button" type="submit">Register</button>
         </form>
         <br>
