@@ -6,10 +6,13 @@ class ChatMessageListClass {
 
         this.ChatLoadingIndicator = document.getElementById("chat-loading-indicator")
         this.ChatMessagesList = document.getElementById("chat-message-list")
+        this.SomeoneTyping = document.getElementById("someone-typing")
+        this.SvgContainer = document.getElementById("svg-container")
 
         this.amountOfMessagesLoaded = 0
-        this.lastReceivedChannelHistoryID = ""
         this.channelHistoryReceived = false
+
+        this.peopleTyping = []
 
         this.locale = navigator.language
         this.dateHourShort = {timeStyle: "short"}
@@ -75,11 +78,13 @@ class ChatMessageListClass {
     }
 
     // adds the new chat message into html
-    addChatMessage(messageID, userID, message, attachments, ghost) {
+    addChatMessage(messageID, userID, message, attachments, edited, ghost) {
         if (document.getElementById(messageID) !== null) {
-            console.error("A message already exists in chat list, won't add it again")
+            console.error("This message already exists in chat list with same ID, won't add it again")
             return
         }
+
+        this.removeUserFromTypingList(userID)
 
         // extract the message date from messageID
         let msgDate
@@ -189,22 +194,46 @@ class ChatMessageListClass {
 
         msgDataDiv.appendChild(msgNameAndDateDiv)
 
+        const msgLeftRightContainer = document.createElement("div")
+        msgLeftRightContainer.className = "msg-left-right-container"
+
+        const msgLeftSide = document.createElement("div")
+        msgLeftSide.className = "msg-left-side"
+        msgLeftRightContainer.appendChild(msgLeftSide)
+
+        const msgRightSide = document.createElement("div")
+        msgRightSide.className = "msg-right-side"
+        msgLeftRightContainer.appendChild(msgRightSide)
+
+        msgDataDiv.appendChild(msgLeftRightContainer)
+
+        const msgDateShortContainer = document.createElement("div")
+
+        msgDateShortContainer.textContent = `${msgDate.toLocaleTimeString(this.locale, this.dateHourShort)}`
+        msgDateShortContainer.className = "msg-date-short"
+
+        msgLeftSide.appendChild(msgDateShortContainer)
+
+        const msgTextContainer = document.createElement("div")
+        msgTextContainer.className = "msg-text-container"
+
         // now create a <div> under name and date that displays the message
-        const msgTextDiv = document.createElement("div")
+        const msgTextDiv = document.createElement("span")
         msgTextDiv.className = "msg-text"
 
         // look for URLs in the message and make them clickable
         msgTextDiv.innerHTML = message.replace(/https?:\/\/[^\s/$.?#].[^\s]*/g, (url) => {
             if (url.endsWith(".gif") || url.endsWith(".jpg") || url.endsWith(".jpeg") || url.endsWith(".png") || url.endsWith(".webp")) {
-                return `<a href="${url}" class="url" target="_blank"><img src="${url}"></a>`
+                return `<a href="${url}" target="_blank"><img src="${url}"></a>`
             } else {
-                return `<a href="${url}" class="url" target="_blank">${url}</a>`
+                return `<a href="${url}" target="_blank">${url}</a>`
             }
-
         })
 
         // append both name/date <div> and msg <div> to msgDatDiv
-        msgDataDiv.appendChild(msgTextDiv)
+        msgTextContainer.appendChild(msgTextDiv)
+
+        msgRightSide.appendChild(msgTextContainer)
 
         // append both the profile pic and message data to the <li>
         li.appendChild(img)
@@ -246,7 +275,7 @@ class ChatMessageListClass {
                         <audio controls class="attachment-audio">
                             <source src="${path}">${attachments[i].Name}</source>
                         </audio>`
-                        msgDataDiv.appendChild(attachmentContainer)
+                        msgRightSide.appendChild(attachmentContainer)
                         break
                     case "mp4":
                     case "webm":
@@ -257,7 +286,7 @@ class ChatMessageListClass {
                         <video controls class="attachment-video">
                             <source src="${path}">${attachments[i].Name}</source>
                         </video>`
-                        msgDataDiv.appendChild(attachmentContainer)
+                        msgRightSide.appendChild(attachmentContainer)
                         break
                     case "jpg":
                     case "jpeg":
@@ -275,7 +304,7 @@ class ChatMessageListClass {
 
 
                         // attachmentContainer.innerHTML += `<img src="${path}" class="attachment-pic">`
-                        msgDataDiv.appendChild(attachmentContainer)
+                        msgRightSide.appendChild(attachmentContainer)
 
                         ContextMenuClass.registerContextMenu(img, (pageX, pageY) => {
                             ContextMenuClass.pictureCtxMenu(path, attachments[i].Name, pageX, pageY)
@@ -300,12 +329,28 @@ class ChatMessageListClass {
                         console.warn("Unsupported attachment type:", extension)
                         attachmentContainer.className = "attachment-unknown"
                         attachmentContainer.innerHTML += `<a href="${path}" class="url" target="_blank">${attachments[i].Name}</a>`
-                        msgDataDiv.appendChild(attachmentContainer)
+                        msgRightSide.appendChild(attachmentContainer)
                         break
                 }
             }
         }
         this.checkPreviousMessage(messageID)
+
+        if (edited) {
+            this.setEdited(messageID)
+        }
+
+        li.addEventListener("mouseenter", () => {
+            msgDateShortContainer.style.display = "block"
+            li.style.backgroundColor = "#2E3035"
+        })
+
+        li.addEventListener("mouseleave", () => {
+            msgDateShortContainer.style.display = "none"
+            li.style.backgroundColor = ""
+        })
+
+        msgDateShortContainer.style.display = "none"
     }
 
     checkPreviousMessage(messageID) {
@@ -315,18 +360,27 @@ class ChatMessageListClass {
         const msgDataDiv = li.querySelector(".msg-data")
         const msgNameAndDateDiv = li.querySelector(".msg-name-and-date")
 
+
         function normal() {
+            const msgLeftSide = li.querySelector(".msg-left-side")
             img.style.display = ""
             msgNameAndDateDiv.style.display = ""
+            msgLeftSide.style.display = "none"
             msgDataDiv.style.marginLeft = "14px"
             li.style.paddingTop = "16px"
+            li.style.paddingLeft = "16px"
         }
 
         function short() {
+            const msgDateShort = li.querySelector(".msg-date-short")
             img.style.display = "none"
             msgNameAndDateDiv.style.display = "none"
-            msgDataDiv.style.marginLeft = "54px"
+            msgDateShort.style.display = "block"
+            // msgDataDiv.style.marginLeft = "6px"
             li.style.paddingTop = "0px"
+            li.style.paddingLeft = "0"
+            // msgDateShort.style.
+
         }
 
         const previousElement = li.previousElementSibling
@@ -392,6 +446,7 @@ class ChatMessageListClass {
     }
 
     async chatMessageReceived(json) {
+        console.log("msg: ", json.Msg)
         if (!this.channelHistoryReceived) {
             console.warn("Won't add received chat message as it was meant for the previous channel")
             return
@@ -401,7 +456,7 @@ class ChatMessageListClass {
         }
 
         // console.log(`New chat message ID [${json.MsgID}] received`)
-        this.addChatMessage(json.MsgID, json.UserID, json.Msg, json.Att, false)
+        this.addChatMessage(json.MsgID, json.UserID, json.Msg, json.Att, json.Edited, false)
 
 
         if (MainClass.getScrollDistanceFromBottom(this.ChatMessagesList) < 200 || json.IDu === main.myUserID) {
@@ -448,7 +503,8 @@ class ChatMessageListClass {
                         MessageID: json[1][u].Msgs[m][0], // message id
                         UserID: json[1][u].UserID, // user id
                         Message: json[1][u].Msgs[m][1], // message
-                        Attachments: json[1][u].Msgs[m][2] // attachments
+                        Edited: json[1][u].Msgs[m][2],
+                        Attachments: json[1][u].Msgs[m][3] // attachments
                     }
                     chatMessages.push(chatMessage)
                 }
@@ -456,7 +512,7 @@ class ChatMessageListClass {
             // sort the history here because message history is not received ordered
             chatMessages.sort((a, b) => a.MessageID - b.MessageID)
             for (let i = 0; i < chatMessages.length; i++) {
-                this.addChatMessage(chatMessages[i].MessageID, chatMessages[i].UserID, chatMessages[i].Message, chatMessages[i].Attachments, false)
+                this.addChatMessage(chatMessages[i].MessageID, chatMessages[i].UserID, chatMessages[i].Message, chatMessages[i].Attachments, chatMessages[i].Edited, false)
             }
 
             // only auto scroll down when entering channel, and not when
@@ -490,11 +546,67 @@ class ChatMessageListClass {
         this.lastReceivedChannelHistoryID = json[0]
     }
 
+    someoneStartedTyping(typing, userID, channelID) {
+        if (channelID === main.currentChannelID) {
+            if (typing) {
+                this.addUserToTypingList(userID)
+            } else {
+                this.removeUserFromTypingList(userID)
+            }
+        }
+    }
+
+    addUserToTypingList(userID) {
+        // if (userID === main.myUserID) {
+        //     return
+        // }
+        if (!this.peopleTyping.includes(userID)) {
+            const timerID = setTimeout(() => {
+                this.removeUserFromTypingList(userID);
+            }, 20000)
+            this.peopleTyping.push({UserID: userID, Timer: timerID})
+            this.setTypingText()
+        }
+    }
+
+
+    removeUserFromTypingList(userID) {
+        const index = this.peopleTyping.findIndex(pair => pair.UserID === userID)
+        if (index !== -1) {
+            clearTimeout(this.peopleTyping[index].Timer)
+            this.peopleTyping.splice(index, 1)
+            this.setTypingText()
+        }
+    }
+
+    setTypingText() {
+        if (this.peopleTyping.length !== 0) {
+            this.SvgContainer.style.display = "flex"
+        }
+        if (this.peopleTyping.length === 0) {
+            this.SomeoneTyping.textContent = ""
+            this.SvgContainer.style.display = "none"
+        } else if (this.peopleTyping.length === 1) {
+            this.SomeoneTyping.innerHTML = `<b>${MemberListClass.getMemberName(this.peopleTyping[0].UserID)}</b> is typing...`
+        } else if (this.peopleTyping.length > 1 && this.peopleTyping.length <= 4) {
+            let text = ""
+            for (let i = 0; i < this.peopleTyping.length; i++) {
+                if (i !== this.peopleTyping.length - 1) {
+                    text += `<b>${MemberListClass.getMemberName(this.peopleTyping[i].UserID)}</b> and `
+                } else {
+                    text += `<b>${MemberListClass.getMemberName(this.peopleTyping[i].UserID)}</b> are typing...`
+                }
+            }
+            this.SomeoneTyping.innerHTML = text
+        } else {
+            this.SomeoneTyping.innerHTML = `<b>${this.peopleTyping.length} people</b>  are typing...`
+        }
+    }
+
     amountOfMessagesChanged() {
         this.amountOfMessagesLoaded = this.ChatMessagesList.querySelectorAll("li").length
         console.log("Amount of messages loaded:", this.amountOfMessagesLoaded)
         this.updateDaySeparatorsInChat()
-        // removeGhostMessages()
     }
 
     changeDisplayNameInChatMessageList(userID, newDisplayName) {
@@ -562,5 +674,30 @@ class ChatMessageListClass {
 
     enableChat() {
         this.chatInput.enableChatInput()
+    }
+
+    editChatMessage(messageID, newMessage) {
+        console.log(`Editing chat message ID [${messageID}]`)
+        const msgElement = document.getElementById(messageID)
+        if (msgElement === null) {
+            console.log(`Message ID [${messageID}] was not found, possibly out of view, unable to edit`)
+        } else {
+            msgElement.querySelector(".msg-text").textContent = newMessage
+            this.setEdited(messageID)
+        }
+    }
+
+    setEdited(messageID) {
+        console.log(`Marking chat message ID [${messageID}] as edited`)
+        const msg = document.getElementById(messageID)
+        if (msg !== null && msg.querySelector(".msg-edited") === null) {
+            const editedSpan = document.createElement("span")
+            editedSpan.className = "msg-edited"
+            editedSpan.textContent = "(edited)"
+
+            const msgTextContainer = msg.querySelector(".msg-text-container")
+            msgTextContainer.appendChild(editedSpan)
+
+        }
     }
 }

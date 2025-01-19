@@ -18,6 +18,8 @@ const (
 	ADD_CHAT_MESSAGE    byte = 1
 	CHAT_HISTORY        byte = 2
 	DELETE_CHAT_MESSAGE byte = 3
+	STARTED_TYPING      byte = 4
+	EDIT_CHAT_MESSAGE   byte = 5
 
 	ADD_SERVER         byte = 21
 	UPDATE_SERVER_PIC  byte = 22
@@ -195,11 +197,15 @@ func (c *WsClient) readMessages(wg *sync.WaitGroup) {
 		log.Trace("Received packet: endIndex [%d], type [%d], json [%s]", endIndex, packetType, string(packetJson))
 		switch packetType {
 		case ADD_CHAT_MESSAGE: // user sent a chat message on x channel
-			c.onChatMessageRequest(packetJson, packetType)
+			c.onAddChatMessageRequest(packetJson, packetType)
 		case CHAT_HISTORY: // user entered a channel, requesting chat history
 			c.onChatHistoryRequest(packetJson, packetType)
 		case DELETE_CHAT_MESSAGE: // user deleting a chat message
 			c.onChatMessageDeleteRequest(packetJson, packetType)
+		case STARTED_TYPING:
+			c.onChatMessageTyping(packetJson, packetType)
+		case EDIT_CHAT_MESSAGE:
+			c.onChatMessageEditRequest(packetJson, packetType)
 		case ADD_SERVER: // user adding a server
 			c.onAddServerRequest(packetJson)
 		case DELETE_SERVER: // user deleting a server
@@ -221,7 +227,7 @@ func (c *WsClient) readMessages(wg *sync.WaitGroup) {
 		case DELETE_SERVER_MEMBER: // a user left a server
 			c.onLeaveServerRequest(packetJson, packetType)
 		case UPDATE_STATUS: // user wants to update their status value
-			c.onUpdateUserStatusValue(packetJson)
+			c.onUpdateUserStatusValue(packetJson, packetType)
 		case ADD_FRIEND: // user wants to add another user as friend
 			c.onAddFriendRequest(packetJson, packetType)
 		case BLOCK_USER: // user wants to block a user
@@ -276,6 +282,7 @@ func (c *WsClient) writeMessages(wg *sync.WaitGroup) {
 }
 
 func broadCastChannel() {
+	log.Trace("Started broadcasting...")
 	broadcastLog := func(typ byte, userID uint64, session uint64) {
 		log.Trace("Broadcasting message type [%d] to user ID [%d] session token [%d]", typ, userID, session)
 	}
@@ -284,15 +291,15 @@ func broadCastChannel() {
 		select {
 		case broadcastData := <-broadcastChan:
 			switch broadcastData.Type {
-			case ADD_CHAT_MESSAGE, DELETE_CHAT_MESSAGE: // things that only affect a single channel
+			case ADD_CHAT_MESSAGE, DELETE_CHAT_MESSAGE, STARTED_TYPING, EDIT_CHAT_MESSAGE: // things that only affect a single channel
 				wsClients.Range(func(key, value interface{}) bool {
 					wsClient, ok := value.(*WsClient)
 					if !ok {
 						log.Warn("Invalid WsClient")
 						return true
 					}
-					channelID, found := clients.GetCurrentChannelID(wsClient.SessionID)
-					if !found {
+					channelID := clients.GetCurrentChannelID(wsClient.SessionID)
+					if channelID == 0 {
 						return true
 					}
 					if channelID == broadcastData.AffectedChannel { // if client is in affected channel

@@ -120,7 +120,7 @@ class ChannelListClass {
         // sets the placeholder text in the area where you enter the chat message
         const channelName = channelButton.querySelector("div").textContent
         const chatInput = document.getElementById("chat-input")
-        chatInput.placeholder = `Message ${channelName}`
+        chatInput.placeholder = `Message #${channelName}`
 
         this.setCurrentChannel(channelID)
 

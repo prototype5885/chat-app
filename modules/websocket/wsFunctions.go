@@ -198,7 +198,7 @@ func (c *WsClient) onChannelListRequest(packetJson []byte, packetType byte) {
 	}
 }
 
-func (c *WsClient) onChatMessageRequest(packetJson []byte, packetType byte) {
+func (c *WsClient) onAddChatMessageRequest(packetJson []byte, packetType byte) {
 	type ClientChatMsg struct {
 		ChannelID uint64
 		Message   string
@@ -699,9 +699,10 @@ func (c *WsClient) onServerDeleteRequest(jsonBytes []byte, packetType byte) {
 
 func (c *WsClient) onServerInviteRequest(packetJson []byte, packetType byte) {
 	type ServerInviteRequest struct {
-		ServerID   uint64
-		SingleUse  bool
-		Expiration uint32
+		ServerID     uint64
+		TargetUserID uint64
+		SingleUse    bool
+		Expiration   uint64
 	}
 
 	var req = ServerInviteRequest{}
@@ -713,13 +714,14 @@ func (c *WsClient) onServerInviteRequest(packetJson []byte, packetType byte) {
 
 	log.Trace("User ID [%d] is requesting to generate an invite link for server ID [%d]", c.UserID, req.ServerID)
 
-	var inviteID uint64 = snowflake.Generate()
+	inviteID := snowflake.Generate()
 
 	var serverInvite = database.ServerInvite{
-		InviteID:   inviteID,
-		ServerID:   req.ServerID,
-		SingleUse:  req.SingleUse,
-		Expiration: uint64(req.Expiration),
+		InviteID:     inviteID,
+		ServerID:     req.ServerID,
+		TargetUserID: req.TargetUserID,
+		SingleUse:    req.SingleUse,
+		Expiration:   req.Expiration,
 	}
 
 	err := database.Insert(serverInvite)
@@ -919,16 +921,111 @@ func (c *WsClient) onUpdateUserDataRequest(packetJson []byte, packetType byte) {
 	}
 }
 
-func (c *WsClient) onUpdateUserStatusValue(packetJson []byte) {
+func (c *WsClient) onUpdateUserStatusValue(packetJson []byte, packetType byte) {
 	type UpdateUserStatusRequest struct {
 		Status byte
 	}
 
-	var updateUserStatusRequest = UpdateUserStatusRequest{}
+	var req = UpdateUserStatusRequest{}
 
-	if err := json.Unmarshal(packetJson, &updateUserStatusRequest); err != nil {
-		c.WriteChan <- macros.ErrorDeserializing(err.Error(), UPDATE_STATUS, c.UserID)
+	if err := json.Unmarshal(packetJson, &req); err != nil {
+		c.WriteChan <- macros.ErrorDeserializing(err.Error(), packetType, c.UserID)
 		return
 	}
-	// setUserStatus(c.UserID, updateUserStatusRequest.Status)
+	// change status in database
+	success := database.UpdateUserValue(c.UserID, string(req.Status), "status")
+	if !success {
+		log.Warn("Failed to update user status value.")
+		return
+	}
+
+	type NewStatus struct {
+		UserID uint64
+		Status byte
+	}
+
+	var newStatus = NewStatus{
+		UserID: c.UserID,
+		Status: req.Status,
+	}
+
+	jsonBytes, err := json.Marshal(newStatus)
+	if err != nil {
+		macros.ErrorSerializing(err.Error(), packetType, c.UserID)
+		return
+	}
+
+	serverIDs := database.GetJoinedServersList(c.UserID)
+
+	// prepare broadcast data that will be sent to affected users
+	broadcastChan <- BroadcastData{
+		MessageBytes:    macros.PreparePacket(packetType, jsonBytes),
+		Type:            packetType,
+		AffectedServers: serverIDs,
+	}
+}
+
+func (c *WsClient) onChatMessageTyping(packetJson []byte, packetType byte) {
+	type StartedTyping struct {
+		Typing bool
+	}
+
+	var req StartedTyping
+
+	if err := json.Unmarshal(packetJson, &req); err != nil {
+		c.WriteChan <- macros.ErrorDeserializing(err.Error(), packetType, c.UserID)
+		return
+	}
+
+	channelID := clients.GetCurrentChannelID(c.SessionID)
+
+	type Typing struct {
+		Typing    bool
+		UserID    uint64
+		ChannelID uint64
+	}
+
+	resp := Typing{
+		Typing:    req.Typing,
+		UserID:    c.UserID,
+		ChannelID: channelID,
+	}
+
+	jsonBytes, err := json.Marshal(resp)
+	if err != nil {
+		macros.ErrorSerializing(err.Error(), packetType, c.UserID)
+		return
+	}
+
+	broadcastChan <- BroadcastData{
+		MessageBytes:    macros.PreparePacket(packetType, jsonBytes),
+		Type:            packetType,
+		AffectedChannel: channelID,
+	}
+}
+
+func (c *WsClient) onChatMessageEditRequest(packetJson []byte, packetType byte) {
+	type EditedMessage struct {
+		MessageID uint64
+		Message   string
+	}
+
+	var req EditedMessage
+
+	if err := json.Unmarshal(packetJson, &req); err != nil {
+		c.WriteChan <- macros.ErrorDeserializing(err.Error(), packetType, c.UserID)
+		return
+	}
+
+	channelID := database.EditChatMessage(req.MessageID, c.UserID, req.Message)
+	if channelID == 0 {
+		log.Hack("Could not edit chat message ID [%d] requested by user ID [%d], possibly unauthorized", req.MessageID, c.UserID)
+		return
+	}
+
+	broadcastChan <- BroadcastData{
+		MessageBytes:    macros.PreparePacket(packetType, packetJson),
+		Type:            packetType,
+		AffectedChannel: channelID,
+	}
 }

@@ -4,9 +4,15 @@ class ChatInputClass {
         // this.AttachmentContainer = document.getElementById("attachment-container")
         this.AttachmentList = document.getElementById("attachment-list")
 
+        this.typing = false
+
         this.ChatInput = document.getElementById("chat-input")
         this.ChatInput.addEventListener("keydown", this.chatEnterPressed.bind(this))
-        this.ChatInput.addEventListener("input", this.resizeChatInput.bind(this))
+
+        this.ChatInput.addEventListener("input", () => {
+            this.resizeChatInput()
+            this.checkIfTyping()
+        })
 
         document.getElementById("attachment-button").addEventListener("click", () => {
             this.AttachmentInput.click()
@@ -55,8 +61,25 @@ class ChatInputClass {
             this.hideFileDropUI()
         })
 
-        this.maxFiles = 10
+        document.addEventListener("paste", e => {
+            const items = e.clipboardData.items
+            if (items) {
+                for (let i = 0; i < items.length; i++) {
+                    const item = items[i]
+
+                    // Only handle files
+                    if (item.kind === 'file') {
+                        const file = item.getAsFile()
+                        this.addAttachment(file)
+                    }
+                }
+            }
+        })
+
+        this.maxFiles = 5
         this.files = []
+
+        this.resizeChatInput()
     }
 
     // dynamically resize the chat input textarea to fit the text content
@@ -65,6 +88,19 @@ class ChatInputClass {
     resizeChatInput() {
         this.ChatInput.style.height = "auto"
         this.ChatInput.style.height = this.ChatInput.scrollHeight + "px"
+    }
+
+    checkIfTyping() {
+        if (this.ChatInput.value !== "" && !this.typing) {
+            this.typing = true
+            console.log("started typing")
+            WebsocketClass.startedTyping(true)
+        }
+        if (this.ChatInput.value === "") {
+            this.typing = false
+            console.log("stopped typing")
+            WebsocketClass.startedTyping(false)
+        }
     }
 
     // send the text message on enter
@@ -92,8 +128,9 @@ class ChatInputClass {
                 this.ChatInput.value = ""
                 this.AttachmentInput.value = ""
                 this.resizeChatInput()
-
+                // this.checkIfTyping()
             }
+            this.typing = false
         }
     }
 
@@ -318,4 +355,6 @@ class ChatInputClass {
     enableChatInput() {
         document.getElementById("chat-input-container").style.display = "block"
     }
+
+
 }

@@ -72,15 +72,10 @@ class ContextMenuClass {
     }
 
     static deleteCtxMenu() {
-        console.log("Deleting ctx menu")
         const existingCtxMenus = document.querySelectorAll("#ctx-menu")
         for (let i = 0; i < existingCtxMenus.length; i++) {
             existingCtxMenus[i].remove()
         }
-        // const rightClickMenu = document.getElementById("ctx-menu")
-        // if (rightClickMenu != null) {
-        //     rightClickMenu.remove()
-        // }
     }
 
     pictureCtxMenu(path, name, pageX, pageY) {
@@ -187,14 +182,112 @@ class ContextMenuClass {
     }
 
     static messageCtxMenu(messageID, owner, pageX, pageY) {
-        function copyText() {
-            const chatMsg = document.getElementById(messageID).querySelector(".msg-text").textContent
-            console.log("Copied to clipboard:", chatMsg)
-            navigator.clipboard.writeText(chatMsg)
+        const actions = []
+        actions.push({
+            text: "Copy text", func: () => {
+                const chatMsg = document.getElementById(messageID).querySelector(".msg-text").textContent
+                console.log("Copied to clipboard:", chatMsg)
+                navigator.clipboard.writeText(chatMsg)
+            }
+        })
+
+        if (owner) {
+            actions.push({
+                text: "Edit message", func: () => {
+                    const chatMsg = document.getElementById(messageID).querySelector(".msg-text")
+                    const msgData = document.getElementById(messageID).querySelector(".msg-data")
+
+                    // hide the original chat message
+                    chatMsg.style.display = "none"
+
+                    // hide the (edited) text if it exists
+                    const msgEdited = msgData.querySelector(".msg-edited")
+                    if (msgEdited !== null) {
+                        msgEdited.style.display = "none"
+                    }
+
+                    const container = document.createElement("div")
+                    container.className = "edit-chat-msg-container"
+
+                    msgData.appendChild(container)
+
+                    const form = document.createElement("div")
+                    form.className = "edit-chat-msg-form"
+
+                    const textArea = document.createElement("textarea")
+                    textArea.className = "edit-chat-msg"
+
+                    textArea.textContent = chatMsg.textContent
+                    form.appendChild(textArea)
+
+                    container.appendChild(form)
+
+                    const label = document.createElement("label")
+                    label.style.fontSize = "11px"
+                    label.innerHTML = `escape to <a href="#" id="cancel-edit-link"">cancel</a>, enter to <a href="#" id="send-edit-link"">save</a>`
+
+                    container.appendChild(label)
+
+                    const msgTextContainer = msgData.querySelector(".msg-text-container")
+                    msgTextContainer.insertAdjacentElement("afterend", container)
+
+
+                    textArea.focus()
+                    let length = textArea.value.length
+                    textArea.setSelectionRange(length, length)
+
+                    textArea.addEventListener("input", () => {
+                        textArea.style.height = "auto"
+                        textArea.style.height = textArea.scrollHeight + "px"
+                    })
+
+                    function sendEditedMessage() {
+                        if (chatMsg.textContent === textArea.value) {
+                            console.log("Edited message has no difference, cancelling...")
+                        } else {
+                            WebsocketClass.requestEditChatMessage(messageID, textArea.value)
+                        }
+                        reset()
+                    }
+
+                    function cancel() {
+
+                    }
+
+                    function reset() {
+                        container.remove()
+                        chatMsg.style.display = "block"
+
+                        const msgEdited = msgData.querySelector(".msg-edited")
+                        if (msgEdited !== null) {
+                            msgEdited.style.display = "block"
+                        }
+
+                    }
+
+                    textArea.addEventListener("keydown", (event) => {
+                        if (event.key === "Enter" && !event.shiftKey) {
+                            event.preventDefault()
+                            sendEditedMessage()
+                        } else if (event.key === "Escape") {
+                            event.preventDefault()
+                            reset()
+                        }
+                    })
+
+                    document.getElementById("cancel-edit-link").addEventListener("click", (event) => {
+                        event.preventDefault();
+                        reset()
+                    })
+                    document.getElementById("send-edit-link").addEventListener("click", (event) => {
+                        event.preventDefault();
+                        sendEditedMessage()
+                    })
+
+                }
+            })
         }
 
-        const actions = []
-        actions.push({text: "Copy text", func: () => copyText()})
         if (owner) {
             actions.push({
                 text: "Delete message",
@@ -202,6 +295,7 @@ class ContextMenuClass {
                 func: () => WebsocketClass.requestDeleteChatMessage(messageID)
             })
         }
+
         if (!owner) {
             actions.push({text: "Report message", color: "red"})
         }

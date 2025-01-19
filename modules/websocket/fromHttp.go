@@ -78,7 +78,7 @@ func OnUserJoinedServer(userID uint64, serverID uint64) {
 	}
 
 	if userJoinedServer.Data.UserID == 0 {
-		log.Impossible("User ID [%d] was not found in database in OnUserJoinedServer", userID)
+		log.Error("User ID [%d] was not found in database in OnUserJoinedServer, user instantly left as soon as joined?", userID)
 		return
 	}
 

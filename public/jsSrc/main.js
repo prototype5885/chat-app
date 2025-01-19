@@ -38,6 +38,10 @@ class MainClass {
         // this.imageHost = "http://localhost:8000/"
         this.imageHost = ""
 
+        if (MainClass.isElectron() || MainClass.isPWA()) {
+            document.getElementById("server-name-button").style.borderTopLeftRadius = "16px"
+        }
+
         // this runs after webpage was loaded
         document.addEventListener("DOMContentLoaded", async () => {
             Translation.setLanguage(navigator.language)
@@ -84,6 +88,31 @@ class MainClass {
                 }
             }, interval)
         })
+    }
+
+    static isElectron() {
+        // Renderer process
+        if (typeof window !== 'undefined' && typeof window.process === 'object' && window.process.type === 'renderer') {
+            return true;
+        }
+
+        // Main process
+        if (typeof process !== 'undefined' && typeof process.versions === 'object' && !!process.versions.electron) {
+            return true;
+        }
+
+        // Detect the user agent when the `nodeIntegration` option is set to true
+        if (typeof navigator === 'object' && typeof navigator.userAgent === 'string' && navigator.userAgent.indexOf('Electron') >= 0) {
+            return true;
+        }
+
+        return false;
+    }
+
+    static isPWA() {
+        return ["fullscreen", "standalone", "minimal-ui"].some(
+            (displayMode) => window.matchMedia('(display-mode: ' + displayMode + ')').matches
+        );
     }
 
     getAvatarFullPath(pic) {

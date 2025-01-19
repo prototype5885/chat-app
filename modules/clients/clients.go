@@ -96,20 +96,20 @@ func GetUserSessions(userID uint64) []uint64 {
 	return sessionIDs
 }
 
-func GetCurrentChannelID(sessionID uint64) (uint64, bool) {
+func GetCurrentChannelID(sessionID uint64) uint64 {
 	log.Trace("[Session %d] Getting current channel ID", sessionID)
 	client, found := Clients.Load(sessionID)
 	if found {
 		client, ok := client.(*Client)
 		if !ok {
 			log.Warn("[Session %d] Invalid Client type while getting current channel ID for session", sessionID)
-			return 0, false
+			return 0
 		}
 		log.Trace("[Session %d] Current channel is: [%d]", sessionID, client.CurrentChannelID)
-		return client.CurrentChannelID, true
+		return client.CurrentChannelID
 	} else {
 		log.Trace("[Session %d] Session was not found while looking for current channel ID", sessionID)
-		return 0, false
+		return 0
 	}
 }
 

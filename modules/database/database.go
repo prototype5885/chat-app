@@ -70,6 +70,7 @@ func CreateTables() {
 	CreateDmMembersTable()
 	CreateServerInvitesTable()
 	CreateAttachmentsTable()
+	CreateInviteKeysTable()
 }
 
 func DatabaseErrorCheck(err error) {
@@ -95,8 +96,8 @@ func Insert(structs any) error {
 		log.Query(insertChannelQuery, s.ChannelID, s.ServerID, s.Name)
 		_, err = Conn.Exec(insertChannelQuery, s.ChannelID, s.ServerID, s.Name)
 	case Message:
-		log.Query(insertChatMessageQuery, s.MessageID, s.ChannelID, s.UserID, s.Message, s.HasAttachments)
-		_, err = Conn.Exec(insertChatMessageQuery, s.MessageID, s.ChannelID, s.UserID, s.Message, s.HasAttachments)
+		log.Query(insertChatMessageQuery, s.MessageID, s.ChannelID, s.UserID, s.Message, s.HasAttachments, 0)
+		_, err = Conn.Exec(insertChatMessageQuery, s.MessageID, s.ChannelID, s.UserID, s.Message, s.HasAttachments, 0)
 	case Attachment:
 		log.Query(insertAttachmentQuery, s.Hash, s.MessageID, s.Name)
 		_, err = Conn.Exec(insertAttachmentQuery, s.Hash, s.MessageID, s.Name)
@@ -113,8 +114,8 @@ func Insert(structs any) error {
 		log.Query(insertServerMemberQuery, s.ServerID, s.UserID)
 		_, err = Conn.Exec(insertServerMemberQuery, s.ServerID, s.UserID)
 	case ServerInvite:
-		log.Query(insertServerInviteQuery, s.InviteID, s.ServerID, s.SingleUse, s.Expiration)
-		_, err = Conn.Exec(insertServerInviteQuery, s.InviteID, s.ServerID, s.SingleUse, s.Expiration)
+		log.Query(insertServerInviteQuery, s.InviteID, s.ServerID, s.TargetUserID, s.SingleUse, s.Expiration)
+		_, err = Conn.Exec(insertServerInviteQuery, s.InviteID, s.ServerID, s.TargetUserID, s.SingleUse, s.Expiration)
 	case Friendship:
 		log.Query(insertFriendshipQuery, s.FirstUserID, s.SecondUserID, s.FriendsSince)
 		_, err = Conn.Exec(insertFriendshipQuery, s.FirstUserID, s.SecondUserID, s.FriendsSince)
@@ -180,6 +181,9 @@ func Delete(structo any) bool {
 	case ServerDelete:
 		log.Query(deleteServerQuery, s.ServerID, s.UserID)
 		result, err = Conn.Exec(deleteServerQuery, s.ServerID, s.UserID)
+	case ServerInviteDelete:
+		log.Query(deleteServerInviteQuery, s.InviteID)
+		result, err = Conn.Exec(deleteServerInviteQuery, s.InviteID)
 	case Token:
 		log.Query(deleteTokenQuery, macros.ShortenToken(s.Token), s.UserID)
 		result, err = Conn.Exec(deleteTokenQuery, s.Token, s.UserID)
@@ -193,6 +197,9 @@ func Delete(structo any) bool {
 	case BlockUser:
 		log.Query(deleteBlockListQuery, s.UserID, s.BlockedUserID)
 		result, err = Conn.Exec(deleteBlockListQuery, s.UserID, s.BlockedUserID)
+	case InviteKey:
+		log.Query(deleteInviteKeyQuery, s.Key)
+		result, err = Conn.Exec(deleteInviteKeyQuery, s.Key)
 	default:
 		log.Fatal("Unknown type in database [%T]", s)
 	}

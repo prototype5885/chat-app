@@ -1,6 +1,7 @@
 package database
 
 import (
+	"database/sql"
 	"fmt"
 	log "proto-chat/modules/logging"
 )
@@ -248,7 +249,14 @@ func UpdateUserValue(userID uint64, value string, column string) bool {
 	var query = fmt.Sprintf("UPDATE users SET %s = ? WHERE user_id = ?", column)
 	log.Query(query, value, userID)
 
-	result, err := Conn.Exec(query, value, userID)
+	var result sql.Result
+	var err error
+	switch column {
+	case "status":
+		result, err = Conn.Exec(query, value[0], userID)
+	default:
+		result, err = Conn.Exec(query, value, userID)
+	}
 	DatabaseErrorCheck(err)
 
 	rowsAffected, err := result.RowsAffected()

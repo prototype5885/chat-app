@@ -7,53 +7,39 @@ import (
 	"proto-chat/modules/macros"
 )
 
-// func setUserStatus(userID uint64, statusValue byte) {
-// 	const jsonType = "change user status value"
-
-// 	// change status in database
-// 	success := database.UpdateUserRow(database.User{UserID: userID, Status: statusValue})
-// 	if !success {
-// 		log.Warn("Failed to update user status value.")
-// 		return
-// 	}
-
-// 	type NewStatus struct {
-// 		UserID string
-// 		Status byte
-// 	}
-
-// 	var newStatus = NewStatus{
-// 		UserID: strconv.FormatUint(userID, 10),
-// 		Status: statusValue,
-// 	}
-
-// 	jsonBytes, err := json.Marshal(newStatus)
-// 	if err != nil {
-// 		macros.ErrorSerializing(err.Error(), jsonType, userID)
-// 	}
-
-// 	// get what servers are the user part of, so message will broadcast to members of these servers
-// 	// this should make sure users who don't have visual on the user who changed user status won't get the message
-// 	serverIDsJson, notInAnyServers := database.GetJoinedServersList(userID)
-// 	if notInAnyServers {
-// 		log.Debug("User ID [%d] is not in any servers", userID)
-// 		return
-// 	}
-
-// 	// deserialize the server ID list
-// 	var serverIDs []uint64
-// 	if err := json.Unmarshal(serverIDsJson, &serverIDs); err != nil {
-// 		macros.ErrorDeserializing(err.Error(), jsonType, userID)
-// 	}
-
-// 	// prepare broadcast data that will be sent to affected users
-// 	var broadcastData = BroadcastData{
-// 		MessageBytes:    macros.PreparePacket(updateStatus, jsonBytes),
-// 		Type:            updateStatus,
-// 		AffectedServers: serverIDs,
-// 	}
-
-// 	broadcastChan <- broadcastData
+//func setUserStatus(userID uint64, statusValue byte) {
+//	const jsonType = "change user status value"
+//
+//	// change status in database
+//	success := database.UpdateUserValue(userID, string(statusValue), "status")
+//	if !success {
+//		log.Warn("Failed to update user status value.")
+//		return
+//	}
+//
+//	type NewStatus struct {
+//		UserID string
+//		Status byte
+//	}
+//
+//	var newStatus = NewStatus{
+//		UserID: strconv.FormatUint(userID, 10),
+//		Status: statusValue,
+//	}
+//
+//	jsonBytes, err := json.Marshal(newStatus)
+//	if err != nil {
+//		macros.ErrorSerializing(err.Error(), UPDATE_STATUS, userID)
+//	}
+//
+//	// prepare broadcast data that will be sent to affected users
+//	var broadcastData = BroadcastData{
+//		MessageBytes:    macros.PreparePacket(updateStatus, jsonBytes),
+//		Type:            updateStatus,
+//		AffectedServers: serverIDs,
+//	}
+//
+//	broadcastChan <- broadcastData
 // }
 
 // func setUserDisplayName(userID uint64, displayName string) {

@@ -23,6 +23,21 @@ body {
     background-color: var(--bit-darker-color);
 }
 
+a {
+    color: deepskyblue;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+textarea {
+    font-family: Roboto, Helvetica, Arial, sans-serif;
+    font-size: 14px;
+}
+
+a:visited {
+    color: deepskyblue;
+}
+
 
 /* default settings for all buttons */
 button {

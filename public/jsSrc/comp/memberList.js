@@ -190,7 +190,10 @@ class MemberListClass {
         }
 
         this.changeDisplayNameInMemberList(userID, displayName)
+    }
 
+    static getMemberName(userID) {
+        return document.getElementById(userID).querySelector('div.user-name').textContent
     }
 
     setMemberProfilePic(userID, pic) {

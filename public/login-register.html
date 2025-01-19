@@ -73,9 +73,9 @@
             <input autocomplete="new-password" type="password" id="register-password-second" maxlength="64"
                    required>
             <br>
-            <!--            <label for="invite-code" class="input-label">Invite code</label>-->
-            <!--            <input id="invite-code" maxlength="16" required>-->
-            <!--            <br>-->
+            <label for="invite-key" class="input-label">Invite key</label>
+            <input id="invite-key" maxlength="32" required>
+            <br>
             <button class="button" type="submit">Register</button>
         </form>
         <br>
@@ -131,6 +131,7 @@
         const username = document.getElementById("register-username").value
         const firstPassword = document.getElementById("register-password-first").value
         const secondPassword = document.getElementById("register-password-second").value
+        const inviteKey = document.getElementById("invite-key").value
 
         if (firstPassword !== secondPassword) {
             errorMessage.textContent = "Passwords don't match"
@@ -139,7 +140,8 @@
 
         const json = {
             Username: username,
-            Password: await hashPassword(firstPassword)
+            Password: await hashPassword(firstPassword),
+            InviteKey: inviteKey
         }
 
         const response = await fetch("/register", {
@@ -152,6 +154,7 @@
         if (response.ok) {
             console.log(response)
             if (response.redirected) {
+                console.log("Redirecting to: ", response.url)
                 window.location.href = response.url
             } else {
                 errorMessage.textContent = await response.text()

@@ -40,6 +40,7 @@ func websocketHandler(w http.ResponseWriter, r *http.Request) {
 		// this is not supposed to happen normally, as the .js file that connects to the websocket
 		// is only sent if user was already authorized
 		log.Hack("Someone is trying to connect to websocket directly without token")
+		redirect(w, r, "/")
 	}
 }
 
@@ -157,13 +158,16 @@ func loginRequestHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func registerRequestHandler(w http.ResponseWriter, r *http.Request) {
-	const serverError = "Error processing /register POST request"
+	const errorSendingError = "Error while replying with error in registerRequestHandler"
 
 	// reading POST request body as bytes
 	bodyBytes, err := io.ReadAll(r.Body)
 	if err != nil {
 		log.Error(err.Error(), "Error reading /register POST request body")
-		w.Write([]byte(serverError))
+		_, err := w.Write([]byte("Error reading /register POST request body"))
+		if err != nil {
+			log.Error(errorSendingError)
+		}
 		return
 	}
 
@@ -176,63 +180,116 @@ func registerRequestHandler(w http.ResponseWriter, r *http.Request) {
 
 	// deserializing json
 	type RegisterRequest struct {
-		Username string
-		Password string
+		Username  string
+		Password  string
+		InviteKey string
 	}
 
-	var registerRequest RegisterRequest
+	var req RegisterRequest
 
-	err = json.Unmarshal(bodyBytes, &registerRequest)
+	err = json.Unmarshal(bodyBytes, &req)
 	if err != nil {
 		log.WarnError(err.Error(), "Error deserializing /register body json")
-		w.Write([]byte(serverError))
+		_, err := w.Write([]byte("Error deserializing the received /register body json"))
+		if err != nil {
+			log.Error(errorSendingError)
+		}
 		return
 	}
 
-	// checking if deserialized values arent empty
-	if registerRequest.Username == "" || registerRequest.Password == "" {
+	// check if invite key is valid
+	if req.InviteKey == "" {
+		log.Hack("Username [%s] wants to register without invite key", req.Username)
+		_, err := w.Write([]byte("No invite key was provided"))
+		if err != nil {
+			log.Error(errorSendingError)
+		}
+		return
+	}
+
+	exists := database.ConfirmInviteKey(req.InviteKey)
+	if exists {
+		log.Trace("Invite key [%s] is being used", req.InviteKey)
+	} else {
+		response := fmt.Sprintf("Invite key [%s] is invalid", req.InviteKey)
+		log.Hack("%s", response)
+		_, err := w.Write([]byte(response))
+		if err != nil {
+			log.Error(errorSendingError)
+		}
+		return
+	}
+
+	// checking if deserialized values aren't empty
+	if req.Username == "" || req.Password == "" {
 		log.Hack("Someone sent a /register POST request without username and/or password")
-		w.Write([]byte(serverError))
+		_, err := w.Write([]byte("Username or password is missing"))
+		if err != nil {
+			log.Error(errorSendingError)
+		}
 		return
 	}
 
-	if !macros.IsAscii(registerRequest.Username) {
-		log.Hack("Username [%s] wants to register their name with non ASCII character", registerRequest.Username)
-		w.Write([]byte("Non ASCII characters are not allowed"))
+	if !macros.IsAscii(req.Username) {
+		log.Hack("Username [%s] wants to register their name with non ASCII character", req.Username)
+		_, err := w.Write([]byte("Non ASCII characters are not allowed"))
+		if err != nil {
+			log.Error(errorSendingError)
+		}
 		return
 	}
 
-	tooLong := macros.CheckUsernameLength(registerRequest.Username)
+	tooLong := macros.CheckUsernameLength(req.Username)
 	if tooLong {
-		w.Write([]byte("Username is longer than max allowed"))
+		response := fmt.Sprintf("Username [%s] is longer than max allowed", req.Username)
+		log.Hack("%s", response)
+		_, err := w.Write([]byte(response))
+		if err != nil {
+			log.Error(errorSendingError)
+		}
 		return
 	}
 
-	taken := database.CheckIfUsernameExists(registerRequest.Username)
+	taken := database.CheckIfUsernameExists(req.Username)
 	if taken {
-		response := fmt.Sprintf("Username [%s] is already taken", registerRequest.Username)
+		response := fmt.Sprintf("Username [%s] is already taken", req.Username)
 		log.Trace("%s", response)
-		w.Write([]byte(response))
+		_, err := w.Write([]byte(response))
+		if err != nil {
+			log.Error(errorSendingError)
+		}
 		return
 	}
 
 	// decode password from base64 string to byte array so bcrypt can hash it, password is in SHA512 format
 	// so the server can't really know what the original password was
-	passwordBytes, err := base64.StdEncoding.DecodeString(registerRequest.Password)
+	passwordBytes, err := base64.StdEncoding.DecodeString(req.Password)
 	if err != nil {
-		log.Error("Failed decoding SHA512 password string into byte array")
-		w.Write([]byte(serverError))
+		response := "Failed decoding SHA512 password string into byte array"
+		log.Error("%s", response)
+		_, err := w.Write([]byte(response))
+		if err != nil {
+			log.Error(errorSendingError)
+		}
 		return
 	}
 
 	// check if received password is in proper format
 	if len(passwordBytes) != 64 {
-		log.Error("Password byte array length isn't 64 bytes")
-		w.Write([]byte(serverError))
+		response := "Password byte array length isn't 64 bytes"
+		log.Error("%s", response)
+		_, err := w.Write([]byte(response))
+		if err != nil {
+			log.Error(errorSendingError)
+		}
 		return
-	} else if len(registerRequest.Username) > 16 {
-		log.Error("Username is longer than 16 bytes")
-		w.Write([]byte(serverError))
+	} else if len(req.Username) > 16 {
+		response := "Username is longer than 16 bytes"
+		log.Error("%s", response)
+		_, err := w.Write([]byte(response))
+		if err != nil {
+			log.Error(errorSendingError)
+		}
 		return
 	}
 
@@ -240,21 +297,31 @@ func registerRequestHandler(w http.ResponseWriter, r *http.Request) {
 	var start int64 = time.Now().UnixMilli()
 	passwordHash, err := bcrypt.GenerateFromPassword(passwordBytes, 10)
 	if err != nil {
-		log.FatalError(err.Error(), "Failed generating bcrypt password hash for username [%s]", registerRequest.Username)
+		log.FatalError(err.Error(), "Failed generating bcrypt password hash for username [%s]", req.Username)
 	}
-	macros.MeasureTime(start, "Password hashing for user "+registerRequest.Username)
+	macros.MeasureTime(start, "Password hashing for user "+req.Username)
 
 	var userID uint64 = snowflake.Generate()
 
-	success := database.RegisterUser(userID, registerRequest.Username, passwordHash)
+	success := database.RegisterUser(userID, req.Username, passwordHash)
 	if !success {
-		w.Write([]byte(serverError))
+		response := "Registration failed"
+		log.Error("%s", response)
+		_, err := w.Write([]byte(response))
+		if err != nil {
+			log.Error(errorSendingError)
+		}
 		return
 	}
 
 	cookie := token.NewTokenCookie(userID)
 	http.SetCookie(w, &cookie)
 	redirect(w, r, "/chat.html")
+
+	log.Trace("Registered user [%s] using invite key [%s] successfully", req.Username, req.InviteKey)
+	database.Delete(database.InviteKey{
+		Key: req.InviteKey,
+	})
 }
 func inviteHandler(w http.ResponseWriter, r *http.Request) {
 	log.Trace("Received invite request")
@@ -267,26 +334,37 @@ func inviteHandler(w http.ResponseWriter, r *http.Request) {
 	} else {
 		parts := strings.Split(r.URL.Path, "/invite/")
 		if len(parts) > 1 {
-			inviteIDstr := parts[len(parts)-1]
-			inviteID, err := strconv.ParseUint(inviteIDstr, 10, 64)
+			// parse the id part from link
+			stringInviteID := parts[len(parts)-1]
+			inviteID, err := strconv.ParseUint(stringInviteID, 10, 64)
+
+			// if invite link id is unparsable
 			if err != nil {
 				respondText(w, "What kind of invite ID is that?")
-				log.Hack("User ID [%d] sent a server invite http request where the ID can't be parsed [%s]", userID, inviteIDstr)
+				log.Hack("User ID [%d] sent a server invite http request where the ID can't be parsed [%s]", userID, stringInviteID)
 				return
 			}
-			serverID := database.ConfirmServerInviteID(inviteID)
+
+			// check if ID exists in database
+			serverID, singleUse, _ := database.ConfirmServerInviteID(inviteID)
 			if serverID != 0 {
+				// add user into the server
 				err := database.Insert(database.ServerMemberShort{ServerID: serverID, UserID: userID})
 				if err != nil {
 					respondText(w, "Failed joining server")
 					return
 				}
-				//respondText(w, "Successfully joined server ID [%d]", serverID)
 				log.Trace("User ID [%d] successfully joined server ID [%d]", userID, serverID)
 				redirect(w, r, "/chat.html")
 				websocket.OnUserJoinedServer(userID, serverID)
+
+				// also delete from database if one time use link was used successfully
+				if singleUse {
+					log.Trace("Invite ID [%d] was one time use only, deleting from database...", inviteID)
+					database.Delete(database.ServerInviteDelete{InviteID: inviteID})
+				}
 			} else {
-				respondText(w, "No invite exists with this invite ID")
+				respondText(w, "No invite exists with given invite ID")
 				return
 			}
 		}

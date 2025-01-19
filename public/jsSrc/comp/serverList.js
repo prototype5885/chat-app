@@ -193,11 +193,11 @@ class ServerListClass {
         }
 
 
-        if (dm) {
-            this.memberList.hideMemberList()
-        } else {
-            this.memberList.showMemberList()
-        }
+        // if (dm) {
+        //     this.memberList.hideMemberList()
+        // } else {
+        //     this.memberList.showMemberList()
+        // }
 
         this.channelList.resetChannels()
         this.chatMessageList.resetChatMessages()

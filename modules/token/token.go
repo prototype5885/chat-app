@@ -41,7 +41,7 @@ func NewTokenCookie(userID uint64) http.Cookie {
 		Value:    hex.EncodeToString(token.Token),
 		Path:     "/",
 		HttpOnly: true,
-		SameSite: http.SameSiteStrictMode,
+		SameSite: http.SameSiteNoneMode,
 		Secure:   true,
 		Expires:  time.Unix(int64(token.Expiration), 0),
 	}
@@ -95,7 +95,7 @@ func CheckIfTokenIsValid(w http.ResponseWriter, r *http.Request) uint64 {
 				Value:    cookieToken.Value,
 				Path:     "/",
 				HttpOnly: true,
-				SameSite: http.SameSiteStrictMode,
+				SameSite: http.SameSiteNoneMode,
 				Secure:   true,
 				Expires:  time.Unix(newExpiration, 0),
 			}

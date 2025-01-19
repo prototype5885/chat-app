@@ -17,6 +17,8 @@ class WebsocketClass {
     static ADD_CHAT_MESSAGE = 1
     static CHAT_HISTORY = 2
     static DELETE_CHAT_MESSAGE = 3
+    static STARTED_TYPING = 4
+    static EDIT_CHAT_MESSAGE = 5
 
     static ADD_SERVER = 21
     static UPDATE_SERVER_PIC = 22
@@ -145,7 +147,10 @@ class WebsocketClass {
             const packetType = receivedBytes[4]
 
             // get the json string from the 6th byte to the end
-            let packetJson = String.fromCharCode.apply(null, receivedBytes.slice(5, endIndex))
+            // let packetJson = String.fromCharCode.apply(null, receivedBytes.slice(5, endIndex))
+
+            const decoder = new TextDecoder()
+            let packetJson = decoder.decode(receivedBytes.slice(5, endIndex))
 
             console.log("Received packet:", endIndex, packetType, packetJson)
 
@@ -171,6 +176,12 @@ class WebsocketClass {
                     break
                 case WebsocketClass.DELETE_CHAT_MESSAGE: // Server sent which message was deleted
                     this.chatMessageList.deleteChatMessage(json)
+                    break
+                case WebsocketClass.STARTED_TYPING: // Server sent that someone started typing on given channel
+                    this.chatMessageList.someoneStartedTyping(json.Typing, json.UserID, json.ChannelID)
+                    break
+                case WebsocketClass.EDIT_CHAT_MESSAGE: // Server sent info about an edited message
+                    this.chatMessageList.editChatMessage(json.MessageID, json.Message)
                     break
                 case WebsocketClass.ADD_SERVER: // Server responded to the add server request
                     console.log("Add server request response arrived")
@@ -502,7 +513,7 @@ class WebsocketClass {
         console.log("Requesting invite link creation for server ID:", serverID)
         await WebsocketClass.preparePacket(WebsocketClass.SERVER_INVITE_LINK, {
             ServerID: serverID,
-            SingleUse: false,
+            SingleUse: true,
             Expiration: 7
         })
     }
@@ -609,5 +620,20 @@ class WebsocketClass {
     static async requestUpdateChannelData(updatedChannelData) {
         console.log(`Requesting to update data of channel ID [${updatedChannelData.ChannelID}]`)
         await WebsocketClass.preparePacket(WebsocketClass.UPDATE_CHANNEL_DATA, updatedChannelData)
+    }
+
+    static async startedTyping(typing) {
+        console.log("Started typing in chat input")
+        await WebsocketClass.preparePacket(WebsocketClass.STARTED_TYPING, {
+            Typing: typing
+        })
+    }
+
+    static async requestEditChatMessage(messageID, newMessage) {
+        console.log(`Requesting to edit chatMessage message [${messageID}]`)
+        await WebsocketClass.preparePacket(WebsocketClass.EDIT_CHAT_MESSAGE, {
+            MessageID: messageID,
+            Message: newMessage
+        })
     }
 }
