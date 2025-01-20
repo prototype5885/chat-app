@@ -389,12 +389,12 @@ body {
 }
 
 #above-friends-channels-container {
+    border-bottom: 1px solid #1F2023;
     background-color: var(--darker-color);
 }
 
 
 #server-name-button {
-    border-bottom: 1px solid #1F2023;
     background-color: var(--bit-darker-color);
     height: 48px;
     align-items: center;
@@ -632,13 +632,18 @@ body {
     flex-direction: column;
 }
 
-#main-top {
+#main-top,
+#above-member-list {
     border-bottom: 1px solid #1F2023;
     height: 48px;
     display: flex;
     padding-left: 24px;
     padding-right: 24px;
     user-select: none;
+}
+
+#above-member-list {
+    background-color: #313338;
 }
 
 #main-top-left,
@@ -1007,22 +1012,25 @@ body {
     justify-content: center;
     align-items: center;
     pointer-events: none;
-    color: grey;
+    color: white;
+
     user-select: none;
 }
 
 .date-between-msgs > div {
     display: flex;
     width: 100%;
-    border-top: thin solid;
-
+    border-top: thin solid white;
+    opacity: 25%;
 }
 
 .date-between-msgs > span {
     margin-left: 4px;
     margin-right: 4px;
     white-space: nowrap;
-    color: lightgray;
+    color: white;
+    opacity: 75%;
+    font-size: 12px;
 }
 
 
@@ -1030,7 +1038,7 @@ body {
 #chat-input-form,
 .edit-chat-msg-form {
     resize: none;
-    /*display: flex;*/
+    display: flex;
     min-height: 24px;
     flex: 1;
     border-width: 1px;
@@ -1041,7 +1049,7 @@ body {
 }
 
 #chat-input-form {
-    display: flex;
+    /*display: flex;*/
 }
 
 .edit-chat-msg-container {
@@ -1056,7 +1064,7 @@ body {
 /* text input for chat */
 #chat-input,
 .edit-chat-msg {
-    flex: 1;
+    flex-grow: 1;
     background: none;
     border: none;
     min-height: 32px;
@@ -1191,17 +1199,4 @@ body {
 #ctx-menu li.cm-red:hover {
     background-color: #F23F42;
     color: white;
-}
-
-@media (max-width: 1200px) {
-    /*#left-main-container {*/
-    /*    display: none;*/
-    /*}*/
-    #member-list {
-        display: none;
-    }
-}
-
-@media (min-width: 1000px) {
-
 }

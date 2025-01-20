@@ -236,22 +236,22 @@ class ContextMenuClass {
                     let length = textArea.value.length
                     textArea.setSelectionRange(length, length)
 
-                    textArea.addEventListener("input", () => {
+                    function resize() {
                         textArea.style.height = "auto"
                         textArea.style.height = textArea.scrollHeight + "px"
+                    }
+
+                    textArea.addEventListener("input", () => {
+                        resize()
                     })
 
                     function sendEditedMessage() {
-                        if (chatMsg.textContent === textArea.value) {
+                        if (chatMsg.textContent === textArea.value.trim()) {
                             console.log("Edited message has no difference, cancelling...")
                         } else {
                             WebsocketClass.requestEditChatMessage(messageID, textArea.value)
                         }
                         reset()
-                    }
-
-                    function cancel() {
-
                     }
 
                     function reset() {
@@ -262,7 +262,6 @@ class ContextMenuClass {
                         if (msgEdited !== null) {
                             msgEdited.style.display = "block"
                         }
-
                     }
 
                     textArea.addEventListener("keydown", (event) => {
@@ -284,6 +283,7 @@ class ContextMenuClass {
                         sendEditedMessage()
                     })
 
+                    resize()
                 }
             })
         }

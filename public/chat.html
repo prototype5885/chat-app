@@ -8,6 +8,7 @@
     <title>Discord Clone</title>
     <link href="global.css" rel="stylesheet">
     <link href="chat.css" rel="stylesheet">
+    <link rel="stylesheet" media="(max-width: 800px), handheld and (orientation: portarit)" href="mobile.css"/>
 </head>
 
 <body>
@@ -31,7 +32,8 @@
 
 <!-- <button id="update-client" onclick="location.reload()">Version: 1<br></button> -->
 
-<div id="left-main-container">
+
+<div class="pages" id="left-main-container">
     <ol id="server-list">
         <div class="servers-separator" id="first-servers-separator" style="display: none;"></div>
         <div class="servers-separator" id="second-servers-separator" style="display: none;"></div>
@@ -89,14 +91,15 @@
         </div>
     </div>
 </div>
-<div id="main-container">
+<div class="pages" id="main-container">
+    <!--    <button id="update-client" onclick="window.location.reload(true)">Force reload<br></button>-->
     <div id="main-top">
         <div id="main-top-left">
             <label id="channel-name-top">Channel</label>
         </div>
         <div id="main-top-right">
             <button id="help-button"></button>
-            <button id="hide-member-list-button" onclick="toggleMemberListView()"></button>
+            <button id="hide-member-list-button"></button>
         </div>
     </div>
     <div id="main-bottom">
@@ -138,11 +141,13 @@
                 <label id="someone-typing"></label>
             </div>
         </div>
-        <ol id="member-list">
-
-        </ol>
     </div>
 </div>
+<div class="pages" id="right-main-container">
+    <div id="above-member-list"></div>
+    <ol id="member-list"></ol>
+</div>
+
 <!--<audio id="notification-sound" preload="auto" src="sounds/discord-notification.mp3"></audio>-->
 <!--<script src="script.js"></script>-->
 <script src="jsSrc/translation.js"></script>

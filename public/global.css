@@ -34,6 +34,12 @@ textarea {
     font-size: 14px;
 }
 
+video {
+    min-height: 64px;
+    min-width: 64%;
+    max-height: 1024px;
+}
+
 a:visited {
     color: deepskyblue;
 }

@@ -16,7 +16,6 @@ class ColorsClass {
     static green = "#00b700"
 }
 
-
 class MainClass {
     constructor() {
         this.myUserID = ""
@@ -42,10 +41,12 @@ class MainClass {
             document.getElementById("server-name-button").style.borderTopLeftRadius = "16px"
         }
 
+
         // this runs after webpage was loaded
         document.addEventListener("DOMContentLoaded", async () => {
             Translation.setLanguage(navigator.language)
 
+            const touchControls = new TouchControls()
             const contextMenu = new ContextMenuClass()
             const localStorage = new LocalStorageClass(this)
 

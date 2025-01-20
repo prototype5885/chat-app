@@ -222,7 +222,7 @@ class ServerListClass {
     }
 
     setServerPicture(serverID, picture) {
-        picture = "content/avatars/" + picture
+        picture = "public/content/avatars/" + picture
         document.getElementById(serverID).style.backgroundImage = `url("${picture}")`
     }
 

@@ -7,12 +7,12 @@ import (
 	"proto-chat/modules/macros"
 
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/mattn/go-sqlite3"
+	//"github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite"
 )
 
 var Conn *sql.DB
 
-// var nullJson = []byte("null")
 var emptyArray = []byte("[]")
 
 var sqlite bool = false
@@ -23,7 +23,7 @@ func ConnectSqlite() {
 	// }
 
 	var err error
-	Conn, err = sql.Open("sqlite3", "./database.sqlite")
+	Conn, err = sql.Open("sqlite", "./database.sqlite")
 	if err != nil {
 		log.FatalError(err.Error(), "Error connecting to sqlite database")
 	}
@@ -130,8 +130,9 @@ func Insert(structs any) error {
 	}
 	if err != nil {
 		if sqlite { // sqlite
-			log.Warn("SQLite Error Code: %d\n", err.(sqlite3.Error).Code)
-			log.Warn("SQLite Error Message: %s\n", err.(sqlite3.Error).Error())
+			log.Error(err.Error())
+			//log.Warn("SQLite Error Code: %d\n", err.(sqlite3.Error).Code)
+			//log.Warn("SQLite Error Message: %s\n", err.(sqlite3.Error).Error())
 			return err
 			// if strings.Contains(err.Error(), "275") { // constraint check failed, 2 or more values are duplicates
 			// 	log.Error(err.Error(), "%s", "duplicate values where it's enforced to not have")

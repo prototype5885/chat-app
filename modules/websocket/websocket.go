@@ -3,6 +3,7 @@ package websocket
 import (
 	"encoding/binary"
 	"net/http"
+	"net/url"
 	"proto-chat/modules/clients"
 	log "proto-chat/modules/logging"
 	"proto-chat/modules/macros"
@@ -59,6 +60,8 @@ const (
 )
 
 var ImageHost string
+var ParsedImageHost *url.URL
+var ImageHostAddress string
 
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:    4096,

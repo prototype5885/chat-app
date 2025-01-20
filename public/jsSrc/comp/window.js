@@ -119,7 +119,7 @@ class Window {
             let newPosX = e.clientX - this.offsetX
             let newPosY = e.clientY - this.offsetY
 
-            // clamp so it can leave the window
+            // clamp so it can't leave the window
             newPosX = Math.max(0, Math.min(window.innerWidth - this.window.clientWidth, newPosX))
             newPosY = Math.max(0, Math.min(window.innerHeight - this.window.clientHeight, newPosY))
 

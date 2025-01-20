@@ -557,9 +557,9 @@ class ChatMessageListClass {
     }
 
     addUserToTypingList(userID) {
-        // if (userID === main.myUserID) {
-        //     return
-        // }
+        if (userID === main.myUserID) {
+            return
+        }
         if (!this.peopleTyping.includes(userID)) {
             const timerID = setTimeout(() => {
                 this.removeUserFromTypingList(userID);

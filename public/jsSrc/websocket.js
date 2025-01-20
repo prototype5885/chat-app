@@ -65,12 +65,12 @@ class WebsocketClass {
 
 
         // request http address of image hosting server
-        await WebsocketClass.requestImageHostAddress()
+        // await WebsocketClass.requestImageHostAddress()
 
         // wait until the address is received
-        console.log("Waiting for server to send image host address..")
-        await MainClass.waitUntilBoolIsTrue(() => main.receivedImageHostAddress)
-        console.log("Image host address has already arrived")
+        // console.log("Waiting for server to send image host address..")
+        // await MainClass.waitUntilBoolIsTrue(() => main.receivedImageHostAddress)
+        // console.log("Image host address has already arrived")
 
         LoadingClass.fadeOutLoading()
         const lastServer = this.localStorage.getLastServer()

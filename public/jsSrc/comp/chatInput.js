@@ -118,23 +118,21 @@ class ChatInputClass {
                 console.log("http response to uploading attachment:", attachmentToken)
             }
 
-            if (this.ChatInput.value || attachmentToken !== null) {
+            if (this.ChatInput.value.trim() !== "" || attachmentToken !== null) {
                 if (attachmentToken !== null) {
-                    await WebsocketClass.sendChatMessage(this.ChatInput.value, main.currentChannelID, attachmentToken.AttToken)
+                    await WebsocketClass.sendChatMessage(this.ChatInput.value.trim(), main.currentChannelID, attachmentToken.AttToken)
                 } else {
-                    await WebsocketClass.sendChatMessage(this.ChatInput.value, main.currentChannelID, null)
+                    await WebsocketClass.sendChatMessage(this.ChatInput.value.trim(), main.currentChannelID, null)
                 }
                 console.log("Resetting chat input and attachment input values")
                 this.ChatInput.value = ""
                 this.AttachmentInput.value = ""
                 this.resizeChatInput()
-                // this.checkIfTyping()
+                this.typing = false
             }
-            this.typing = false
         }
     }
-
-
+    
     async checkAttachments() {
         console.log("Checking if prepare attachments already exist on server")
 

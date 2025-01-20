@@ -89,13 +89,15 @@ class ChannelListClass {
 
     selectChannel(channelID) {
         console.log("Selected channel ID:", channelID)
-        this.chatMessageList.channelHistoryReceived = false
-        main.reachedBeginningOfChannel = false
 
         if (main.currentChannelID !== "0" && main.currentChannelID === channelID) {
             console.log("Channel selected is already the current one")
             return
         }
+
+        this.chatMessageList.channelHistoryReceived = false
+        main.reachedBeginningOfChannel = false
+
 
         // get the selected channel
         const channelButton = document.getElementById(channelID)

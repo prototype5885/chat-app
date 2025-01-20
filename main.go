@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"golang.org/x/crypto/acme/autocert"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"proto-chat/modules/database"
@@ -15,6 +16,7 @@ import (
 	"proto-chat/modules/webRequests"
 	"proto-chat/modules/websocket"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -99,6 +101,16 @@ func main() {
 
 	websocket.ImageHost = config.ImageServerAddressWithPort
 
+	if websocket.ImageHost != "" {
+		var err error
+		websocket.ParsedImageHost, err = url.Parse(websocket.ImageHost)
+		if err != nil {
+			log.FatalError(err.Error(), "Error parsing image host URL")
+			return
+		}
+		websocket.ImageHostAddress = strings.Split(websocket.ParsedImageHost.Host, ":")[0]
+	}
+
 	// handle http requests
 	http.HandleFunc("/", webRequests.MainHandler)
 
@@ -122,15 +134,15 @@ func main() {
 		//}
 		certManager := autocert.Manager{
 			Prompt:     autocert.AcceptTOS,
-			HostPolicy: autocert.HostWhitelist("prototype585.ddns.net"), //Your domain here
-			Cache:      autocert.DirCache("certs"),                      //Folder for storing certificates
+			HostPolicy: autocert.HostWhitelist("prototype585.ddns.net"),
+			Cache:      autocert.DirCache("certs"),
 		}
 
 		server := &http.Server{
 			Addr: ":https",
 			TLSConfig: &tls.Config{
 				GetCertificate: certManager.GetCertificate,
-				MinVersion:     tls.VersionTLS12, // improves cert reputation score at https://www.ssllabs.com/ssltest/
+				MinVersion:     tls.VersionTLS13,
 			},
 		}
 
@@ -138,7 +150,13 @@ func main() {
 		//	log.FatalError(err.Error(), "Error starting TLS server")
 		//}
 
-		go http.ListenAndServe(":http", certManager.HTTPHandler(nil))
+		go func() {
+			err := http.ListenAndServe(":http", certManager.HTTPHandler(nil))
+			if err != nil {
+				log.FatalError(err.Error(), "Error serving HTTPS server")
+				return
+			}
+		}()
 
 		if err := server.ListenAndServeTLS("", ""); err != nil {
 			log.FatalError(err.Error(), "Error starting TLS server")
