@@ -1,12 +1,12 @@
 package websocket
 
 import (
+	"chat-app/modules/clients"
+	log "chat-app/modules/logging"
+	"chat-app/modules/macros"
 	"encoding/binary"
 	"net/http"
 	"net/url"
-	"proto-chat/modules/clients"
-	log "proto-chat/modules/logging"
-	"proto-chat/modules/macros"
 	"sync"
 	"time"
 
@@ -45,6 +45,10 @@ const (
 	ADD_FRIEND byte = 61
 	BLOCK_USER byte = 62
 	UNFRIEND   byte = 63
+
+	OPEN_DM             byte = 71
+	REQUEST_DM_LIST     byte = 72
+	ADD_DM_CHAT_MESSAGE byte = 73
 
 	INITIAL_USER_DATA       byte = 241
 	IMAGE_HOST_ADDRESS      byte = 242
@@ -93,7 +97,7 @@ func Init() {
 	go broadCastChannel()
 }
 
-// client is connecting to the websocket
+// AcceptWsClient client is connecting to the websocket
 func AcceptWsClient(userID uint64, w http.ResponseWriter, r *http.Request) {
 	wsConn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -175,7 +179,7 @@ func (c *WsClient) readMessages(wg *sync.WaitGroup) {
 		if len(receivedBytes) < 5 {
 			log.Hack("Session ID [%d] as user ID [%d] sent a byte array shorter than 5 length", c.SessionID, c.UserID)
 			c.WriteChan <- macros.RespondFailureReason("Sent byte array length is less than 5")
-			continue
+			break
 		}
 
 		// convert the first 4 bytes into uint32 to get the endIndex,
@@ -188,7 +192,7 @@ func (c *WsClient) readMessages(wg *sync.WaitGroup) {
 			log.Hack("User ID [%d] sent a byte array where the extracted endIndex was larger than the received byte array", c.UserID)
 			log.Hack("Byte array of user ID [%d]: [%s]", c.UserID, receivedBytes)
 			c.WriteChan <- macros.RespondFailureReason("Sent byte array is longer than the given endIndex value")
-			continue
+			break
 		}
 
 		// 5th byte is a 1 byte number which states the type of the packet
@@ -210,7 +214,7 @@ func (c *WsClient) readMessages(wg *sync.WaitGroup) {
 		case EDIT_CHAT_MESSAGE:
 			c.onChatMessageEditRequest(packetJson, packetType)
 		case ADD_SERVER: // user adding a server
-			c.onAddServerRequest(packetJson)
+			c.onAddServerRequest(packetJson, packetType)
 		case DELETE_SERVER: // user deleting a server
 			c.onServerDeleteRequest(packetJson, packetType)
 		case SERVER_INVITE_LINK: // user requested an invite link for a server
@@ -236,7 +240,13 @@ func (c *WsClient) readMessages(wg *sync.WaitGroup) {
 		case BLOCK_USER: // user wants to block a user
 			c.onBlockUserRequest(packetJson, packetType)
 		case UNFRIEND: // user wants to unfriend a user
-			c.onUnfriendRequest(packetJson)
+			c.onUnfriendRequest(packetJson, packetType)
+		case OPEN_DM: // user wants to open a dm
+			c.onOpenDmRequest(packetJson, packetType)
+		//case REQUEST_DM_LIST: // user requests list of direct messages they have
+		//	c.WriteChan <- macros.PreparePacket(packetType, database.GetDmListOfUser(c.UserID))
+		//case ADD_DM_CHAT_MESSAGE:
+		//	c.onAddChatMessageRequest(packetJson, packetType, true)
 		case INITIAL_USER_DATA: // user requests initial data
 			c.onInitialDataRequest(packetType)
 		case IMAGE_HOST_ADDRESS:

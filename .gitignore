@@ -9,7 +9,7 @@ protochat.log
 *.db
 identifier.sqlite
 config.json
-proto-chat
+chat-app
 *.log
 *.Identifier
 *.gz
@@ -20,4 +20,4 @@ public/content/avatars/
 /public/content/attachments/
 go.sum
 database.sqlite
-proto-chat.exe
+chat-app.exe

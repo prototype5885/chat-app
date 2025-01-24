@@ -1,10 +1,10 @@
 package websocket
 
 import (
+	"chat-app/modules/database"
+	log "chat-app/modules/logging"
+	"chat-app/modules/macros"
 	"encoding/json"
-	"proto-chat/modules/database"
-	log "proto-chat/modules/logging"
-	"proto-chat/modules/macros"
 )
 
 //func setUserStatus(userID uint64, statusValue byte) {

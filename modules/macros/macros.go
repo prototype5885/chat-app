@@ -1,11 +1,11 @@
 package macros
 
 import (
+	log "chat-app/modules/logging"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	log "proto-chat/modules/logging"
 	"strings"
 	"time"
 )

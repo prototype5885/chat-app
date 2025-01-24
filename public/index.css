@@ -4,10 +4,24 @@ body {
     align-items: center;
     height: 100vh;
     margin: 0;
-    flex-direction: column;
+    flex-direction: row;
+
 }
 
 .button {
     margin: 5px;
-    width: 100px;
+    width: 200px;
+    height: 32px;
+    font-size: large;
+    align-content: center;
+}
+
+#download-button {
+    background-color: white;
+    color: black;
+}
+
+#login-button {
+    background-color: black;
+    color: white;
 }

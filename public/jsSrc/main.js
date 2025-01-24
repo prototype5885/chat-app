@@ -1,84 +1,97 @@
 class ColorsClass {
-    static mainColor = "#36393f"
-    static hoverColor = "#313338"
-    static bitDarkerColor = "#2B2D31"
-    static darkColor = "#232428"
-    static darkerColor = "#1E1F22"
-    static grayTextColor = "#949BA4"
-    static darkTransparent = "#111214d1"
-    static darkNonTransparent = "#111214"
-    static brighterTransparent = "#656565d1"
-    static loadingColor = "#000000b5"
+    static mainColor = '#36393f'
+    static hoverColor = '#313338'
+    static bitDarkerColor = '#2B2D31'
+    static darkColor = '#232428'
+    static darkerColor = '#1E1F22'
+    static grayTextColor = '#949BA4'
+    static darkTransparent = '#111214d1'
+    static darkNonTransparent = '#111214'
+    static brighterTransparent = '#656565d1'
+    static loadingColor = '#000000b5'
 
-    static textColor = "#C5C7CB"
+    static textColor = '#C5C7CB'
 
-    static blue = "#5865F2"
-    static green = "#00b700"
+    static blue = '#5865F2'
+    static green = '#00b700'
 }
 
+
 class MainClass {
-    constructor() {
-        this.myUserID = ""
-        this.myDisplayName = ""
-        this.myProfilePic = ""
-        this.myPronouns = ""
-        this.myStatusText = ""
-        this.myFriends = []
-        this.myBlocks = []
+    static receivedInitialUserData = false // don't continue loading until own user data is received
+    static receivedImageHostAddress = false // don't continue loading until host address of image server arrived
+    static memberListLoaded = false // don't add chat history until server member list is received
 
-        this.receivedInitialUserData = false // don't continue loading until own user data is received
-        this.receivedImageHostAddress = false // don't continue loading until host address of image server arrived
-        this.memberListLoaded = false // don't add chat history until server member list is received
+    static imageHost = ''
 
-        this.currentServerID = "2000"
-        this.currentChannelID = "0"
-        this.reachedBeginningOfChannel = false
+    static myUserID = ''
+    static myDisplayName = ''
+    static myProfilePic = ''
+    static myPronouns = ''
+    static myStatusText = ''
+    static myFriends = []
+    static myBlocks = []
+    static #currentServerID = 'dm'
+    static #currentChannelID = '0'
+    static reachedBeginningOfChannel = false
 
-        // this.imageHost = "http://localhost:8000/"
-        this.imageHost = ""
+    static currentPictureViewerPicPath = ''
+    static currentPictureViewerPicName = ''
 
-        if (MainClass.isElectron() || MainClass.isPWA()) {
-            document.getElementById("server-name-button").style.borderTopLeftRadius = "16px"
+    static defaultProfilePic = '/content/static/default_profilepic.webp'
+
+    static init() {
+        if (this.isElectron() || this.isPWA()) {
+            document.getElementById('server-name-button').style.borderTopLeftRadius = '16px'
         }
 
-
         // this runs after webpage was loaded
-        document.addEventListener("DOMContentLoaded", async () => {
+        document.addEventListener('DOMContentLoaded', async () => {
             Translation.setLanguage(navigator.language)
 
-            const touchControls = new TouchControls()
-            const contextMenu = new ContextMenuClass()
-            const localStorage = new LocalStorageClass(this)
+            TouchControlsClass.init()
+            ContextMenuClass.init()
+            NotificationClass.init()
+            ChatInputClass.init()
+            UserPanelClass.init()
 
-            const notification = new NotificationClass()
-
-            const chatInput = new ChatInputClass(this)
-
-            const userPanel = new UserPanelClass(this)
-
-            const memberList = new MemberListClass()
-            const chatMessageList = new ChatMessageListClass(this, notification, chatInput)
-            const channelList = new ChannelListClass(this, chatMessageList, localStorage, chatInput)
-            const serverList = new ServerListClass(this, chatMessageList, memberList, channelList, localStorage)
-
-
-            const websocket = new WebsocketClass(this, serverList, chatMessageList, channelList, memberList, localStorage, userPanel)
+            ChatMessageListClass.init()
+            ChannelListClass.init()
+            ServerListClass.init()
+            DirectMessagesClass.init()
 
             // add the direct messages button
-            serverList.addServer("2000", 0, "Direct Messages", "content/static/mail.svg", "2000")
+            // ServerListClass.addServer('dm', 0, 'Direct Messages', 'content/static/mail.svg', 'dm')
 
-            await websocket.connectToWebsocket()
+            await WebsocketClass.connectToWebsocket()
 
             // setInterval(this.checkForUpdates, 3000)
+
+            const pictureViewer = document.getElementById('picture-viewer')
+            ContextMenuClass.registerContextMenu(pictureViewer, (pageX, pageY) => {
+                ContextMenuClass.pictureCtxMenu(this.currentPictureViewerPicPath, this.currentPictureViewerPicName, pageX, pageY)
+            })
+
         })
     }
 
-    // checkForUpdates() {
-    //     console.log("Checking for update")
-    // }
+    static setCurrentChannelID(id) {
+        console.log(`Changing current channel ID to: ${id}`)
+        this.#currentChannelID = id
+    }
 
-    static defaultProfilePic = "/content/static/default_profilepic.webp"
+    static getCurrentChannelID() {
+        return this.#currentChannelID
+    }
 
+    static setCurrentServerID(id) {
+        console.log(`Changing current server ID to: ${id}`)
+        this.#currentServerID = id
+    }
+
+    static getCurrentServerID() {
+        return this.#currentServerID
+    }
 
     static waitUntilBoolIsTrue(checkFunction, interval = 10) {
         return new Promise((resolve) => {
@@ -93,56 +106,64 @@ class MainClass {
 
     static isElectron() {
         // Renderer process
+        const text = 'Running in electron'
         if (typeof window !== 'undefined' && typeof window.process === 'object' && window.process.type === 'renderer') {
-            return true;
+            console.log(text)
+            return true
         }
 
         // Main process
         if (typeof process !== 'undefined' && typeof process.versions === 'object' && !!process.versions.electron) {
-            return true;
+            console.log(text)
+            return true
         }
 
         // Detect the user agent when the `nodeIntegration` option is set to true
         if (typeof navigator === 'object' && typeof navigator.userAgent === 'string' && navigator.userAgent.indexOf('Electron') >= 0) {
-            return true;
+            console.log(text)
+            return true
         }
 
-        return false;
+        return false
     }
 
     static isPWA() {
-        return ["fullscreen", "standalone", "minimal-ui"].some(
+        return ['fullscreen', 'standalone', 'minimal-ui'].some(
             (displayMode) => window.matchMedia('(display-mode: ' + displayMode + ')').matches
-        );
+        )
     }
 
-    getAvatarFullPath(pic) {
-        if (pic === "" || pic === undefined || pic == null) {
-            return MainClass.defaultProfilePic
+    static getAvatarFullPath(pic) {
+        if (pic === '' || pic === undefined || pic == null) {
+            return this.defaultProfilePic
         } else {
-            return this.imageHost + "/content/avatars/" + pic
+            return this.imageHost + '/content/avatars/' + pic
         }
     }
 
     static checkDisplayName(displayName) {
-        if (displayName === "" || displayName === undefined || displayName === null) {
-            return ""
+        if (displayName === '' || displayName === undefined || displayName === null) {
+            return ''
         } else {
             return displayName
         }
     }
 
 
-    setOwnUserID(userID) {
+    static setOwnUserID(userID) {
         this.myUserID = userID
         console.log(`Own user ID has been set to [${this.myUserID}]`)
     }
 
-    setOwnDisplayName(displayName) {
-        displayName = MainClass.checkDisplayName(displayName)
+    static getOwnUserID() {
+        return this.myUserID
+    }
+
+    static setOwnDisplayName(displayName) {
+        displayName = this.checkDisplayName(displayName)
         this.myDisplayName = displayName
 
-        if (displayName === "") {
+        if (displayName === '') {
             UserPanelClass.setUserPanelName(this.myUserID)
         } else {
             UserPanelClass.setUserPanelName(displayName)
@@ -151,18 +172,18 @@ class MainClass {
         console.log(`Own display name has been set to [${this.myDisplayName}]`)
     }
 
-    setOwnPronouns(pronouns) {
+    static setOwnPronouns(pronouns) {
         this.myPronouns = pronouns
         console.log(`Own pronouns have been set to [${this.myPronouns}]`)
     }
 
-    setOwnStatusText(statusText) {
+    static setOwnStatusText(statusText) {
         this.myStatusText = statusText
         UserPanelClass.setUserPanelStatusText(statusText)
         console.log(`Own status text has been set to [${this.myStatusText}]`)
     }
 
-    setOwnProfilePic(pic) {
+    static setOwnProfilePic(pic) {
         pic = this.getAvatarFullPath(pic)
 
         this.myProfilePic = pic
@@ -170,12 +191,12 @@ class MainClass {
         console.log(`Own profile pic has been set to [${this.myProfilePic}]`)
     }
 
-    setMyFriends(friends) {
+    static setMyFriends(friends) {
         this.myFriends = friends
         console.log(`You have [${this.myFriends.length}] friends, they are: [${this.myFriends}]`)
     }
 
-    removeFriend(userID) {
+    static removeFriend(userID) {
         for (let i = 0; i < this.myFriends.length; i++) {
             if (this.myFriends[i] === userID) {
                 this.myFriends.splice(i, 1)
@@ -185,7 +206,7 @@ class MainClass {
         console.error(`Local error: could not remove user ID [${userID}] from ownFriends array`)
     }
 
-    setBlockedUsers(blocks) {
+    static setBlockedUsers(blocks) {
         this.myBlocks = blocks
         console.log(`You have blocked [${this.myBlocks.length}] users, they are: [${this.myBlocks}]`)
     }
@@ -193,10 +214,10 @@ class MainClass {
 
     static setButtonActive(button, active) {
         if (active) {
-            button.classList.remove("noHover")
+            button.classList.remove('noHover')
             button.disabled = false
         } else {
-            button.classList.add("noHover")
+            button.classList.add('noHover')
             button.disabled = true
         }
     }
@@ -211,7 +232,7 @@ class MainClass {
     }
 
     static registerClick(element, callback) {
-        element.addEventListener("click", (event) => {
+        element.addEventListener('click', (event) => {
             ContextMenuClass.deleteCtxMenu()
             event.stopPropagation()
             callback()
@@ -263,4 +284,4 @@ class MainClass {
     }
 }
 
-const main = new MainClass()
+MainClass.init()

@@ -21,6 +21,16 @@ body {
     }
 }
 
+a {
+    color: deepskyblue;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+a:visited {
+    color: deepskyblue;
+}
+
 #loading,
 #picture-viewer-container {
     position: absolute;
@@ -33,7 +43,7 @@ body {
     text-align: center;
     align-content: center;
     font-size: 96px;
-    z-index: 9999;
+    z-index: 99;
 }
 
 #picture-viewer-container {
@@ -271,13 +281,13 @@ body {
     background-color: var(--dark-color);
 }
 
-#left-main-container {
+#first-main-container {
     display: flex;
 }
 
 
 /* server list column on the left side */
-#server-list {
+#first-column {
     overflow-y: scroll;
     scrollbar-width: none;
     min-width: 72px;
@@ -291,7 +301,7 @@ body {
 }
 
 /* all the server buttons on the left side */
-#server-list button {
+#first-column button {
     order: 1;
     /* so the white notification thing will appear on left */
     flex-shrink: 0;
@@ -321,7 +331,7 @@ body {
     width: 32px;
     height: 2px;
     margin: 2px auto;
-    background-color: var(--separator-color);
+    background-color: var(--server-separator-color);
 }
 
 #first-servers-separator {
@@ -339,7 +349,7 @@ body {
 
 
 /* this holds the server button and its notification thing */
-#server-list > li {
+#first-column > li {
     /* background-color: green; */
     height: 60px;
     width: 72px;
@@ -382,17 +392,22 @@ body {
 #second-column {
     min-width: 240px;
     max-width: 240px;
-    background-color: var(--bit-darker-color);
     display: flex;
     flex-direction: column;
     user-select: none;
 }
 
-#above-friends-channels-container {
+#second-column-top {
     border-bottom: 1px solid #1F2023;
     background-color: var(--darker-color);
 }
 
+#server-name-container {
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-position: center;
+    max-height: 192px;
+}
 
 #server-name-button {
     background-color: var(--bit-darker-color);
@@ -421,39 +436,43 @@ body {
 
 
 #server-name-button:hover {
-    background-color: #474a52;
+    background-color: rgba(127, 127, 127, 0.25);
 }
 
-#friends-channels {
+#second-column-main {
     overflow-y: scroll;
     flex: 1;
 }
 
 #channels,
-#friends-chat {
+#direct-messages {
     padding: 8px;
 }
 
-/* this holds 2 buttons that either hides or makes new channels */
+#dm-buttons {
+    padding-left: 0;
+}
+
+#dm-buttons > button {
+    width: 100%;
+}
+
 #channels-visible-or-add-new,
-#friends-chat-visible-or-add-new {
+#dm-chat-visible-or-add-new {
     justify-content: space-between;
     display: flex;
 }
 
-/* the text inside it */
 #channels-visible-or-add-new button:first-child label,
-#friends-chat-visible-or-add-new button:first-child label {
+#dm-chat-visible-or-add-new button:first-child label {
     cursor: inherit;
     margin-left: 6px;
     font-variant: small-caps;
 }
 
-/* button that toggles the channels' visibility */
 #channels-visibility-button,
-#friends-chat-visibility-button {
+#dm-chat-visibility-button {
     display: flex;
-    /* background-color: red; */
     flex: 1;
     height: 32px;
     align-items: center;
@@ -465,13 +484,16 @@ body {
     transform-origin: 50% 50%;
 }
 
-#channel-list {
+#channel-list,
+#dm-chat-list {
     display: flex;
     flex-direction: column;
 }
 
 #channel-list button,
-.settings-list button {
+.settings-list button,
+#dm-buttons > button,
+#dm-chat-list > button {
     height: 32px;
     display: flex;
     align-items: center;
@@ -482,12 +504,16 @@ body {
     padding-left: 0;
 }
 
-.settings-list button {
+.settings-list button,
+#dm-buttons > button,
+#dm-chat-list > button {
     padding-left: 8px;
 }
 
 #channel-list button:hover,
-.settings-list button:hover {
+.settings-list button:hover,
+#dm-buttons > button:hover,
+#dm-chat-list > button:hover {
     background-color: var(--hover-color);
     font-size: large;
 }
@@ -506,7 +532,6 @@ body {
     display: flex;
 }
 
-/* this is below channel/friend list */
 #user-panel > div {
     display: flex;
     align-items: center;
@@ -519,7 +544,6 @@ body {
     height: 100%;
 }
 
-/* this holds pfp and status in user panel */
 #user-panel-user-container {
     display: flex;
     margin-right: 3px;
@@ -563,9 +587,7 @@ body {
     text-overflow: ellipsis;
 }
 
-/* buttons in user panel */
 #user-panel-buttons {
-    /* background-color: green; */
     display: flex;
     box-sizing: border-box;
     margin-left: 3px;
@@ -583,12 +605,10 @@ body {
 
 .rotate-svg {
     transition: transform 0.3s ease;
-    /* Smooth transition for the initial hover */
 }
 
 .rotate-svg:hover {
     animation: rotateAnimation 2s linear infinite;
-    /* Apply continuous rotation on hover */
 }
 
 #user-settings-button {
@@ -625,15 +645,15 @@ body {
     background-color: darkorange;
 }
 
-#main-container {
+#second-main-container {
     display: flex;
     flex: 1;
     background-color: #313338;
     flex-direction: column;
 }
 
-#main-top,
-#above-member-list {
+#third-column-top,
+#fourth-column-top {
     border-bottom: 1px solid #1F2023;
     height: 48px;
     display: flex;
@@ -642,7 +662,7 @@ body {
     user-select: none;
 }
 
-#above-member-list {
+#fourth-column-top {
     background-color: #313338;
 }
 
@@ -672,15 +692,15 @@ body {
     border: 1px;
 }
 
-#main-bottom {
+#third-column-main {
     display: flex;
     flex: 1;
     /* ensure no scrolling here */
     overflow-y: hidden;
 }
 
-#main-center-container {
-    display: flex;
+#chat-container {
+    display: none;
     flex-direction: column;
     /*flex: 1;*/
     width: 100%;
@@ -725,6 +745,11 @@ body {
     order: 1;
 }
 
+.profile-pic {
+    height: inherit;
+    width: inherit;
+}
+
 .profile-pic,
 .msg-profile-pic,
 #user-panel-pfp {
@@ -754,7 +779,7 @@ body {
 }
 
 .attachment-video {
-    max-height: 512px;
+    max-height: 256px;
     user-select: none;
 }
 
@@ -1020,8 +1045,7 @@ body {
 .date-between-msgs > div {
     display: flex;
     width: 100%;
-    border-top: thin solid white;
-    opacity: 25%;
+    border-top: thin solid var(--separator-color);
 }
 
 .date-between-msgs > span {
@@ -1111,16 +1135,49 @@ body {
 
 
 /* same as above but change color of the icon inside the button too */
-.chat-button:hover > .chat-button-icon {
-    background-color: red;
-}
+/*.chat-button:hover > .chat-button-icon {*/
+/*    background-color: red;*/
+/*}*/
 
 .chat-button:hover > #attachment-button-icon {
     background-color: white;
 }
 
+#friend-list-container {
+    display: none;
+    flex-direction: column;
+    padding: 0;
+    margin: 16px 32px 0;
+    width: 100%;
+}
 
-#member-list {
+#friend-list-container > label {
+    margin-bottom: 16px;
+    font-variant: small-caps
+}
+
+#friend-list-container > ul {
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+#friend-list-container > ul > li {
+    display: flex;
+    flex-direction: row;
+    padding: 8px;
+    border-top: thin solid var(--separator-color);
+    cursor: pointer;
+}
+
+#friend-list-container > ul > li:hover {
+    background-color: var(--separator-color);
+    border-top: thin solid rgba(0, 0, 0, 0);
+    border-radius: 8px;
+}
+
+#fourth-column-main {
     list-style: none;
     padding: 0;
     margin: 0;
@@ -1132,7 +1189,7 @@ body {
     user-select: none;
 }
 
-#member-list li,
+#fourth-column-main li,
 #first-column-main-container li {
     padding: 6px 16px;
     display: flex;
@@ -1169,7 +1226,7 @@ body {
 }
 
 #ctx-menu {
-    z-index: 1000;
+    z-index: 100;
     width: 150px;
 }
 

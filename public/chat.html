@@ -33,8 +33,8 @@
 <!-- <button id="update-client" onclick="location.reload()">Version: 1<br></button> -->
 
 
-<div class="pages" id="left-main-container">
-    <ol id="server-list">
+<div class="pages" id="first-main-container">
+    <ol id="first-column">
         <div class="servers-separator" id="first-servers-separator" style="display: none;"></div>
         <div class="servers-separator" id="second-servers-separator" style="display: none;"></div>
         <li id="add-server">
@@ -43,12 +43,14 @@
         </li>
     </ol>
     <div id="second-column">
-        <div id="above-friends-channels-container">
-            <button id="server-name-button">
-                <label id="server-name"></label>
-            </button>
+        <div id="second-column-top">
+            <div id="server-name-container">
+                <button id="server-name-button">
+                    <label id="server-name"></label>
+                </button>
+            </div>
         </div>
-        <div id="friends-channels">
+        <div id="second-column-main">
             <div id="channels" style="display: none;">
                 <div id="channels-visible-or-add-new">
                     <button id="channels-visibility-button">
@@ -62,14 +64,18 @@
                 </div>
                 <div id="channel-list"></div>
             </div>
-            <div id="friends-chat" style="display: none;">
-                <div id="friends-chat-visible-or-add-new">
-                    <button id="friends-chat-visibility-button">
+            <div id="direct-messages" style="display: none;">
+                <div id="dm-buttons">
+                    <button id="dm-friends-button"> - Friends</button>
+                </div>
+
+                <div id="dm-chat-visible-or-add-new">
+                    <button id="dm-chat-visibility-button">
                         <label>direct messages</label>
                     </button>
-                    <button id="add-friends-button">+</button>
+                    <button id="create-dm-button">+</button>
                 </div>
-                <div id="friends-chat-list"></div>
+                <div id="dm-chat-list"></div>
             </div>
         </div>
         <div id="user-panel">
@@ -84,16 +90,16 @@
                 <div id="user-panel-buttons">
                     <button id="toggle-microphone-button" style="display: none"></button>
                     <button id="user-settings-button">
-                        <img src="/content/static/settings.svg"></img>
+                        <img src="/content/static/settings.svg">
                     </button>
                 </div>
             </div>
         </div>
     </div>
 </div>
-<div class="pages" id="main-container">
+<div class="pages" id="second-main-container">
     <!--    <button id="update-client" onclick="window.location.reload(true)">Force reload<br></button>-->
-    <div id="main-top">
+    <div id="third-column-top">
         <div id="main-top-left">
             <label id="channel-name-top">Channel</label>
         </div>
@@ -102,8 +108,8 @@
             <button id="hide-member-list-button"></button>
         </div>
     </div>
-    <div id="main-bottom">
-        <div id="main-center-container">
+    <div id="third-column-main">
+        <div id="chat-container">
             <div id="chat-loading-indicator">Loading</div>
 
             <ul id="chat-message-list"></ul>
@@ -141,11 +147,16 @@
                 <label id="someone-typing"></label>
             </div>
         </div>
+        <div id="friend-list-container">
+            <div id="search-friend"></div>
+            <label id="friend-count"></label>
+            <ul id="friend-list"></ul>
+        </div>
     </div>
 </div>
-<div class="pages" id="right-main-container">
-    <div id="above-member-list"></div>
-    <ol id="member-list"></ol>
+<div class="pages" id="third-main-container">
+    <div id="fourth-column-top"></div>
+    <ol id="fourth-column-main"></ol>
 </div>
 
 <!--<audio id="notification-sound" preload="auto" src="sounds/discord-notification.mp3"></audio>-->
@@ -156,17 +167,18 @@
 <script src="jsSrc/localStorage.js"></script>
 <script src="jsSrc/notification.js"></script>
 <script src="jsSrc/websocket.js"></script>
-<script src="jsSrc/comp/bubble.js"></script>
-<script src="jsSrc/comp/channelList.js"></script>
-<script src="jsSrc/comp/chatInput.js"></script>
-<script src="jsSrc/comp/chatMessageList.js"></script>
-<script src="jsSrc/comp/contextMenu.js"></script>
-<script src="jsSrc/comp/directMessages.js"></script>
-<script src="jsSrc/comp/loading.js"></script>
-<script src="jsSrc/comp/memberList.js"></script>
-<script src="jsSrc/comp/serverList.js"></script>
-<script src="jsSrc/comp/userPanel.js"></script>
-<script src="jsSrc/comp/window.js"></script>
+<script src="jsSrc/bubble.js"></script>
+<script src="jsSrc/friendList.js"></script>
+<script src="jsSrc/channelList.js"></script>
+<script src="jsSrc/chatInput.js"></script>
+<script src="jsSrc/chatMessageList.js"></script>
+<script src="jsSrc/contextMenu.js"></script>
+<script src="jsSrc/directMessages.js"></script>
+<script src="jsSrc/loading.js"></script>
+<script src="jsSrc/memberList.js"></script>
+<script src="jsSrc/serverList.js"></script>
+<script src="jsSrc/userPanel.js"></script>
+<script src="jsSrc/window.js"></script>
 </body>
 
 </html>

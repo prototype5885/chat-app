@@ -37,3 +37,6 @@ check what happens when non server owner tries to update picture/name of a serve
 optimize how channel list are delivered so server ID is only included once
 check if upload picture button goes back to inactive when upload failed
 test if uploader percentage works properly
+add registration date
+add friends since date
+add joined server date

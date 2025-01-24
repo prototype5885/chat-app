@@ -1,6 +1,12 @@
 package main
 
 import (
+	"chat-app/modules/database"
+	log "chat-app/modules/logging"
+	"chat-app/modules/snowflake"
+	"chat-app/modules/token"
+	"chat-app/modules/webRequests"
+	"chat-app/modules/websocket"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
@@ -9,12 +15,6 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
-	"proto-chat/modules/database"
-	log "proto-chat/modules/logging"
-	"proto-chat/modules/snowflake"
-	"proto-chat/modules/token"
-	"proto-chat/modules/webRequests"
-	"proto-chat/modules/websocket"
 	"strconv"
 	"strings"
 	"syscall"

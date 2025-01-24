@@ -1,14 +1,14 @@
 package database
 
 import (
+	log "chat-app/modules/logging"
+	"chat-app/modules/macros"
 	"database/sql"
 	"fmt"
-	log "proto-chat/modules/logging"
-	"proto-chat/modules/macros"
-
 	_ "github.com/go-sql-driver/mysql"
-	//"github.com/mattn/go-sqlite3"
-	_ "modernc.org/sqlite"
+	"github.com/mattn/go-sqlite3"
+	_ "github.com/mattn/go-sqlite3"
+	_ "github.com/sijms/go-ora/v2"
 )
 
 var Conn *sql.DB
@@ -23,7 +23,7 @@ func ConnectSqlite() {
 	// }
 
 	var err error
-	Conn, err = sql.Open("sqlite", "./database.sqlite")
+	Conn, err = sql.Open("sqlite3", "./database.sqlite")
 	if err != nil {
 		log.FatalError(err.Error(), "Error connecting to sqlite database")
 	}
@@ -38,6 +38,18 @@ func ConnectSqlite() {
 	log.Info("Connected to sqlite")
 	sqlite = true
 }
+
+//func ConnectOracle() {
+//	connectionString := "oracle://" + "chatapp" + ":" + "quLRYL~(NOh8TPI_" + "@" + "adb.eu-zurich-1.oraclecloud.com" + ":" + "1522" + "/" + "g62216a4ff7f865_j7xoz0c10y6k73gq_high.adb.oraclecloud.com"
+//
+//	connectionString += "?TRACE FILE=trace.log&SSL=enable&SSL Verify=false&WALLET=Wallet_J7XOZ0C10Y6K73GQ"
+//
+//	var err error
+//	Conn, err = sql.Open("oracle", connectionString)
+//	if err != nil {
+//		panic(fmt.Errorf("error in sql.Open: %w", err))
+//	}
+//}
 
 func ConnectMariadb(username string, password string, address string, port string, dbName string) {
 	var err error
@@ -66,8 +78,7 @@ func CreateTables() {
 	CreateChatMessagesTable()
 	CreateFriendshipsTable()
 	CreateBlockListTable()
-	CreateDmTable()
-	CreateDmMembersTable()
+	CreateDmChatTable()
 	CreateServerInvitesTable()
 	CreateAttachmentsTable()
 	CreateInviteKeysTable()
@@ -122,17 +133,17 @@ func Insert(structs any) error {
 	case BlockUser:
 		log.Query(insertBlockListQuery, s.UserID, s.BlockedUserID)
 		_, err = Conn.Exec(insertBlockListQuery, s.UserID, s.BlockedUserID)
-	// case Avatar:
-	// 	log.Query(insertAvatarQuery, s.Hash, s.OriginalHash, s.UserID, s.ServerID)
-	// 	_, err = Conn.Exec(insertAvatarQuery, s.Hash, s.OriginalHash, s.UserID, s.ServerID)
+	case DmChat:
+		log.Query(insertDmChatQuery, s.UserID1, s.UserID2, s.ChatID)
+		_, err = Conn.Exec(insertDmChatQuery, s.UserID1, s.UserID2, s.ChatID)
 	default:
 		log.Fatal("Unknown struct type in database Insert: %T", s)
 	}
 	if err != nil {
 		if sqlite { // sqlite
 			log.Error(err.Error())
-			//log.Warn("SQLite Error Code: %d\n", err.(sqlite3.Error).Code)
-			//log.Warn("SQLite Error Message: %s\n", err.(sqlite3.Error).Error())
+			log.Warn("SQLite Error Code: %d\n", err.(sqlite3.Error).Code)
+			log.Warn("SQLite Error Message: %s\n", err.(sqlite3.Error).Error())
 			return err
 			// if strings.Contains(err.Error(), "275") { // constraint check failed, 2 or more values are duplicates
 			// 	log.Error(err.Error(), "%s", "duplicate values where it's enforced to not have")

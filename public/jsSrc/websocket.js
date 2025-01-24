@@ -1,13 +1,4 @@
 class WebsocketClass {
-    constructor(main, serverList, chatMessageList, channelList, memberList, localStorage) {
-        this.main = main
-        this.serverList = serverList
-        this.chatMessageList = chatMessageList
-        this.channelList = channelList
-        this.memberList = memberList
-        this.localStorage = localStorage
-    }
-
     static wsClient
     static wsConnected = false
     static reconnectAttempts = 0
@@ -44,6 +35,10 @@ class WebsocketClass {
     static BLOCK_USER = 62
     static UNFRIEND = 63
 
+    static OPEN_DM = 71
+    static REQUEST_DM_LIST = 72
+    static DM_CHAT_HISTORY = 73
+
     static INITIAL_USER_DATA = 241
     static IMAGE_HOST_ADDRESS = 242
     static UPDATE_USER_DATA = 243
@@ -53,74 +48,73 @@ class WebsocketClass {
     static timerStage = 0
     static lastSendAttempt
 
-    async websocketConnected() {
-        console.log("Refreshing websocket connections")
+    static async websocketConnected() {
+        console.log('Refreshing websocket connections')
 
-        this.serverList.removePlaceholderServers()
+        ServerListClass.removePlaceholderServers()
 
         // waits until server sends user's own ID and display name
-        console.log("Waiting for server to send initial data...")
-        await MainClass.waitUntilBoolIsTrue(() => main.receivedInitialUserData)
-        console.log("Initial data has already arrived")
+        console.log('Waiting for server to send initial data...')
+        await MainClass.waitUntilBoolIsTrue(() => MainClass.receivedInitialUserData)
+        console.log('Initial data has already arrived')
 
 
         // request http address of image hosting server
         // await WebsocketClass.requestImageHostAddress()
 
         // wait until the address is received
-        // console.log("Waiting for server to send image host address..")
+        // console.log('Waiting for server to send image host address..')
         // await MainClass.waitUntilBoolIsTrue(() => main.receivedImageHostAddress)
-        // console.log("Image host address has already arrived")
+        // console.log('Image host address has already arrived')
 
         LoadingClass.fadeOutLoading()
-        const lastServer = this.localStorage.getLastServer()
+        const lastServer = LocalStorageClass.getLastServer()
         if (lastServer === null) {
-            this.serverList.selectServer("2000")
+            await ServerListClass.selectServer('dm')
         } else {
-            this.serverList.selectServer(this.localStorage.getLastServer())
+            await ServerListClass.selectServer(lastServer)
         }
-
     }
 
-    websocketBeforeConnected() {
-        main.currentServerID = 0
-        main.currentChannelID = 0
-        main.lastChannelID = 0
+    static websocketBeforeConnected() {
+        MainClass.setCurrentServerID('0')
+        MainClass.setCurrentChannelID('0')
+        MainClass.lastChannelID = 0
 
-        main.receivedInitialUserData = false
-        main.receivedImageHostAddress = false
+        MainClass.receivedInitialUserData = false
+        MainClass.receivedImageHostAddress = false
 
-        this.serverList.removeServers()
-        this.serverList.createPlaceHolderServers()
+        ServerListClass.removeServers()
+        ServerListClass.createPlaceHolderServers()
     }
 
-    async connectToWebsocket() {
-        console.log("Connecting to websocket...")
+    static async connectToWebsocket() {
+        console.log('Connecting to websocket...')
 
         this.websocketBeforeConnected()
 
         // check if protocol is http or https
-        const protocol = location.protocol === "https:" ? "wss://" : "ws://";
-        const endpoint = `${protocol}${window.location.host}/ws`;
-        WebsocketClass.wsClient = new WebSocket(endpoint);
+        const protocol = location.protocol === 'https:' ? 'wss://' : 'ws://'
+        const endpoint = `${protocol}${window.location.host}/ws`
+        WebsocketClass.wsClient = new WebSocket(endpoint)
 
         // make the websocket work with byte arrays
-        WebsocketClass.wsClient.binaryType = "arraybuffer"
+        WebsocketClass.wsClient.binaryType = 'arraybuffer'
 
-        WebsocketClass.wsClient.onopen = async (event) => {
-            console.log("Connected to WebSocket successfully.")
+        WebsocketClass.wsClient.onopen = async () => {
+            console.log('Connected to WebSocket successfully.')
             WebsocketClass.wsConnected = true
             await this.websocketConnected()
         }
 
-        WebsocketClass.wsClient.onclose = async (event) => {
-            console.log("Connection lost to websocket")
+        WebsocketClass.wsClient.onclose = async () => {
+            console.log('Connection lost to websocket')
             if (WebsocketClass.reconnectAttempts > 60) {
-                console.log("Failed reconnecting to the server")
-                LoadingClass.setLoadingText("Failed reconnecting")
+                console.log('Failed reconnecting to the server')
+                LoadingClass.setLoadingText('Failed reconnecting')
                 return
             }
-            console.log("Reconnection attempt:", WebsocketClass.reconnectAttempts)
+            console.log('Reconnection attempt:', WebsocketClass.reconnectAttempts)
             WebsocketClass.reconnectAttempts++
 
             WebsocketClass.wsConnected = false
@@ -128,8 +122,8 @@ class WebsocketClass {
             await this.connectToWebsocket()
         }
 
-        // wsClient.onerror = async function (_event) {
-        // console.log("Error in websocket")
+        // wsClient.onerror = async function () {
+        // console.log('Error in websocket')
         // wsConnected = false
         // await reconnectToWebsocket()
         // }
@@ -152,56 +146,55 @@ class WebsocketClass {
             const decoder = new TextDecoder()
             let packetJson = decoder.decode(receivedBytes.slice(5, endIndex))
 
-            console.log("Received packet:", endIndex, packetType, packetJson)
+            console.log('Received packet:', endIndex, packetType, packetJson)
 
             if (packetType !== WebsocketClass.REJECTION_MESSAGE) {
                 packetJson = packetJson.replace(/([\[:])?(\d{16,})([,\}\]])/g, "$1\"$2\"$3");
             }
 
             const json = JSON.parse(packetJson)
-            if (json !== "") {
+            if (json !== '') {
                 console.log(json)
             }
 
-
             switch (packetType) {
                 case WebsocketClass.REJECTION_MESSAGE: // Server sent rejection message
-                    console.warn("Server response:", json.Reason)
+                    console.warn('Server response:', json.Reason)
                     break
                 case WebsocketClass.ADD_CHAT_MESSAGE: // Server sent a chat message
-                    await this.chatMessageList.chatMessageReceived(json)
+                    await ChatMessageListClass.chatMessageReceived(json)
                     break
                 case WebsocketClass.CHAT_HISTORY: // Server sent the requested chat history
-                    await this.chatMessageList.chatHistoryReceived(json)
+                    await ChatMessageListClass.chatHistoryReceived(json)
                     break
                 case WebsocketClass.DELETE_CHAT_MESSAGE: // Server sent which message was deleted
-                    this.chatMessageList.deleteChatMessage(json)
+                    ChatMessageListClass.deleteChatMessage(json)
                     break
                 case WebsocketClass.STARTED_TYPING: // Server sent that someone started typing on given channel
-                    this.chatMessageList.someoneStartedTyping(json.Typing, json.UserID, json.ChannelID)
+                    ChatMessageListClass.someoneStartedTyping(json.Typing, json.UserID, json.ChannelID)
                     break
                 case WebsocketClass.EDIT_CHAT_MESSAGE: // Server sent info about an edited message
-                    this.chatMessageList.editChatMessage(json.MessageID, json.Message)
+                    ChatMessageListClass.editChatMessage(json.MessageID, json.Message)
                     break
                 case WebsocketClass.ADD_SERVER: // Server responded to the add server request
-                    console.log("Add server request response arrived")
-                    this.serverList.addServer(json.ServerID, json.Owned, json.Name, this.main.imageHost + json.Picture, "server")
-                    this.serverList.selectServer(json.ServerID)
+                    console.log('Add server request response arrived')
+                    ServerListClass.addServer(json.ServerID, json.Owned, json.Name, MainClass.imageHost + json.Picture, 'server')
+                    await ServerListClass.selectServer(json.ServerID)
                     break
                 case WebsocketClass.UPDATE_SERVER_PIC: // Server sent that a chat server picture was updated
-                    this.serverList.setServerPicture(json.ServerID, json.Pic)
+                    ServerListClass.setServerPicture(json.ServerID, json.Pic)
                     break
                 case WebsocketClass.DELETE_SERVER: // Server sent which server was deleted
                     console.log(`Server ID [${json.ServerID}] has been deleted`)
                     const serverID = json.ServerID
-                    this.serverList.deleteServer(serverID)
-                    this.localStorage.removeServerFromLastChannels(serverID)
-                    if (serverID === main.currentServerID) {
-                        this.serverList.selectServer("2000")
+                    ServerListClass.deleteServer(serverID)
+                    LocalStorageClass.removeServerFromLastChannels(serverID)
+                    if (serverID === MainClass.getCurrentServerID()) {
+                        await ServerListClass.selectServer('dm')
                     }
                     break
                 case WebsocketClass.SERVER_INVITE_LINK: // Server sent the requested invite link to the chat server
-                    console.log("Requested invite link to the chat server arrived, adding to clipboard")
+                    console.log('Requested invite link to the chat server arrived, adding to clipboard')
                     const inviteLink = `${window.location.protocol}//${window.location.host}/invite/${json}`
                     console.log(inviteLink)
                     await navigator.clipboard.writeText(inviteLink)
@@ -209,7 +202,7 @@ class WebsocketClass {
                 case WebsocketClass.UPDATE_SERVER_DATA: // server sent about a server data being updated
                     console.log(`Received updated data of server ID [${json.ServerID}]`)
                     if (json.NewSN) {
-                        this.serverList.setServerName(json.ServerID, json.Name)
+                        ServerListClass.setServerName(json.ServerID, json.Name)
                     }
                     if (json.NewSN) {
                         WindowManagerClass.setCurrentUpdateUserDataResponseLabel(true)
@@ -219,28 +212,28 @@ class WebsocketClass {
                     break
                 case WebsocketClass.ADD_CHANNEL: // Server responded to the add channel request
                     console.log(`Adding new channel called [${json.Name}]`)
-                    this.channelList.addChannel(json.ChannelID, json.Name)
+                    ChannelListClass.addChannel(json.ChannelID, json.Name)
                     break
                 case WebsocketClass.CHANNEL_LIST: // Server sent the requested channel list
-                    console.log("Requested channel list arrived")
+                    console.log('Requested channel list arrived')
                     if (json.length === 0) {
-                        console.warn("No channels on server ID", main.currentServerID)
-                        this.channelList.selectChannel("0")
+                        console.warn('No channels on server ID', MainClass.getCurrentServerID())
+                        await ChannelListClass.selectChannel('0', false)
                         break
                     }
                     for (let i = 0; i < json.length; i++) {
-                        this.channelList.addChannel(json[i].ChannelID, json[i].Name)
+                        await ChannelListClass.addChannel(json[i].ChannelID, json[i].Name)
                     }
-                    const lastChannelID = this.localStorage.selectLastChannels()
+                    const lastChannelID = LocalStorageClass.selectLastChannel()
                     if (lastChannelID !== null) {
-                        this.channelList.selectChannel(lastChannelID)
+                        await ChannelListClass.selectChannel(lastChannelID, false)
                     } else {
-                        this.channelList.selectChannel(json[0].ChannelID)
+                        await ChannelListClass.selectChannel(json[0].ChannelID, false)
                     }
                     break
                 case WebsocketClass.DELETE_CHANNEL:
                     console.log(`Channel ID [${json.ChannelID}] has been removed]`)
-                    this.channelList.removeChannel(json.ChannelID)
+                    await ChannelListClass.removeChannel(json.ChannelID)
                     break
                 case WebsocketClass.UPDATE_CHANNEL_DATA:
                     if (json.NewCN) {
@@ -248,61 +241,60 @@ class WebsocketClass {
                     }
                     break
                 case WebsocketClass.ADD_SERVER_MEMBER: // A user connected to the server
-                    console.log("A user connected to the server")
-                    if (json.ServerID === main.currentServerID) {
-                        this.memberList.addMember(json.Data.UserID, json.Data.Name, json.Data.Pic, json.Data.Online, json.Data.Status, json.Data.StatusText)
+                    console.log('A user connected to the server')
+                    if (json.ServerID === MainClass.getCurrentServerID()) {
+                        MemberListClass.addMember(json.Data.UserID, json.Data.Name, json.Data.Pic, json.Data.Online, json.Data.Status, json.Data.StatusText)
                     } else {
-                        console.warn(`Received that User ID [${json.Data.UserID}] connected to server ID [${json.ServerID}] but the current server ID is [${main.currentServerID}]`)
+                        console.warn(`Received that User ID [${json.Data.UserID}] connected to server ID [${json.ServerID}] but the current server ID is [${MainClass.getCurrentServerID()}]`)
                     }
                     break
                 case WebsocketClass.SERVER_MEMBER_LIST: // Server sent the requested member list
-                    console.log("Requested member list arrived")
+                    console.log('Requested member list arrived')
                     if (json == null) {
-                        console.warn("No members on server ID", main.currentServerID)
+                        console.warn('No members on server ID', MainClass.getCurrentServerID())
                         break
                     }
                     for (let i = 0; i < json.length; i++) {
-                        this.memberList.addMember(json[i].UserID, json[i].Name, json[i].Pic, json[i].Online, json[i].Status, json[i].StatusText)
+                        MemberListClass.addMember(json[i].UserID, json[i].Name, json[i].Pic, json[i].Online, json[i].Status, json[i].StatusText)
                     }
-                    main.memberListLoaded = true
+                    MainClass.memberListLoaded = true
                     break
                 case WebsocketClass.DELETE_SERVER_MEMBER: // a member left the server
-                    if (json.UserID === main.myUserID) {
+                    if (json.UserID === MainClass.getOwnUserID()) {
                         console.log(`Left server ID [${json.ServerID}], deleting it from list`)
-                        this.serverList.deleteServer(json.ServerID)
-                        this.serverList.selectServer("2000")
+                        ServerListClass.deleteServer(json.ServerID)
+                        await ServerListClass.selectServer('dm')
                     } else {
                         console.log(`User ID [${json.UserID}] left server ID [${json.ServerID}]`)
-                        this.memberList.removeMember(json.UserID)
+                        MemberListClass.removeMember(json.UserID)
                     }
                     break
                 case WebsocketClass.UPDATE_MEMBER_DATA: // a member changed user data
                     if (json.NewDN) {
-                        this.memberList.setMemberDisplayName(json.UserID, json.DisplayName)
-                        this.chatMessageList.changeDisplayNameInChatMessageList(json.UserID, json.DisplayName)
+                        MemberListClass.setMemberDisplayName(json.UserID, json.DisplayName)
+                        ChatMessageListClass.changeDisplayNameInChatMessageList(json.UserID, json.DisplayName)
                     }
                     if (json.NewP) {
                         // TODO set pronouns
                     }
                     if (json.NewST) {
-                        this.memberList.setMemberStatusText(json.UserID, json.StatusText)
+                        MemberListClass.setMemberStatusText(json.UserID, json.StatusText)
                     }
                     break
                 case WebsocketClass.UPDATE_MEMBER_PROFILE_PIC: // a member changed their profile pic
-                    json.Pic = main.getAvatarFullPath(json.Pic)
-                    this.memberList.setMemberProfilePic(json.UserID, json.Pic)
-                    this.chatMessageList.setChatMessageProfilePic(json.UserID, json.Pic)
-
+                    json.Pic = MainClass.getAvatarFullPath(json.Pic)
+                    MemberListClass.setMemberProfilePic(json.UserID, json.Pic)
+                    ChatMessageListClass.setChatMessageProfilePic(json.UserID, json.Pic)
                     break
                 case WebsocketClass.UPDATE_USER_DATA: // replied to user data change
                     if (json.NewDN) {
-                        main.setOwnDisplayName(json.DisplayName)
+                        MainClass.setOwnDisplayName(json.DisplayName)
                     }
                     if (json.NewP) {
-                        main.setOwnPronouns(json.Pronouns)
+                        MainClass.setOwnPronouns(json.Pronouns)
                     }
                     if (json.NewST) {
-                        main.setOwnStatusText(json.StatusText)
+                        MainClass.setOwnStatusText(json.StatusText)
                     }
 
                     if (json.NewDN || json.NewP || json.NewST) {
@@ -313,16 +305,16 @@ class WebsocketClass {
 
                     break
                 case WebsocketClass.UPDATE_STATUS: // Server sent that a user changed their status value
-                    if (json.UserID === main.myUserID) {
-                        console.log("My new status:", json.Status)
+                    if (json.UserID === MainClass.getOwnUserID()) {
+                        console.log('My new status:', json.Status)
                     } else {
                         console.log(`User ID [${json.UserID}] changed their status to [${json.Status}]`)
                     }
-                    this.memberList.changeStatusValueInMemberList(json.UserID, json.Status)
+                    MemberListClass.changeStatusValueInMemberList(json.UserID, json.Status)
                     break
                 // case 54: // Server sent that a user changed their status text
                 //     if (json.UserID === main.ownUserID) {
-                //         console.log("My new status text:", json.StatusText)
+                //         console.log('My new status text:', json.StatusText)
                 //         setUserPanelStatusText(json.StatusText)
                 //     } else {
                 //         console.log(`User ID [${json.UserID}] changed their status text to [${json.StatusText}]`)
@@ -330,69 +322,72 @@ class WebsocketClass {
                 //     setMemberOnlineStatusText(json.UserID, json.StatusText)
                 //     break
                 case WebsocketClass.UPDATE_ONLINE: // Server sent that someone went on or offline
-                    if (json.UserID === main.myUserID) {
-
-                    } else {
-                        this.memberList.setMemberOnline(json.UserID, json.Online)
-                    }
+                    // if (json.UserID === MainClass.getOwnUserID()) {
+                    //
+                    // } else {
+                    MemberListClass.setMemberOnline(json.UserID, json.Online)
+                    // }
                     break
                 case WebsocketClass.ADD_FRIEND:
-                    if (json.UserID === main.myUserID) {
-                        this.main.myFriends.push(json.ReceiverID)
+                    if (json.UserID === MainClass.getOwnUserID()) {
+                        MainClass.myFriends.push(json.ReceiverID)
                         console.log(`You have added user ID [${json.ReceiverID}] as friend`)
-                    } else if (json.ReceiverID === main.myUserID) {
-                        this.main.myFriends.push(json.UserID)
+                    } else if (json.ReceiverID === MainClass.getOwnUserID()) {
+                        MainClass.myFriends.push(json.UserID)
                         console.log(`User ID [${json.UserID}] has added you as a friend`)
                     }
                     break
                 case WebsocketClass.BLOCK_USER:
                     break
                 case WebsocketClass.UNFRIEND:
-                    if (json.UserID === main.myUserID) {
-                        this.main.removeFriend(json.ReceiverID)
+                    if (json.UserID === MainClass.getOwnUserID()) {
+                        MainClass.removeFriend(json.ReceiverID)
                         console.log(`You have unfriended user ID [${json.ReceiverID}]`)
-                    } else if (json.ReceiverID === main.myUserID) {
-                        this.main.removeFriend(json.UserID)
+                    } else if (json.ReceiverID === MainClass.getOwnUserID()) {
+                        MainClass.removeFriend(json.UserID)
                         console.log(`User ID [${json.UserID}] has unfriended you`)
                     }
                     break
+                case WebsocketClass.REQUEST_DM_LIST:
+                    DirectMessagesClass.addDirectMessages(json)
+                    break
                 case WebsocketClass.INITIAL_USER_DATA: // Server sent the client's own user ID and display name
-                    main.setOwnUserID(json.UserID)
-                    main.setOwnProfilePic(json.ProfilePic)
-                    main.setOwnDisplayName(json.DisplayName)
-                    main.setOwnPronouns(json.Pronouns)
-                    main.setOwnStatusText(json.StatusText)
-                    main.setMyFriends(json.Friends)
-                    main.setBlockedUsers(json.Blocks)
+                    MainClass.setOwnUserID(json.UserID)
+                    MainClass.setOwnProfilePic(json.ProfilePic)
+                    MainClass.setOwnDisplayName(json.DisplayName)
+                    MainClass.setOwnPronouns(json.Pronouns)
+                    MainClass.setOwnStatusText(json.StatusText)
+                    MainClass.setMyFriends(json.Friends)
+                    MainClass.setBlockedUsers(json.Blocks)
 
                     if (json.Servers.length !== 0) {
                         for (let i = 0; i < json.Servers.length; i++) {
-                            console.log("Adding server ID", json.Servers[i].ServerID)
-                            this.serverList.addServer(json.Servers[i].ServerID, json.Servers[i].Owned, json.Servers[i].Name, main.imageHost + json.Servers[i].Picture, "server")
+                            console.log('Adding server ID', json.Servers[i].ServerID)
+                            ServerListClass.addServer(json.Servers[i].ServerID, json.Servers[i].Owned, json.Servers[i].Name, MainClass.imageHost + json.Servers[i].Picture, 'server')
                         }
                         // this.localStorage.setServerCount(json.Servers.length)
                     } else {
-                        console.log("Not being in any servers")
+                        console.log('Not being in any servers')
                     }
-                    this.localStorage.lookForDeletedServersInLastChannels(this.serverList.ServerList)
+                    LocalStorageClass.lookForDeletedServersInLastChannels()
 
-                    main.receivedInitialUserData = true
-                    console.log("Received own initial data")
+                    MainClass.receivedInitialUserData = true
+                    console.log('Received own initial data')
                     break
                 case WebsocketClass.IMAGE_HOST_ADDRESS: // Server sent image host address
-                    if (json === "") {
-                        console.log("Received image host address, server did not set any external")
+                    if (json === '') {
+                        console.log('Received image host address, server did not set any external')
                     } else {
-                        console.log("Received image host address:", json)
+                        console.log('Received image host address:', json)
                     }
-                    main.imageHost = json
-                    main.receivedImageHostAddress = true
+                    MainClass.imageHost = json
+                    MainClass.receivedImageHostAddress = true
                     break
                 case WebsocketClass.UPDATE_USER_PROFILE_PIC: // replied to profile pic change
-                    main.setOwnProfilePic(json.Pic)
+                    MainClass.setOwnProfilePic(json.Pic)
                     break
                 default:
-                    console.log("Server sent unknown message type")
+                    console.log('Server sent unknown message type')
             }
         }
         await MainClass.waitUntilBoolIsTrue(() => WebsocketClass.wsConnected)
@@ -419,10 +414,10 @@ class WebsocketClass {
 
         // workaround to turn uint64 values in json from string to integer type so server can process
         // numbers longer than 16 characters
-        // json = json.replace(/"(\d{16,})"/g, "$1");
+        // json = json.replace(/'(\d{16,})"/g, "$1");
         json = json.replace(/(?<!\"Message\"\s*:\s*)\"(\d{16,})\"/g, "$1");
 
-        console.log("Json to prepare for sending:", json)
+        console.log('Json to prepare for sending:', json)
 
 
         // serialize the struct into json then convert to byte array
@@ -445,7 +440,7 @@ class WebsocketClass {
         packet.set(typeByte, 4) // 5. byte will be the packet type
         packet.set(jsonBytes, 5) // rest will be the json byte array
 
-        console.log("Prepared packet:", endIndex, packet[4], json)
+        console.log('Prepared packet:', endIndex, packet[4], json)
 
         WebsocketClass.wsClient.send(packet)
 
@@ -456,9 +451,9 @@ class WebsocketClass {
     }
 
     static async sendChatMessage(message, channelID, attachmentToken) { // type is 1
-        console.log("Sending a chat message")
+        console.log('Sending a chat message')
         if (channelID === 0) {
-            console.warn("You have no channel selected")
+            console.warn('You have no channel selected')
             return
         }
         await WebsocketClass.preparePacket(WebsocketClass.ADD_CHAT_MESSAGE, {
@@ -470,7 +465,7 @@ class WebsocketClass {
     }
 
     static async requestChatHistory(channelID, lastMessageID) {
-        console.log("Requesting chat history for channel ID", channelID)
+        console.log('Requesting chat history for channel ID', channelID)
         await WebsocketClass.preparePacket(WebsocketClass.CHAT_HISTORY, {
             ChannelID: channelID,
             FromMessageID: lastMessageID,
@@ -478,27 +473,36 @@ class WebsocketClass {
         })
     }
 
+    static async requestDmChatHistory(chatID, lastMessageID) {
+        console.log('Requesting chat history for direct message chat ID', chatID)
+        await WebsocketClass.preparePacket(WebsocketClass.DM_CHAT_HISTORY, {
+            ChannelID: chatID,
+            FromMessageID: lastMessageID,
+            Older: true // if true it will request older, if false it will request newer messages from the message id
+        })
+    }
+
     static async requestDeleteChatMessage(messageID) {
-        console.log("Requesting to delete chat message ID", messageID)
+        console.log('Requesting to delete chat message ID', messageID)
         await WebsocketClass.preparePacket(WebsocketClass.DELETE_CHAT_MESSAGE, {
             MessageID: messageID
         })
     }
 
     static async requestAddServer(serverName) {
-        console.log("Requesting to add a new server")
+        console.log('Requesting to add a new server')
         await WebsocketClass.preparePacket(WebsocketClass.ADD_SERVER, {
             Name: serverName
         })
     }
 
     static async requestRenameServer(serverID) {
-        console.log("Requesting to rename server ID:", serverID)
+        console.log('Requesting to rename server ID:', serverID)
     }
 
     static async requestDeleteServer(serverID) {
-        console.log("Requesting to delete server ID:", serverID)
-        if (document.getElementById(serverID).getAttribute("owned") === "false") {
+        console.log('Requesting to delete server ID:', serverID)
+        if (document.getElementById(serverID).getAttribute('owned') === 'false') {
             console.warn(`You don't own server ID [${serverID}]`)
             return
         }
@@ -509,8 +513,8 @@ class WebsocketClass {
     }
 
     static async requestInviteLink(serverID) {
-        if (document.getElementById(serverID).getAttribute("owned") === "false") return
-        console.log("Requesting invite link creation for server ID:", serverID)
+        if (document.getElementById(serverID).getAttribute('owned') === 'false') return
+        console.log('Requesting invite link creation for server ID:', serverID)
         await WebsocketClass.preparePacket(WebsocketClass.SERVER_INVITE_LINK, {
             ServerID: serverID,
             SingleUse: true,
@@ -519,20 +523,20 @@ class WebsocketClass {
     }
 
     static async requestAddChannel() {
-        if (document.getElementById(main.currentServerID).getAttribute("owned") === "false") return
-        console.log("Requesting to add new channel to server ID:", main.currentServerID)
+        if (document.getElementById(MainClass.getCurrentServerID()).getAttribute('owned') === 'false') return
+        console.log('Requesting to add new channel to server ID:', MainClass.getCurrentServerID())
         await WebsocketClass.preparePacket(WebsocketClass.ADD_CHANNEL, {
-            Name: "Channel",
-            ServerID: main.currentServerID
+            Name: 'Channel',
+            ServerID: MainClass.getCurrentServerID()
         })
     }
 
     static async requestRemoveChannel(channelID) {
-        console.log(`Requesting to remove channel ID [${channelID}] from server ID [${main.currentServerID}]`)
-        if (document.getElementById(main.currentServerID).getAttribute("owned") === "false") return
+        console.log(`Requesting to remove channel ID [${channelID}] from server ID [${MainClass.getCurrentServerID()}]`)
+        if (document.getElementById(MainClass.getCurrentServerID()).getAttribute('owned') === 'false') return
 
         // if (document.getElementById(channelID).parentElement.childElementCount <= 1) {
-        //     console.warn("You can't remove last channel of a server")
+        //     console.warn('You can't remove last channel of a server')
         //     return
         // }
 
@@ -542,35 +546,35 @@ class WebsocketClass {
     }
 
     static async requestChannelList() {
-        console.log("Requesting channel list for current server ID", main.currentServerID)
+        console.log('Requesting channel list for current server ID', MainClass.getCurrentServerID())
         await WebsocketClass.preparePacket(WebsocketClass.CHANNEL_LIST, {
-            ServerID: main.currentServerID
+            ServerID: MainClass.getCurrentServerID()
         })
     }
 
     static async requestMemberList() {
-        console.log("Requesting member list for current server ID", main.currentServerID)
+        console.log('Requesting member list for current server ID', MainClass.getCurrentServerID())
         await WebsocketClass.preparePacket(WebsocketClass.SERVER_MEMBER_LIST, {
-            ServerID: main.currentServerID
+            ServerID: MainClass.getCurrentServerID()
         })
     }
 
     static async requestLeaveServer(serverID) {
-        console.log("Requesting to leave a server ID", serverID)
+        console.log('Requesting to leave a server ID', serverID)
         await WebsocketClass.preparePacket(WebsocketClass.DELETE_SERVER_MEMBER, {
             ServerID: serverID
         })
     }
 
     static async requestStatusChange(newStatus) {
-        console.log("Requesting to change status")
+        console.log('Requesting to change status')
         await WebsocketClass.preparePacket(WebsocketClass.UPDATE_STATUS, {
             Status: newStatus
         })
     }
 
     static async requestAddFriend(userID) {
-        if (userID === main.myUserID) {
+        if (userID === MainClass.getOwnUserID()) {
             console.warn("You can't be friends with yourself")
             return
         }
@@ -581,8 +585,8 @@ class WebsocketClass {
     }
 
     static async requestBlockUser(userID) {
-        if (userID === main.myUserID) {
-            console.warn("You can't block yourself")
+        if (userID === MainClass.getOwnUserID()) {
+            console.warn(`You can't block yourself`)
             return
         }
         console.log(`Requesting to block user ID [${userID}]`)
@@ -592,8 +596,8 @@ class WebsocketClass {
     }
 
     static async requestUnfriend(userID) {
-        if (userID === main.myUserID) {
-            console.warn("You can't unfriend yourself")
+        if (userID === MainClass.getOwnUserID()) {
+            console.warn(`You can't unfriend yourself`)
             return
         }
         console.log(`Requesting to unfriend user ID [${userID}]`)
@@ -603,12 +607,12 @@ class WebsocketClass {
     }
 
     static async requestImageHostAddress() {
-        console.log("Requesting image host address")
+        console.log('Requesting image host address')
         await WebsocketClass.preparePacket(WebsocketClass.IMAGE_HOST_ADDRESS, {})
     }
 
     static async requestUpdateUserData(updatedUserData) {
-        console.log("Requesting to update account data")
+        console.log('Requesting to update account data')
         await WebsocketClass.preparePacket(WebsocketClass.UPDATE_USER_DATA, updatedUserData)
     }
 
@@ -623,7 +627,7 @@ class WebsocketClass {
     }
 
     static async startedTyping(typing) {
-        console.log("Started typing in chat input")
+        console.log('Started typing in chat input')
         await WebsocketClass.preparePacket(WebsocketClass.STARTED_TYPING, {
             Typing: typing
         })
@@ -635,5 +639,17 @@ class WebsocketClass {
             MessageID: messageID,
             Message: newMessage
         })
+    }
+
+    static async requestOpenDm(userID) {
+        console.log(`Requesting to open dm with user ID [${userID}]`)
+        await WebsocketClass.preparePacket(WebsocketClass.OPEN_DM, {
+            UserID: userID
+        })
+    }
+
+    static async requestDmList() {
+        console.log(`Requesting list of direct messages`)
+        await WebsocketClass.preparePacket(WebsocketClass.REQUEST_DM_LIST, {})
     }
 }

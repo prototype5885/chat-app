@@ -1,41 +1,38 @@
 class LocalStorageClass {
-    constructor(main) {
-        this.main = main
+    // checkIfLocalStorageSupported() {
+    //     if (typeof (Storage) === "undefined") {
+    //         console.log("Browser doesn't support storage")
+    //         return false
+    //     } else {
+    //         console.log("Browser supports storage")
+    //         return true
+    //     }
+    // }
 
-        this.localStorageSupported = false
-
-        if (typeof (Storage) === "undefined") {
-            console.log("Browser doesn't support storage")
-        } else {
-            console.log("Browser supports storage")
-            this.localStorageSupported = true
-        }
-    }
-
-    getLastChannels() {
+    static getLastChannels() {
         return localStorage.getItem("lastChannels")
     }
 
-    setLastChannels(value) {
+    static setLastChannels(value) {
         console.log("Last channel has been set to: " + value)
         localStorage.setItem("lastChannels", value)
     }
 
-    getLastServer() {
+    static getLastServer() {
         return localStorage.getItem("lastServer")
     }
 
-    setLastServer(value) {
+    static setLastServer(value) {
         console.log("Last server has been set to: " + value)
         localStorage.setItem("lastServer", value)
     }
 
 
-    updateLastChannelsStorage() {
-        if (!this.localStorageSupported) {
-            console.warn("Local storage isn't enabled in browser, can't update lastChannels value")
-            return
-        }
+    static updateLastChannelsStorage() {
+        // if (!this.localStorageSupported) {
+        //     console.warn("Local storage isn't enabled in browser, can't update lastChannels value")
+        //     return
+        // }
 
         const json = this.getLastChannels()
 
@@ -53,27 +50,26 @@ class LocalStorageClass {
             // }
         }
         // if channel was changed, overwrite with new one
-        lastChannels[this.main.currentServerID] = this.main.currentChannelID
+        lastChannels[MainClass.getCurrentServerID()] = MainClass.getCurrentChannelID()
         this.setLastChannels(JSON.stringify(lastChannels))
     }
 
     // delete servers from lastChannels that no longer exist
-    lookForDeletedServersInLastChannels(serverList) {
-        if (!this.localStorageSupported) {
-            console.warn("Local storage isn't enabled in browser, can't look for deleted servers in lastChannels value")
-            return
-        }
+    static lookForDeletedServersInLastChannels() {
+        // if (!this.localStorageSupported) {
+        //     console.warn("Local storage isn't enabled in browser, can't look for deleted servers in lastChannels value")
+        //     return
+        // }
 
         const json = this.getLastChannels()
         if (json != null) {
             let lastChannels = JSON.parse(json)
-            const li = serverList.querySelectorAll(".server")
+            const li = ServerListClass.ServerList.querySelectorAll(".server, .dm")
 
             const newLastChannels = {}
             li.forEach((li) => {
-                const button = li.querySelector("button")
-                const id = button.getAttribute("id")
-                newLastChannels[id.toString()] = lastChannels[id.toString()]
+                const serverButton = li.querySelector("button")
+                newLastChannels[serverButton.id] = lastChannels[serverButton.id]
             })
 
             if (JSON.stringify(lastChannels) === JSON.stringify(newLastChannels)) {
@@ -89,11 +85,11 @@ class LocalStorageClass {
     }
 
     // delete a single server from lastChannels
-    removeServerFromLastChannels(serverID) {
-        if (!this.localStorageSupported) {
-            console.warn(`Local storage isn't enabled in browser, can't delete server ID [${serverID}] from lastChannels value`)
-            return
-        }
+    static removeServerFromLastChannels(serverID) {
+        // if (!this.localStorageSupported) {
+        //     console.warn(`Local storage isn't enabled in browser, can't delete server ID [${serverID}] from lastChannels value`)
+        //     return
+        // }
 
         const json = this.getLastChannels()
         if (json != null) {
@@ -109,16 +105,16 @@ class LocalStorageClass {
     }
 
     // selects the last selected channel after clicking on a server
-    selectLastChannels() {
-        if (!this.localStorageSupported) {
-            console.warn("Local storage isn't enabled in browser, can't select last used channel on server, selecting first channel instead")
-            return null
-        }
+    static selectLastChannel() {
+        // if (!this.localStorageSupported) {
+        //     console.warn("Local storage isn't enabled in browser, can't select last used channel on server, selecting first channel instead")
+        //     return null
+        // }
 
         const json = this.getLastChannels()
         if (json != null) {
             let lastChannels = JSON.parse(json)
-            const lastChannel = lastChannels[this.main.currentServerID.toString()]
+            const lastChannel = lastChannels[MainClass.getCurrentServerID().toString()]
             if (lastChannel != null) {
                 return lastChannel
             } else {
@@ -131,21 +127,21 @@ class LocalStorageClass {
         }
     }
 
-    getServerCount() {
-        if (!this.localStorageSupported) {
-            console.warn(`Local storage isn't enabled in browser, can't get serverCount value, returning 0`)
-            return 0
-        } else {
-            return localStorage.getItem("serverCount")
-        }
+    static getServerCount() {
+        // if (!this.localStorageSupported) {
+        //     console.warn(`Local storage isn't enabled in browser, can't get serverCount value, returning 0`)
+        //     return 0
+        // } else {
+        return localStorage.getItem("serverCount")
+        // }
     }
 
-    setServerCount(value) {
-        if (!this.localStorageSupported) {
-            console.warn(`Local storage isn't enabled in browser, can't set serverCount value`)
-            return 0
-        } else {
-            localStorage.setItem("serverCount", value)
-        }
+    static setServerCount(value) {
+        // if (!this.localStorageSupported) {
+        //     console.warn(`Local storage isn't enabled in browser, can't set serverCount value`)
+        //     return 0
+        // } else {
+        localStorage.setItem("serverCount", value)
+        // }
     }
 }

@@ -1,9 +1,9 @@
 package snowflake
 
 import (
+	log "chat-app/modules/logging"
 	"fmt"
 	"math"
-	log "proto-chat/modules/logging"
 	"sync"
 	"time"
 )

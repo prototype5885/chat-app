@@ -1,8 +1,8 @@
 package database
 
 import (
-	log "proto-chat/modules/logging"
-	"proto-chat/modules/macros"
+	log "chat-app/modules/logging"
+	"chat-app/modules/macros"
 	"time"
 )
 
@@ -17,7 +17,7 @@ const deleteTokenQuery = "DELETE FROM tokens WHERE token = ? AND user_id = ?"
 
 func CreateTokensTable() {
 	_, err := Conn.Exec(`CREATE TABLE IF NOT EXISTS tokens (
-			token BINARY(128) PRIMARY KEY NOT NULL,
+			token BINARY(128) PRIMARY KEY,
 			user_id BIGINT UNSIGNED NOT NULL,
 			expiration BIGINT UNSIGNED NOT NULL,
 			FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
@@ -82,6 +82,8 @@ func RenewTokenExpiration(newExpiration int64, tokenBytes []byte) bool {
 
 	rowsAffected, err := result.RowsAffected()
 	DatabaseErrorCheck(err)
+
+	log.Trace("Rows affected: %d", rowsAffected)
 
 	if rowsAffected == 1 {
 		log.Debug("Updated expiration timestamp for token [%s] in database", macros.ShortenToken(tokenBytes))

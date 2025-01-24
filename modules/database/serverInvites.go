@@ -1,7 +1,7 @@
 package database
 
 import (
-	log "proto-chat/modules/logging"
+	log "chat-app/modules/logging"
 )
 
 type ServerInvite struct {
@@ -21,7 +21,7 @@ const deleteServerInviteQuery = "DELETE FROM server_invites WHERE invite_id = ?"
 
 func CreateServerInvitesTable() {
 	_, err := Conn.Exec(`CREATE TABLE IF NOT EXISTS server_invites (
-		invite_id BIGINT UNSIGNED PRIMARY KEY NOT NULL,
+		invite_id BIGINT UNSIGNED PRIMARY KEY,
 		server_id BIGINT UNSIGNED NOT NULL,
 		target_user_id BIGINT UNSIGNED NOT NULL,
 		single_use BOOLEAN NOT NULL,

@@ -1,8 +1,8 @@
 package database
 
 import (
+	log "chat-app/modules/logging"
 	"encoding/hex"
-	log "proto-chat/modules/logging"
 )
 
 type Attachment struct {

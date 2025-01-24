@@ -1,6 +1,6 @@
 package database
 
-import log "proto-chat/modules/logging"
+import log "chat-app/modules/logging"
 
 type BlockUser struct {
 	UserID        uint64

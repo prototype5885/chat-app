@@ -10,7 +10,8 @@
     --dark-non-transparent: #111214;
     --brighter-transparent: #656565d1;
     --chat-input-color: #383a40;
-    --separator-color: #3c3c3c;
+    --server-separator-color: #3c3c3c;
+    --separator-color: rgba(255, 255, 255, 0.05);
     --loading-color: rgba(0, 0, 0, 0.71);
     --button-color: #b5bac1;
     --blue: #5865F2
@@ -23,26 +24,17 @@ body {
     background-color: var(--bit-darker-color);
 }
 
-a {
-    color: deepskyblue;
-    text-decoration: underline;
-    cursor: pointer;
-}
-
 textarea {
     font-family: Roboto, Helvetica, Arial, sans-serif;
     font-size: 14px;
 }
 
-video {
-    min-height: 64px;
-    min-width: 64%;
-    max-height: 1024px;
-}
-
-a:visited {
-    color: deepskyblue;
-}
+/*video {*/
+/*    min-height: 256px;*/
+/*    min-width: 256px;*/
+/*    max-height: 256px;*/
+/*    max-width: 256px;*/
+/*}*/
 
 
 /* default settings for all buttons */

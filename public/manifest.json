@@ -1,6 +1,6 @@
 {
-  "name": "ProToChat",
-  "short_name": "ProToChat",
+  "name": "Chat App",
+  "short_name": "chat-app",
   "start_url": "chat.html",
   "display": "standalone",
   "background_color": "#36393f",

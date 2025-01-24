@@ -1,18 +1,18 @@
 package webRequests
 
 import (
+	"chat-app/modules/database"
+	log "chat-app/modules/logging"
 	"fmt"
 	"image"
 	"net/http"
-	"proto-chat/modules/database"
-	log "proto-chat/modules/logging"
 
 	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/totp"
 )
 
 func printReceivedRequest(r *http.Request) {
-	log.Trace("Received %s %s request from IP address %s", r.URL.Path, r.Method, r.RemoteAddr)
+	log.Trace("Received %s %s request", r.URL.Path, r.Method)
 }
 
 func respondText(w http.ResponseWriter, response string, v ...any) {

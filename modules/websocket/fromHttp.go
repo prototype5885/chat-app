@@ -1,11 +1,11 @@
 package websocket
 
 import (
+	"chat-app/modules/clients"
+	"chat-app/modules/database"
+	log "chat-app/modules/logging"
+	"chat-app/modules/macros"
 	"encoding/json"
-	"proto-chat/modules/clients"
-	"proto-chat/modules/database"
-	log "proto-chat/modules/logging"
-	"proto-chat/modules/macros"
 )
 
 func OnProfilePicChanged(userID uint64, fileName string) {

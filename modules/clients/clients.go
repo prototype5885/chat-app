@@ -1,9 +1,9 @@
 package clients
 
 import (
-	"proto-chat/modules/database"
-	log "proto-chat/modules/logging"
-	"proto-chat/modules/snowflake"
+	"chat-app/modules/database"
+	log "chat-app/modules/logging"
+	"chat-app/modules/snowflake"
 	"sync"
 )
 

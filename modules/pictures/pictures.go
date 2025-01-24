@@ -2,10 +2,10 @@ package pictures
 
 import (
 	"bytes"
+	log "chat-app/modules/logging"
+	"chat-app/modules/macros"
 	"image"
 	"image/jpeg"
-	log "proto-chat/modules/logging"
-	"proto-chat/modules/macros"
 	"time"
 
 	"github.com/disintegration/imaging"

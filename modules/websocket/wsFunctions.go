@@ -1,15 +1,15 @@
 package websocket
 
 import (
+	"chat-app/modules/attachments"
+	"chat-app/modules/clients"
+	"chat-app/modules/database"
+	log "chat-app/modules/logging"
+	"chat-app/modules/macros"
+	"chat-app/modules/snowflake"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"proto-chat/modules/attachments"
-	"proto-chat/modules/clients"
-	"proto-chat/modules/database"
-	log "proto-chat/modules/logging"
-	"proto-chat/modules/macros"
-	"proto-chat/modules/snowflake"
 	"strconv"
 	"time"
 )
@@ -214,8 +214,9 @@ func (c *WsClient) onAddChatMessageRequest(packetJson []byte, packetType byte) {
 
 	var rejectMessage = fmt.Sprintf("Denied sending chat message to channel ID [%d]", req.ChannelID)
 
+	log.Trace("not dm")
 	// check if user is member of the server which the channel belongs to
-	var serverID uint64 = database.GetServerIdOfChannel(req.ChannelID)
+	serverID := database.GetServerIdOfChannel(req.ChannelID)
 	if serverID == 0 {
 		c.WriteChan <- macros.RespondFailureReason("%s", rejectMessage)
 		return
@@ -311,6 +312,7 @@ func (c *WsClient) onChatHistoryRequest(packetJson []byte, packetType byte) {
 	type ChatHistoryRequest struct {
 		ChannelID     uint64
 		FromMessageID uint64
+		Dm            bool
 		Older         bool
 	}
 
@@ -327,7 +329,8 @@ func (c *WsClient) onChatHistoryRequest(packetJson []byte, packetType byte) {
 		return
 	}
 	const rejectionMessage = "Denied chat history request"
-	// check if user is member of server channel is part of
+
+	// check if user is member of server the channel is part of
 	serverID := database.GetServerIdOfChannel(req.ChannelID)
 	if serverID == 0 {
 		c.WriteChan <- macros.RespondFailureReason(rejectionMessage)
@@ -487,7 +490,7 @@ func (c *WsClient) onBlockUserRequest(packetJson []byte, packetType byte) {
 	}
 }
 
-func (c *WsClient) onUnfriendRequest(packetJson []byte) {
+func (c *WsClient) onUnfriendRequest(packetJson []byte, packetType byte) {
 	type UnfriendRequest struct {
 		UserID uint64
 	}
@@ -495,7 +498,7 @@ func (c *WsClient) onUnfriendRequest(packetJson []byte) {
 	var req = UnfriendRequest{}
 
 	if err := json.Unmarshal(packetJson, &req); err != nil {
-		c.WriteChan <- macros.ErrorDeserializing(err.Error(), UNFRIEND, c.UserID)
+		c.WriteChan <- macros.ErrorDeserializing(err.Error(), packetType, c.UserID)
 		return
 	}
 
@@ -526,13 +529,13 @@ func (c *WsClient) onUnfriendRequest(packetJson []byte) {
 
 	msgBytes, err := json.Marshal(res)
 	if err != nil {
-		macros.ErrorSerializing(err.Error(), UNFRIEND, c.UserID)
+		macros.ErrorSerializing(err.Error(), packetType, c.UserID)
 		return
 	}
 
 	broadcastData := BroadcastData{
-		MessageBytes:   macros.PreparePacket(UNFRIEND, msgBytes),
-		Type:           UNFRIEND,
+		MessageBytes:   macros.PreparePacket(packetType, msgBytes),
+		Type:           packetType,
 		AffectedUserID: []uint64{c.UserID, req.UserID},
 	}
 
@@ -622,7 +625,7 @@ func (c *WsClient) onLeaveServerRequest(packetJson []byte, packetType byte) {
 	}
 }
 
-func (c *WsClient) onAddServerRequest(packetJson []byte) {
+func (c *WsClient) onAddServerRequest(packetJson []byte, packetType byte) {
 	type AddServerRequest struct {
 		Name string
 	}
@@ -630,7 +633,7 @@ func (c *WsClient) onAddServerRequest(packetJson []byte) {
 	var addServerRequest = AddServerRequest{}
 
 	if err := json.Unmarshal(packetJson, &addServerRequest); err != nil {
-		c.WriteChan <- macros.ErrorDeserializing(err.Error(), ADD_SERVER, c.UserID)
+		c.WriteChan <- macros.ErrorDeserializing(err.Error(), packetType, c.UserID)
 		return
 	}
 
@@ -647,10 +650,10 @@ func (c *WsClient) onAddServerRequest(packetJson []byte) {
 
 	messagesBytes, err := json.Marshal(serverResponse)
 	if err != nil {
-		macros.ErrorSerializing(err.Error(), ADD_SERVER, c.UserID)
+		macros.ErrorSerializing(err.Error(), packetType, c.UserID)
 		return
 	}
-	c.WriteChan <- macros.PreparePacket(ADD_SERVER, messagesBytes)
+	c.WriteChan <- macros.PreparePacket(packetType, messagesBytes)
 }
 
 func (c *WsClient) onServerDeleteRequest(jsonBytes []byte, packetType byte) {
@@ -1027,5 +1030,27 @@ func (c *WsClient) onChatMessageEditRequest(packetJson []byte, packetType byte) 
 		MessageBytes:    macros.PreparePacket(packetType, packetJson),
 		Type:            packetType,
 		AffectedChannel: channelID,
+	}
+}
+
+func (c *WsClient) onOpenDmRequest(packetJson []byte, packetType byte) {
+	type Request struct {
+		UserID uint64
+	}
+
+	var req Request
+
+	if err := json.Unmarshal(packetJson, &req); err != nil {
+		c.WriteChan <- macros.ErrorDeserializing(err.Error(), packetType, c.UserID)
+		return
+	}
+
+	err := database.Insert(database.DmChat{
+		UserID1: c.UserID,
+		UserID2: req.UserID,
+		ChatID:  snowflake.Generate()})
+	if err != nil {
+		c.WriteChan <- macros.RespondFailureReason("Failed creating DM chat")
+		return
 	}
 }

@@ -1,9 +1,9 @@
 package database
 
 import (
+	log "chat-app/modules/logging"
 	"database/sql"
 	"fmt"
-	log "proto-chat/modules/logging"
 )
 
 type User struct {
@@ -40,7 +40,7 @@ const insertUserQuery = "INSERT INTO users (user_id, username, display_name, pas
 
 func CreateUsersTable() {
 	_, err := Conn.Exec(`CREATE TABLE IF NOT EXISTS users (
-		user_id BIGINT UNSIGNED PRIMARY KEY NOT NULL,
+		user_id BIGINT UNSIGNED PRIMARY KEY,
 		username VARCHAR(32) NOT NULL,
 		display_name VARCHAR(32) NOT NULL,
 		status TINYINT UNSIGNED	NOT NULL DEFAULT 1,

@@ -1,19 +1,19 @@
 class Translation {
     static translationJson = {
-        "en": {
-            "today": "Today at "
+        'en': {
+            'today': 'Today at '
         },
-        "de": {
-            "today": "Am heute "
+        'de': {
+            'today': 'Am heute '
         },
-        "hu": {
-            "today": "Ma "
+        'hu': {
+            'today': 'Ma '
         },
-        "ru": {
-            "today": "Сегодня, в "
+        'ru': {
+            'today': 'Сегодня, в '
         },
-        "es": {
-            "today": "hoy a las "
+        'es': {
+            'today': 'hoy a las '
         }
     }
 
@@ -21,21 +21,21 @@ class Translation {
 
     static setLanguage(language) {
         language = language.split('-')[0];
-        console.log("Language set to: " + language)
+        console.log('Language set to: ' + language)
         switch (language) {
-            case "de":
+            case 'de':
                 Translation.translation = Translation.translationJson.de
                 break
-            case "hu":
+            case 'hu':
                 Translation.translation = Translation.translationJson.hu
                 break
-            case "ru":
+            case 'ru':
                 Translation.translation = Translation.translationJson.ru
                 break
-            case "es":
+            case 'es':
                 Translation.translation = Translation.translationJson.es
                 break
-            case "en":
+            case 'en':
             default:
                 Translation.translation = Translation.translationJson.en
                 break

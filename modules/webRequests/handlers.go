@@ -2,6 +2,14 @@ package webRequests
 
 import (
 	"bytes"
+	"chat-app/modules/attachments"
+	"chat-app/modules/database"
+	log "chat-app/modules/logging"
+	"chat-app/modules/macros"
+	"chat-app/modules/pictures"
+	"chat-app/modules/snowflake"
+	"chat-app/modules/token"
+	"chat-app/modules/websocket"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
@@ -11,14 +19,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"proto-chat/modules/attachments"
-	"proto-chat/modules/database"
-	log "proto-chat/modules/logging"
-	"proto-chat/modules/macros"
-	"proto-chat/modules/pictures"
-	"proto-chat/modules/snowflake"
-	"proto-chat/modules/token"
-	"proto-chat/modules/websocket"
 	"strconv"
 	"strings"
 	"time"
@@ -63,7 +63,7 @@ func chatHandler(w http.ResponseWriter, r *http.Request) {
 	// check if user requesting login/registration already has a token
 	userID := token.CheckIfTokenIsValid(w, r)
 	if userID == 0 { // if user tries to use the chat but has no token or expired
-		log.Trace("Someone is trying to access /chat without authorized token, redirecting to / ...")
+		log.Trace("Someone is trying to access /chat.html without authorized token, redirecting to / ...")
 		redirect(w, r, "/")
 	} else {
 		// serve static files

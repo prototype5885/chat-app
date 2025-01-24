@@ -1,12 +1,12 @@
 package jsfilesmerger
 
 import (
+	log "chat-app/modules/logging"
 	"crypto/sha1"
 	"encoding/gob"
 	"fmt"
 	"io"
 	"os"
-	log "proto-chat/modules/logging"
 	"strings"
 )
 

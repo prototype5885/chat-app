@@ -1,10 +1,10 @@
 package database
 
 import (
+	log "chat-app/modules/logging"
+	"chat-app/modules/macros"
 	"encoding/json"
 	"fmt"
-	log "proto-chat/modules/logging"
-	"proto-chat/modules/macros"
 )
 
 type Message struct {
@@ -32,7 +32,7 @@ const insertChatMessageQuery = "INSERT INTO messages (message_id, channel_id, us
 
 func CreateChatMessagesTable() {
 	_, err := Conn.Exec(`CREATE TABLE IF NOT EXISTS messages (
-			message_id BIGINT UNSIGNED PRIMARY KEY NOT NULL,
+			message_id BIGINT UNSIGNED PRIMARY KEY,
 			channel_id BIGINT UNSIGNED NOT NULL,
 			user_id BIGINT UNSIGNED NOT NULL,
 			message TEXT NOT NULL,

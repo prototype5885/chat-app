@@ -1,9 +1,9 @@
 package webRequests
 
 import (
+	log "chat-app/modules/logging"
 	"net/http"
 	"path/filepath"
-	log "proto-chat/modules/logging"
 	"strings"
 )
 
@@ -59,7 +59,7 @@ func MainHandler(w http.ResponseWriter, r *http.Request) {
 
 			//switch extension {
 			//case ".js", ".css", ".json":
-			//	log.Trace("Serving file: [%s] to IP address [%s]", r.URL.Path, r.RemoteAddr)
+			//	log.Trace("Serving file: [%s]", r.URL.Path)
 			//	http.ServeFile(w, r, publicFolder+r.URL.Path)
 			//default:
 			//	if r.Header.Get("Cache-Server") == "1" {
@@ -68,15 +68,15 @@ func MainHandler(w http.ResponseWriter, r *http.Request) {
 			//	} else {
 			//		available := CheckCacheServer()
 			//		if available {
-			//			log.Trace("Cache server is available, redirecting [%s] to [%s] to serve file [%s]", r.RemoteAddr, websocket.ImageHost, r.URL.Path)
+			//			log.Trace("Cache server is available, to [%s] to serve file [%s]", websocket.ImageHost, r.URL.Path)
 			//			http.Redirect(w, r, websocket.ImageHost+r.URL.Path, http.StatusFound)
 			//		} else {
-			//			log.Warn("Cache server is not available, serving file: [%s] to IP address [%s]", r.URL.Path, r.RemoteAddr)
+			//			log.Warn("Cache server is not available, serving file: [%s]", r.URL.Path)
 			//			http.ServeFile(w, r, publicFolder+r.URL.Path)
 			//		}
 			//	}
 			//}
-			log.Trace("Serving file: [%s] to IP address [%s]", r.URL.Path, r.RemoteAddr)
+			log.Trace("Serving file: [%s]", r.URL.Path)
 			http.ServeFile(w, r, publicFolder+r.URL.Path)
 			return
 		}

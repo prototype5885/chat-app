@@ -1,8 +1,8 @@
 package database
 
 import (
-	log "proto-chat/modules/logging"
-	"proto-chat/modules/snowflake"
+	log "chat-app/modules/logging"
+	"chat-app/modules/snowflake"
 )
 
 type Server struct {
@@ -29,7 +29,7 @@ const deleteServerQuery = "DELETE FROM servers WHERE server_id = ? AND user_id =
 
 func CreateServersTable() {
 	_, err := Conn.Exec(`CREATE TABLE IF NOT EXISTS servers (
-				server_id BIGINT UNSIGNED PRIMARY KEY NOT NULL,
+				server_id BIGINT UNSIGNED PRIMARY KEY,
 				user_id BIGINT UNSIGNED NOT NULL,
 				name TEXT NOT NULL,
 				picture TEXT NOT NULL,

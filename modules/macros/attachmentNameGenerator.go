@@ -1,8 +1,8 @@
 package macros
 
 import (
+	log "chat-app/modules/logging"
 	"math"
-	log "proto-chat/modules/logging"
 	"strconv"
 	"time"
 )

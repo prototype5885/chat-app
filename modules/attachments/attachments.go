@@ -1,9 +1,9 @@
 package attachments
 
 import (
+	log "chat-app/modules/logging"
+	"chat-app/modules/macros"
 	"crypto/rand"
-	log "proto-chat/modules/logging"
-	"proto-chat/modules/macros"
 	"sync"
 	"time"
 )

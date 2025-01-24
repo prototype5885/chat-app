@@ -1,8 +1,8 @@
 package database
 
 import (
+	log "chat-app/modules/logging"
 	"encoding/json"
-	log "proto-chat/modules/logging"
 )
 
 type Channel struct {
@@ -23,7 +23,7 @@ const defaultChannelName = "Default Channel"
 
 func CreateChannelsTable() {
 	_, err := Conn.Exec(`CREATE TABLE IF NOT EXISTS channels (
-			channel_id BIGINT UNSIGNED PRIMARY KEY NOT NULL,
+			channel_id BIGINT UNSIGNED PRIMARY KEY,
 			server_id BIGINT UNSIGNED NOT NULL,
 			name TEXT NOT NULL,
 			FOREIGN KEY (server_id) REFERENCES servers(server_id) ON DELETE CASCADE

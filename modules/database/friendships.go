@@ -1,7 +1,7 @@
 package database
 
 import (
-	log "proto-chat/modules/logging"
+	log "chat-app/modules/logging"
 )
 
 type Friendship struct {
@@ -22,8 +22,8 @@ func CreateFriendshipsTable() {
 	_, err := Conn.Exec(`CREATE TABLE IF NOT EXISTS friendships (
 			user1_id BIGINT UNSIGNED NOT NULL,
 			user2_id BIGINT UNSIGNED NOT NULL,
-			pending BOOLEAN NOT NULL DEFAULT FALSE,
-			friends_since DATE NOT NULL DEFAULT 0,
+			pending BOOLEAN NOT NULL DEFAULT TRUE,
+			friends_since DATE NOT NULL,
 			FOREIGN KEY (user1_id) REFERENCES users (user_id) ON DELETE CASCADE,
 			FOREIGN KEY (user2_id) REFERENCES users (user_id) ON DELETE CASCADE,
 			PRIMARY KEY (user1_id, user2_id),

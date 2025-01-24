@@ -1,12 +1,12 @@
 package token
 
 import (
+	"chat-app/modules/database"
+	log "chat-app/modules/logging"
 	"crypto/rand"
 	"encoding/hex"
 	"io"
 	"net/http"
-	"proto-chat/modules/database"
-	log "proto-chat/modules/logging"
 	"time"
 )
 
