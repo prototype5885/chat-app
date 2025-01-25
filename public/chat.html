@@ -45,38 +45,40 @@
     <div id="second-column">
         <div id="second-column-top">
             <div id="server-name-container">
-                <button id="server-name-button">
-                    <label id="server-name"></label>
-                </button>
+                <div id="server-name-button-container">
+                    <button id="server-name-button">
+                        <label id="server-name"></label>
+                    </button>
+                </div>
             </div>
         </div>
         <div id="second-column-main">
-            <div id="channels" style="display: none;">
-                <div id="channels-visible-or-add-new">
-                    <button id="channels-visibility-button">
-                        <svg id="channels-visibility-arrow" width="10px" height="10px">
-                            <line x1="0" y1="2" x2="5" y2="8" stroke="grey" stroke-width="1.5"/>
-                            <line x1="5" y1="8" x2="10" y2="2" stroke="grey" stroke-width="1.5"/>
-                        </svg>
-                        <label>text channels</label>
-                    </button>
-                    <button id="add-channel-button">+</button>
-                </div>
-                <div id="channel-list"></div>
-            </div>
-            <div id="direct-messages" style="display: none;">
-                <div id="dm-buttons">
-                    <button id="dm-friends-button"> - Friends</button>
-                </div>
+            <!--            <div id="channels" style="display: none;">-->
+            <!--                <div id="channels-visible-or-add-new">-->
+            <!--                    <button id="channels-visibility-button">-->
+            <!--                        <svg id="channels-visibility-arrow" width="10px" height="10px">-->
+            <!--                            <line x1="0" y1="2" x2="5" y2="8" stroke="grey" stroke-width="1.5"/>-->
+            <!--                            <line x1="5" y1="8" x2="10" y2="2" stroke="grey" stroke-width="1.5"/>-->
+            <!--                        </svg>-->
+            <!--                        <label>text channels</label>-->
+            <!--                    </button>-->
+            <!--                    <button id="add-channel-button">+</button>-->
+            <!--                </div>-->
+            <!--                <div id="channel-list"></div>-->
+            <!--            </div>-->
+            <!--            <div id="direct-messages" style="display: none;">-->
+            <!--                <div id="dm-buttons">-->
+            <!--                    <button id="dm-friends-button"> - Friends</button>-->
+            <!--                </div>-->
 
-                <div id="dm-chat-visible-or-add-new">
-                    <button id="dm-chat-visibility-button">
-                        <label>direct messages</label>
-                    </button>
-                    <button id="create-dm-button">+</button>
-                </div>
-                <div id="dm-chat-list"></div>
-            </div>
+            <!--                <div id="dm-chat-visible-or-add-new">-->
+            <!--                    <button id="dm-chat-visibility-button">-->
+            <!--                        <label>direct messages</label>-->
+            <!--                    </button>-->
+            <!--                    <button id="create-dm-button">+</button>-->
+            <!--                </div>-->
+            <!--                <div id="dm-chat-list"></div>-->
+            <!--            </div>-->
         </div>
         <div id="user-panel">
             <div>
@@ -88,7 +90,7 @@
                     </div>
                 </button>
                 <div id="user-panel-buttons">
-                    <button id="toggle-microphone-button" style="display: none"></button>
+                    <button id="refresh-button" onclick="window.location.reload(true)"></button>
                     <button id="user-settings-button">
                         <img src="/content/static/settings.svg">
                     </button>
@@ -169,11 +171,11 @@
 <script src="jsSrc/websocket.js"></script>
 <script src="jsSrc/bubble.js"></script>
 <script src="jsSrc/friendList.js"></script>
-<script src="jsSrc/channelList.js"></script>
+<script src="jsSrc/secondColumnTop.js"></script>
+<script src="jsSrc/secondColumnMain.js"></script>
 <script src="jsSrc/chatInput.js"></script>
 <script src="jsSrc/chatMessageList.js"></script>
 <script src="jsSrc/contextMenu.js"></script>
-<script src="jsSrc/directMessages.js"></script>
 <script src="jsSrc/loading.js"></script>
 <script src="jsSrc/memberList.js"></script>
 <script src="jsSrc/serverList.js"></script>

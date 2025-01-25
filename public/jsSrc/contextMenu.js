@@ -160,29 +160,29 @@ class ContextMenuClass {
 
         const actions = []
 
-        if (userID !== MainClass.getOwnUserID()) {
-            actions.push({
-                text: 'Message', func: async () => {
-                    console.log(`Messaging user ID ${userID}`)
-                    await WebsocketClass.requestOpenDm(userID)
-                    await ServerListClass.selectServer('dm')
-                }
-            })
-        }
-
-        if (!MainClass.myFriends.includes(userID) && userID !== MainClass.getOwnUserID()) {
-            actions.push({text: 'Add friend', func: async () => WebsocketClass.requestAddFriend(userID)})
-        }
-        if (MainClass.myFriends.includes(userID) && userID !== MainClass.getOwnUserID()) {
-            actions.push({
-                text: 'Remove friend',
-                color: 'red',
-                func: async () => WebsocketClass.requestUnfriend(userID)
-            })
-        }
-        if (userID !== MainClass.getOwnUserID()) {
-            actions.push({text: 'Block', color: 'red', func: async () => WebsocketClass.requestBlockUser(userID)})
-        }
+        // if (userID !== MainClass.getOwnUserID()) {
+        //     actions.push({
+        //         text: 'Message', func: async () => {
+        //             console.log(`Messaging user ID ${userID}`)
+        //             await WebsocketClass.requestOpenDm(userID)
+        //             await ServerListClass.selectServer('1')
+        //         }
+        //     })
+        // }
+        //
+        // if (!MainClass.myFriends.includes(userID) && userID !== MainClass.getOwnUserID()) {
+        //     actions.push({text: 'Add friend', func: async () => WebsocketClass.requestAddFriend(userID)})
+        // }
+        // if (MainClass.myFriends.includes(userID) && userID !== MainClass.getOwnUserID()) {
+        //     actions.push({
+        //         text: 'Remove friend',
+        //         color: 'red',
+        //         func: async () => WebsocketClass.requestUnfriend(userID)
+        //     })
+        // }
+        // if (userID !== MainClass.getOwnUserID()) {
+        //     actions.push({text: 'Block', color: 'red', func: async () => WebsocketClass.requestBlockUser(userID)})
+        // }
         // if (userID !== MainClass.myUserID) {
         //     actions.push({text: 'Report user', color: 'red', func: () => reportUser(userID)})
         // }
@@ -311,9 +311,9 @@ class ContextMenuClass {
             })
         }
 
-        if (!owner) {
-            actions.push({text: 'Report message', color: 'red'})
-        }
+        // if (!owner) {
+        //     actions.push({text: 'Report message', color: 'red'})
+        // }
         this.createContextMenu(actions, pageX, pageY)
     }
 }

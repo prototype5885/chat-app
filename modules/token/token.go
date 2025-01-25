@@ -43,19 +43,19 @@ func NewTokenCookie(userID uint64) http.Cookie {
 		HttpOnly: true,
 		SameSite: http.SameSiteNoneMode,
 		Secure:   true,
-		Expires:  time.Unix(int64(token.Expiration), 0),
+		Expires:  time.Unix(token.Expiration, 0),
 	}
 	return cookie
 }
 
-func CheckIfTokenExpired(tokenPtr *database.Token) bool {
-	token := *tokenPtr
+func CheckIfTokenExpired(token database.Token) bool {
+
 	// check if token expired
 	currentTime := time.Now().Unix()
 	if token.Expiration != 0 && currentTime > token.Expiration {
 		difference := currentTime - token.Expiration
 		daysPassed := difference / 60 / 60 / 24
-		log.Trace("Token [%s] of user ID [%d] expired [%d] days ago, deleting...", hex.EncodeToString(token.Token), token.UserID, daysPassed)
+		log.Trace("Token [%s] of user ID [%d] expired [%d] days ago, deleting...", token.Token, token.UserID, daysPassed)
 		success := database.Delete(token)
 		if !success {
 			log.Impossible("How did deleting a confirmed token fail?")
@@ -77,7 +77,7 @@ func CheckIfTokenIsValid(w http.ResponseWriter, r *http.Request) uint64 {
 
 		token := database.ConfirmToken(tokenBytes)
 
-		if CheckIfTokenExpired(&token) {
+		if CheckIfTokenExpired(token) {
 			return 0
 		}
 
@@ -126,6 +126,6 @@ func DeleteExpiredTokens() {
 	tokens := *database.GetAllTokens()
 
 	for i := 0; i < len(tokens); i++ {
-		CheckIfTokenExpired(&tokens[i])
+		CheckIfTokenExpired(tokens[i])
 	}
 }

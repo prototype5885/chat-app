@@ -409,13 +409,18 @@ a:visited {
     max-height: 192px;
 }
 
+#server-name-button-container {
+    border-radius: inherit;
+}
+
 #server-name-button {
-    background-color: var(--bit-darker-color);
+    border-radius: inherit;
     height: 48px;
     align-items: center;
     width: 100%;
     display: flex;
     justify-content: center;
+
 }
 
 #server-name-button > label {
@@ -425,13 +430,6 @@ a:visited {
 #server-name-button-arrow {
     justify-content: center;
     align-items: center;
-    /* background-color: green; */
-}
-
-#server-name-button,
-#main-top-left {
-    color: #e7e7e7;
-    font-size: 16px;
 }
 
 
@@ -442,12 +440,9 @@ a:visited {
 #second-column-main {
     overflow-y: scroll;
     flex: 1;
-}
-
-#channels,
-#direct-messages {
     padding: 8px;
 }
+
 
 #dm-buttons {
     padding-left: 0;
@@ -641,8 +636,8 @@ a:visited {
     }
 }
 
-#toggle-microphone-button {
-    background-color: darkorange;
+#refresh-button {
+    background-color: red;
 }
 
 #second-main-container {

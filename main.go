@@ -12,11 +12,9 @@ import (
 	"fmt"
 	"golang.org/x/crypto/acme/autocert"
 	"net/http"
-	"net/url"
 	"os"
 	"os/signal"
 	"strconv"
-	"strings"
 	"syscall"
 	"time"
 )
@@ -89,7 +87,7 @@ func main() {
 	if config.Sqlite {
 		database.ConnectSqlite()
 	} else {
-		database.ConnectMariadb(config.DatabaseUsername, config.DatabasePassword, config.DatabaseAddress, strconv.Itoa(int(config.DatabasePort)), config.DatabaseName)
+		database.ConnectToMySQL(config.DatabaseUsername, config.DatabasePassword, config.DatabaseAddress, strconv.Itoa(int(config.DatabasePort)), config.DatabaseName)
 	}
 	database.CreateTables()
 
@@ -99,17 +97,17 @@ func main() {
 	// websocket
 	websocket.Init()
 
-	websocket.ImageHost = config.ImageServerAddressWithPort
-
-	if websocket.ImageHost != "" {
-		var err error
-		websocket.ParsedImageHost, err = url.Parse(websocket.ImageHost)
-		if err != nil {
-			log.FatalError(err.Error(), "Error parsing image host URL")
-			return
-		}
-		websocket.ImageHostAddress = strings.Split(websocket.ParsedImageHost.Host, ":")[0]
-	}
+	//websocket.ImageHost = config.ImageServerAddressWithPort
+	//
+	//if websocket.ImageHost != "" {
+	//	var err error
+	//	websocket.ParsedImageHost, err = url.Parse(websocket.ImageHost)
+	//	if err != nil {
+	//		log.FatalError(err.Error(), "Error parsing image host URL")
+	//		return
+	//	}
+	//	websocket.ImageHostAddress = strings.Split(websocket.ParsedImageHost.Host, ":")[0]
+	//}
 
 	// handle http requests
 	http.HandleFunc("/", webRequests.MainHandler)

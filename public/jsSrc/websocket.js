@@ -70,7 +70,7 @@ class WebsocketClass {
         LoadingClass.fadeOutLoading()
         const lastServer = LocalStorageClass.getLastServer()
         if (lastServer === null) {
-            await ServerListClass.selectServer('dm')
+            await ServerListClass.selectServer('1')
         } else {
             await ServerListClass.selectServer(lastServer)
         }
@@ -190,7 +190,7 @@ class WebsocketClass {
                     ServerListClass.deleteServer(serverID)
                     LocalStorageClass.removeServerFromLastChannels(serverID)
                     if (serverID === MainClass.getCurrentServerID()) {
-                        await ServerListClass.selectServer('dm')
+                        await ServerListClass.selectServer('1')
                     }
                     break
                 case WebsocketClass.SERVER_INVITE_LINK: // Server sent the requested invite link to the chat server
@@ -263,7 +263,7 @@ class WebsocketClass {
                     if (json.UserID === MainClass.getOwnUserID()) {
                         console.log(`Left server ID [${json.ServerID}], deleting it from list`)
                         ServerListClass.deleteServer(json.ServerID)
-                        await ServerListClass.selectServer('dm')
+                        await ServerListClass.selectServer('1')
                     } else {
                         console.log(`User ID [${json.UserID}] left server ID [${json.ServerID}]`)
                         MemberListClass.removeMember(json.UserID)

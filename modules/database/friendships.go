@@ -23,7 +23,7 @@ func CreateFriendshipsTable() {
 			user1_id BIGINT UNSIGNED NOT NULL,
 			user2_id BIGINT UNSIGNED NOT NULL,
 			pending BOOLEAN NOT NULL DEFAULT TRUE,
-			friends_since DATE NOT NULL,
+			friends_since BIGINT UNSIGNED NOT NULL,
 			FOREIGN KEY (user1_id) REFERENCES users (user_id) ON DELETE CASCADE,
 			FOREIGN KEY (user2_id) REFERENCES users (user_id) ON DELETE CASCADE,
 			PRIMARY KEY (user1_id, user2_id),

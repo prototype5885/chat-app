@@ -1,14 +1,16 @@
 class ChatInputClass {
     static AttachmentList = document.getElementById('attachment-list')
     static ChatInput = document.getElementById('chat-input')
-    static typing = false
+    static ChatInputForm = document.getElementById('chat-input-form')
+    static #typing = false
+    static sendingChatMsg = false
 
     static init() {
         this.ChatInput.addEventListener('keydown', this.chatEnterPressed.bind(this))
 
-        this.ChatInput.addEventListener('input', () => {
+        this.ChatInput.addEventListener('input', async () => {
             this.resizeChatInput()
-            this.checkIfTyping()
+            await this.checkIfTyping()
         })
 
         document.getElementById('attachment-button').addEventListener('click', () => {
@@ -87,16 +89,16 @@ class ChatInputClass {
         this.ChatInput.style.height = this.ChatInput.scrollHeight + 'px'
     }
 
-    static checkIfTyping() {
-        if (this.ChatInput.value !== '' && !this.typing) {
-            this.typing = true
+    static async checkIfTyping() {
+        if (this.ChatInput.value !== '' && !this.#typing) {
+            this.#typing = true
             console.log('started typing')
-            WebsocketClass.startedTyping(true)
+            await WebsocketClass.startedTyping(true)
         }
         if (this.ChatInput.value === '') {
-            this.typing = false
+            this.#typing = false
             console.log('stopped typing')
-            WebsocketClass.startedTyping(false)
+            await WebsocketClass.startedTyping(false)
         }
     }
 
@@ -104,6 +106,11 @@ class ChatInputClass {
     static async chatEnterPressed(event) {
         if (event.key === 'Enter' && !event.shiftKey) {
             event.preventDefault()
+            if (this.sendingChatMsg) {
+                console.warn(`Sending a message currently, can't send any new yet`)
+                return
+            }
+            this.disableChatInput()
             let attachmentToken = null
             if (this.files.length !== 0) {
                 console.log(`Chat message has [${this.files.length}] attachments, sending those first...`)
@@ -125,9 +132,25 @@ class ChatInputClass {
                 this.ChatInput.value = ''
                 this.AttachmentInput.value = ''
                 this.resizeChatInput()
-                this.typing = false
+                this.#typing = false
+                this.enableChatInput()
             }
         }
+    }
+
+    static disableChatInput() {
+        console.warn('Disabling chat input')
+        this.sendingChatMsg = true
+        // this.ChatInput.disabled = true
+        // this.ChatInputForm.style.backgroundColor = ColorsClass.bitDarkerColor
+    }
+
+    static enableChatInput() {
+        console.warn('Enable chat input')
+        this.sendingChatMsg = false
+        // this.ChatInput.disabled = false
+        this.ChatInput.focus()
+        // this.ChatInputForm.style.backgroundColor = ''
     }
 
     static async checkAttachments() {
@@ -343,5 +366,9 @@ class ChatInputClass {
         }
 
         this.ChatInput.focus()
+    }
+
+    static setChatInputPlaceHolderText(channelName) {
+        this.ChatInput.placeholder = `Message #${channelName}`
     }
 }

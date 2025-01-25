@@ -1,7 +1,7 @@
 class UserPanelClass {
     static init(main) {
         const UserSettingsButton = document.getElementById('user-settings-button')
-        const ToggleMicrophoneButton = document.getElementById('toggle-microphone-button')
+        const RefreshButton = document.getElementById('refresh-button')
 
         // user settings button
         MainClass.registerHover(UserSettingsButton, () => {
@@ -13,9 +13,9 @@ class UserPanelClass {
             WindowManagerClass.addWindow('user-settings', 0)
         })
 
-        // toggle microphone button
-        MainClass.registerHover(ToggleMicrophoneButton, () => {
-            BubbleClass.createBubble(ToggleMicrophoneButton, 'Toggle Microphone', 'up', 15)
+        // refresh button
+        MainClass.registerHover(RefreshButton, () => {
+            BubbleClass.createBubble(RefreshButton, 'Force refresh', 'up', 15)
         }, () => {
             BubbleClass.deleteBubble()
         })

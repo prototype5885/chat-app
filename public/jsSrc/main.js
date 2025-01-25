@@ -31,7 +31,7 @@ class MainClass {
     static myStatusText = ''
     static myFriends = []
     static myBlocks = []
-    static #currentServerID = 'dm'
+    static #currentServerID = '1'
     static #currentChannelID = '0'
     static reachedBeginningOfChannel = false
 
@@ -41,9 +41,10 @@ class MainClass {
     static defaultProfilePic = '/content/static/default_profilepic.webp'
 
     static init() {
-        if (this.isElectron() || this.isPWA()) {
-            document.getElementById('server-name-button').style.borderTopLeftRadius = '16px'
-        }
+        // if (this.isElectron() || this.isPWA()) {
+        document.getElementById('server-name-container').style.borderTopLeftRadius = '16px'
+        // document.getElementById('server-name-button').style.borderTopLeftRadius = '16px'
+        // }
 
         // this runs after webpage was loaded
         document.addEventListener('DOMContentLoaded', async () => {
@@ -56,12 +57,14 @@ class MainClass {
             UserPanelClass.init()
 
             ChatMessageListClass.init()
-            ChannelListClass.init()
+            // ChannelListClass.createChannelList()
             ServerListClass.init()
             DirectMessagesClass.init()
 
+            ServerBannerClass.init()
+
             // add the direct messages button
-            // ServerListClass.addServer('dm', 0, 'Direct Messages', 'content/static/mail.svg', 'dm')
+            ServerListClass.addServer('1', 0, 'Direct Messages', 'content/static/mail.svg', '1')
 
             await WebsocketClass.connectToWebsocket()
 
@@ -250,6 +253,7 @@ class MainClass {
             callbackOut()
         })
     }
+
 
     static async calculateSHA256(file) {
         const arrayBuffer = await file.arrayBuffer()

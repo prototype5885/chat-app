@@ -365,10 +365,16 @@ func (c *WsClient) onChatMessageDeleteRequest(packetJson []byte, packetType byte
 
 	// get the channel ID where the message was deleted,
 	// so can broadcast it to affected Clients
-	var channelID uint64 = database.DeleteChatMessage(req.MessageID, c.UserID)
+	channelID := database.GetChannelOfMessageID(req.MessageID, c.UserID)
 	if channelID == 0 {
+		log.Hack("There is no message ID [%d] owned by user ID [%d]", req.MessageID, c.UserID)
 		c.WriteChan <- macros.RespondFailureReason("Denied to delete chat message")
 		return
+	} else {
+		deleted := database.Delete(database.DeleteMessage{MessageID: req.MessageID, UserID: c.UserID})
+		if !deleted {
+			log.Impossible("There is no message ID [%d] in database, this is not possible since it was just checked earlier when getting channel ID", req.MessageID)
+		}
 	}
 
 	responseBytes, err := json.Marshal(req)

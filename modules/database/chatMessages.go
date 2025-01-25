@@ -28,7 +28,13 @@ type UserMessages struct {
 	Msgs   []interface{}
 }
 
+type DeleteMessage struct {
+	MessageID uint64
+	UserID    uint64
+}
+
 const insertChatMessageQuery = "INSERT INTO messages (message_id, channel_id, user_id, message, has_attachments, edited) VALUES (?, ?, ?, ?, ?, ?)"
+const deleteChatMessageQuery = "DELETE FROM messages WHERE message_id = ? AND user_id = ?"
 
 func CreateChatMessagesTable() {
 	_, err := Conn.Exec(`CREATE TABLE IF NOT EXISTS messages (
@@ -108,17 +114,13 @@ func GetChatHistory(channelID uint64, fromMessageID uint64, older bool, userID u
 	return jsonResult
 }
 
-func DeleteChatMessage(messageID uint64, userID uint64) uint64 {
-	const query string = "DELETE FROM messages WHERE message_id = ? AND user_id = ? RETURNING channel_id"
-	log.Query(query, messageID, userID)
+func GetChannelOfMessageID(messageID uint64, userID uint64) uint64 {
+	const query1 = "SELECT channel_id FROM messages WHERE message_id = ? AND user_id = ?"
+	log.Query(query1, messageID, userID)
 
 	var channelID uint64
-	err := Conn.QueryRow(query, messageID, userID).Scan(&channelID)
+	err := Conn.QueryRow(query1, messageID, userID).Scan(&channelID)
 	DatabaseErrorCheck(err)
-
-	if channelID == 0 {
-		log.Hack("There is no message ID [%d] owned by user ID [%d]", messageID, userID)
-	}
 
 	return channelID
 }

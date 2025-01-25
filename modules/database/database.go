@@ -2,7 +2,6 @@ package database
 
 import (
 	log "chat-app/modules/logging"
-	"chat-app/modules/macros"
 	"database/sql"
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
@@ -51,11 +50,11 @@ func ConnectSqlite() {
 //	}
 //}
 
-func ConnectMariadb(username string, password string, address string, port string, dbName string) {
+func ConnectToMySQL(username string, password string, address string, port string, dbName string) {
 	var err error
-	Conn, err = sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", username, password, address, port, dbName))
+	Conn, err = sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?clientFoundRows=true", username, password, address, port, dbName))
 	if err != nil {
-		log.FatalError(err.Error(), "Error opening mariadb connection")
+		log.FatalError(err.Error(), "Error opening mysql/mariadb connection")
 	}
 
 	Conn.SetMaxOpenConns(100)
@@ -162,6 +161,7 @@ func Insert(structs any) error {
 			// 	return err
 			// }
 		} else { // mariadb or mysql
+			log.Error(err.Error())
 			// if strings.Contains(err.Error(), "4025") { // constraint check failed, 2 or more values are duplicates
 			// 	log.Error(err.Error(), "%s", "duplicate values where it's enforced to not have")
 			// 	return err
@@ -197,9 +197,11 @@ func Delete(structo any) bool {
 		log.Query(deleteServerInviteQuery, s.InviteID)
 		result, err = Conn.Exec(deleteServerInviteQuery, s.InviteID)
 	case Token:
-		log.Query(deleteTokenQuery, macros.ShortenToken(s.Token), s.UserID)
+		log.Query(deleteTokenQuery, s.Token, s.UserID)
 		result, err = Conn.Exec(deleteTokenQuery, s.Token, s.UserID)
-	case User:
+	case DeleteMessage:
+		log.Query(deleteChatMessageQuery, s.MessageID, s.UserID)
+		result, err = Conn.Exec(deleteChatMessageQuery, s.MessageID, s.UserID)
 	case ServerMemberShort:
 		log.Query(deleteServerMemberQuery, s.ServerID, s.UserID)
 		result, err = Conn.Exec(deleteServerMemberQuery, s.ServerID, s.UserID)

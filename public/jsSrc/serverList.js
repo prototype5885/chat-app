@@ -1,9 +1,6 @@
 class ServerListClass {
     static ServerList = document.getElementById('first-column')
     static serverSeparators = ServerListClass.ServerList.querySelectorAll('.servers-separator')
-    static ServerNameButton = document.getElementById('server-name-button')
-    static ServerNameContainer = document.getElementById('server-name-container')
-    static ServerName = document.getElementById('server-name')
     static AddServerButton = document.getElementById('add-server-button')
 
     static init() {
@@ -20,16 +17,6 @@ class ServerListClass {
 
         ServerListClass.AddServerButton.addEventListener('click', async () => {
             await WebsocketClass.requestAddServer('server')
-        })
-
-        ContextMenuClass.registerLeftClickContextMenu(ServerListClass.ServerNameButton, () => {
-            const rect = ServerListClass.ServerNameButton.getBoundingClientRect()
-
-            const absoluteBottom = (rect.bottom + window.scrollY) + 8
-            const absoluteCenter = (rect.left + window.scrollX) + (rect.width / 2) - 75
-
-            const serverID = MainClass.getCurrentServerID()
-            ContextMenuClass.serverCtxMenu(serverID, ServerListClass.getServerOwned(serverID), absoluteCenter, absoluteBottom)
         })
     }
 
@@ -79,7 +66,7 @@ class ServerListClass {
 
         // set picture of server
         if (picture !== '') {
-            if (serverID !== 'dm') {
+            if (serverID !== '1') {
                 picture = 'content/avatars/' + picture
             }
             button.style.backgroundImage = `url(${picture})`
@@ -134,38 +121,31 @@ class ServerListClass {
     }
 
     static async selectServer(serverID) {
-        if (serverID === 'dm') {
-            console.log('Selected direct messages')
-        } else {
-            console.log('Selected server ID', serverID, ', requesting list of channels...')
-        }
+        // if (serverID === '1') {
+        //     console.log('Selected direct messages')
+        // } else {
+        //     console.log('Selected server ID', serverID, ', requesting list of channels...')
+        // }
 
 
-        const serverButton = document.getElementById(serverID)
-        if (serverButton == null) {
-            console.log('Previous server set in')
-        }
-
+        // check if selected server is already the current one
         if (serverID === MainClass.getCurrentServerID()) {
             console.warn('Selected server is already the current one')
             return
         }
 
-        DirectMessagesClass.DmChatList.innerHTML = ''
-        ChannelListClass.ChannelList.innerHTML = ''
 
-        if (serverID === 'dm') {
-            DirectMessagesClass.DirectMessages.removeAttribute('style')
-            ChannelListClass.Channels.style.display = 'none'
-            // ChatMessageListClass.disableChat()
-            // FriendListClass.enableFriendList()
-            document.getElementById('channel-name-top').textContent = 'Friends'
-        } else {
-            ChannelListClass.Channels.removeAttribute('style')
-            DirectMessagesClass.DirectMessages.style.display = 'none'
-            // ChatMessageListClass.enableChat()
-            // FriendListClass.disableFriendList()
-        }
+        // DirectMessagesClass.DmChatList.innerHTML = ''
+        // ChannelListClass.ChannelList.innerHTML = ''
+
+        // if (serverID === '1') {
+        //     DirectMessagesClass.DirectMessages.removeAttribute('style')
+        //     ChannelListClass.Channels.style.display = 'none'
+        //     document.getElementById('channel-name-top').textContent = 'Friends'
+        // } else {
+        //     ChannelListClass.Channels.removeAttribute('style')
+        //     DirectMessagesClass.DirectMessages.style.display = 'none'
+        // }
 
         MainClass.memberListLoaded = false
 
@@ -179,18 +159,18 @@ class ServerListClass {
 
         MainClass.setCurrentServerID(serverID)
 
-        serverButton.nextElementSibling.style.height = '36px'
+        // serverButton.nextElementSibling.style.height = '36px'
 
-        if (serverID !== 'dm') {
-            const owned = ServerListClass.getServerOwned(serverID)
-
-            // hide add channel button if server isn't own
-            if (owned === 'true') {
-                ChannelListClass.AddChannelButton.style.display = 'block'
-            } else {
-                ChannelListClass.AddChannelButton.style.display = 'none'
-            }
-        }
+        // if (serverID !== '1') {
+        //     const owned = ServerListClass.getServerOwned(serverID)
+        //
+        //     // hide add channel button if server isn't own
+        //     if (owned === 'true') {
+        //         ChannelListClass.AddChannelButton.style.display = 'block'
+        //     } else {
+        //         ChannelListClass.AddChannelButton.style.display = 'none'
+        //     }
+        // }
 
 
         // if (dm) {
@@ -199,39 +179,28 @@ class ServerListClass {
         //     this.memberList.showMemberList()
         // }
 
-        ChannelListClass.resetChannels()
+        SecondColumnMainClass.reset()
         ChatMessageListClass.resetChatMessages()
         MemberListClass.resetMemberList()
 
-        if (serverID !== 'dm') {
+        ChannelListClass.createChannelList()
+
+        if (serverID !== '1') {
             await WebsocketClass.requestChannelList()
             await WebsocketClass.requestMemberList()
         } else {
             await WebsocketClass.requestDmList()
         }
+        const serverButton = document.getElementById(serverID)
 
-        this.ServerName.textContent = serverButton.getAttribute('name')
+        ServerBannerClass.setName(serverButton.getAttribute('name'))
 
         LocalStorageClass.setLastServer(serverID)
 
         // const bannerUrl = 'https://cdn.discordapp.com/banners/1267683587902279742/adb469683ec356db30b42f0e5bccba01.webp?size=480'
         const bannerUrl = ''
 
-        if (bannerUrl !== '') {
-            const img = new Image();
-            img.src = bannerUrl
-
-            img.onload = () => {
-                const newHeight = (this.ServerNameContainer.offsetWidth / img.width) * img.height;
-                this.ServerNameContainer.style.height = `${newHeight}px`
-                this.ServerNameContainer.style.backgroundImage = `url(${bannerUrl})`
-                this.ServerName.style.textShadow = '1px 1px 1px black'
-            }
-        } else {
-            this.ServerNameContainer.style.height = ''
-            this.ServerNameContainer.style.backgroundImage = ''
-            this.ServerName.style.textShadow = ''
-        }
+        ServerBannerClass.setPicture(bannerUrl)
 
         // TouchControlsClass.goRight()
     }
@@ -244,8 +213,13 @@ class ServerListClass {
     }
 
     static setServerPicture(serverID, picture) {
+        const serverButton = document.getElementById(serverID)
+        if (serverButton == null) {
+            console.error(`Server ID ${serverID} button doesn't exist, can't set server picture`)
+            return
+        }
         picture = 'public/content/avatars/' + picture
-        document.getElementById(serverID).style.backgroundImage = `url('${picture}')`
+        serverButton.style.backgroundImage = `url('${picture}')`
     }
 
     static setServerName(serverID, name) {
@@ -253,7 +227,7 @@ class ServerListClass {
         const server = document.getElementById(serverID)
         server.setAttribute('name', name)
         if (serverID === MainClass.getCurrentServerID()) {
-            ServerListClass.ServerName.textContent = name
+            ServerBannerClass.setName(name)
         }
         if (server.style.backgroundImage === '') {
             server.textContent = name[0].toUpperCase()

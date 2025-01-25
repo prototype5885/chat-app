@@ -2,7 +2,7 @@ package database
 
 import (
 	log "chat-app/modules/logging"
-	"chat-app/modules/macros"
+	"encoding/hex"
 	"time"
 )
 
@@ -28,7 +28,7 @@ func CreateTokensTable() {
 }
 func ConfirmToken(tokenBytes []byte) Token {
 	const query string = "SELECT user_id, expiration FROM tokens WHERE token = ?"
-	log.Query(query, macros.ShortenToken(tokenBytes))
+	log.Query(query, tokenBytes)
 
 	token := Token{
 		Token: tokenBytes,
@@ -38,11 +38,11 @@ func ConfirmToken(tokenBytes []byte) Token {
 	DatabaseErrorCheck(err)
 
 	if token.UserID == 0 || token.Expiration == 0 {
-		log.Debug("Failed getting token [%s] in database", macros.ShortenToken(tokenBytes))
+		log.Debug("Failed getting token [%s] in database", tokenBytes)
 	} else {
 		et := time.Unix(token.Expiration, 0)
 		formattedDate := et.Format("2006-01-02 15:04:05")
-		log.Debug("Token [%s] was found in database, it belongs to user ID [%d], expires at [%s]", macros.ShortenToken(tokenBytes), token.UserID, formattedDate)
+		log.Debug("Token [%v] was found in database, it belongs to user ID [%d], expires at [%s]", tokenBytes, token.UserID, formattedDate)
 	}
 
 	return token
@@ -75,7 +75,7 @@ func GetAllTokens() *[]Token {
 
 func RenewTokenExpiration(newExpiration int64, tokenBytes []byte) bool {
 	const query string = "UPDATE tokens SET expiration = ? WHERE token = ?"
-	log.Query(query, newExpiration, macros.ShortenToken(tokenBytes))
+	log.Query(query, newExpiration, hex.EncodeToString(tokenBytes))
 
 	result, err := Conn.Exec(query, newExpiration, tokenBytes)
 	DatabaseErrorCheck(err)
@@ -86,10 +86,10 @@ func RenewTokenExpiration(newExpiration int64, tokenBytes []byte) bool {
 	log.Trace("Rows affected: %d", rowsAffected)
 
 	if rowsAffected == 1 {
-		log.Debug("Updated expiration timestamp for token [%s] in database", macros.ShortenToken(tokenBytes))
+		log.Debug("Updated expiration timestamp for token [%v] in database", tokenBytes)
 		return true
 	} else {
-		log.Debug("No changes were made for expiration timestamp for token [%s] in database", macros.ShortenToken(tokenBytes))
+		log.Debug("No changes were made for expiration timestamp for token [%v] in database", tokenBytes)
 		return false
 	}
 }
