@@ -9,6 +9,7 @@ class ColorsClass {
     static darkNonTransparent = '#111214'
     static brighterTransparent = '#656565d1'
     static loadingColor = '#000000b5'
+    static selectedColor = 'rgba(255, 255, 255, 0.05)'
 
     static textColor = '#C5C7CB'
 
@@ -33,7 +34,6 @@ class MainClass {
     static myBlocks = []
     static #currentServerID = '1'
     static #currentChannelID = '0'
-    static reachedBeginningOfChannel = false
 
     static currentPictureViewerPicPath = ''
     static currentPictureViewerPicName = ''
@@ -41,10 +41,9 @@ class MainClass {
     static defaultProfilePic = '/content/static/default_profilepic.webp'
 
     static init() {
-        // if (this.isElectron() || this.isPWA()) {
-        document.getElementById('server-name-container').style.borderTopLeftRadius = '16px'
-        // document.getElementById('server-name-button').style.borderTopLeftRadius = '16px'
-        // }
+        if (this.isElectron() || this.isPWA()) {
+            document.getElementById('server-name-container').style.borderTopLeftRadius = '16px'
+        }
 
         // this runs after webpage was loaded
         document.addEventListener('DOMContentLoaded', async () => {
@@ -53,18 +52,17 @@ class MainClass {
             TouchControlsClass.init()
             ContextMenuClass.init()
             NotificationClass.init()
-            ChatInputClass.init()
+            // ChatInputClass.init()
             UserPanelClass.init()
 
-            ChatMessageListClass.init()
+            // ChatMessageListClass.init()
             // ChannelListClass.createChannelList()
             ServerListClass.init()
-            DirectMessagesClass.init()
 
             ServerBannerClass.init()
 
             // add the direct messages button
-            ServerListClass.addServer('1', 0, 'Direct Messages', 'content/static/mail.svg', '1')
+            // ServerListClass.addServer('1', 0, Translation.get('dm'), 'content/static/mail.svg', '1')
 
             await WebsocketClass.connectToWebsocket()
 

@@ -216,19 +216,23 @@ class WebsocketClass {
                     break
                 case WebsocketClass.CHANNEL_LIST: // Server sent the requested channel list
                     console.log('Requested channel list arrived')
+                    // if no channels on server
                     if (json.length === 0) {
                         console.warn('No channels on server ID', MainClass.getCurrentServerID())
-                        await ChannelListClass.selectChannel('0', false)
+                        ThirdColumnMainClass.reset()
+                        // await ChannelListClass.selectChannel('0')
                         break
                     }
+                    // add the channels if there are
                     for (let i = 0; i < json.length; i++) {
                         await ChannelListClass.addChannel(json[i].ChannelID, json[i].Name)
                     }
+                    // select the channel saved in local storage, or just select the first one
                     const lastChannelID = LocalStorageClass.selectLastChannel()
                     if (lastChannelID !== null) {
-                        await ChannelListClass.selectChannel(lastChannelID, false)
+                        await ChannelListClass.selectChannel(lastChannelID)
                     } else {
-                        await ChannelListClass.selectChannel(json[0].ChannelID, false)
+                        await ChannelListClass.selectChannel(json[0].ChannelID)
                     }
                     break
                 case WebsocketClass.DELETE_CHANNEL:

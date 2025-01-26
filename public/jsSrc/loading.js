@@ -1,5 +1,6 @@
 class LoadingClass {
     static loading = document.getElementById('loading')
+    static isLoading = true
 
     static fadeOutLoading() {
         setTimeout(() => {
@@ -8,6 +9,7 @@ class LoadingClass {
 
         LoadingClass.loading.style.pointerEvents = 'none'
         LoadingClass.loading.style.opacity = '0%'
+        this.isLoading = false
     }
 
     static fadeInLoading() {

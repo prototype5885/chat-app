@@ -694,8 +694,8 @@ a:visited {
     overflow-y: hidden;
 }
 
-#chat-container {
-    display: none;
+#third-column-main {
+    /*display: none;*/
     flex-direction: column;
     /*flex: 1;*/
     width: 100%;
@@ -1139,7 +1139,7 @@ a:visited {
 }
 
 #friend-list-container {
-    display: none;
+    display: flex;
     flex-direction: column;
     padding: 0;
     margin: 16px 32px 0;
@@ -1222,7 +1222,7 @@ a:visited {
 
 #ctx-menu {
     z-index: 100;
-    width: 150px;
+    width: 175px;
 }
 
 #ctx-menu ul {

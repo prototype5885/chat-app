@@ -199,7 +199,7 @@ class ContextMenuClass {
     static messageCtxMenu(messageID, owner, pageX, pageY) {
         const actions = []
         actions.push({
-            text: 'Copy text', func: async () => {
+            text: Translation.get('copy-chat-message'), func: async () => {
                 const chatMsg = document.getElementById(messageID).querySelector('.msg-text').textContent
                 console.log('Copied to clipboard:', chatMsg)
                 await navigator.clipboard.writeText(chatMsg)
@@ -208,7 +208,7 @@ class ContextMenuClass {
 
         if (owner) {
             actions.push({
-                text: 'Edit message', func: () => {
+                text: Translation.get('edit-chat-message'), func: () => {
                     const chatMsg = document.getElementById(messageID).querySelector('.msg-text')
                     const msgData = document.getElementById(messageID).querySelector('.msg-data')
 
@@ -305,7 +305,7 @@ class ContextMenuClass {
 
         if (owner) {
             actions.push({
-                text: 'Delete message',
+                text: Translation.get('delete-chat-message'),
                 color: 'red',
                 func: () => WebsocketClass.requestDeleteChatMessage(messageID)
             })

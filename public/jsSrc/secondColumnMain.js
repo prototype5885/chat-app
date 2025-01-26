@@ -1,25 +1,44 @@
 class SecondColumnMainClass {
+    static secondColumnMain = document.getElementById('second-column-main')
+
     static reset() {
         document.getElementById('second-column-main').innerHTML = ''
+    }
+
+    static selectButton(buttonID) {
+        const button = document.getElementById(buttonID)
+        if (button === null) {
+            console.error(`Button ID ${buttonID} was not found, could not select it`)
+            return
+        }
+        // this will remove selection style from all buttons
+        const buttonGroup = document.getElementById('second-column-main').querySelectorAll('.second-column-buttons')
+        for (let i = 0; i < buttonGroup.length; i++) {
+            const buttons = buttonGroup[i].querySelectorAll('button')
+            for (let b = 0; b < buttons.length; b++) {
+                buttons[b].removeAttribute('style')
+            }
+        }
+
+        // this will set the selection style to the new button
+        button.style.backgroundColor = ColorsClass.selectedColor
     }
 }
 
 class ChannelListClass extends SecondColumnMainClass {
-    static createChannelList() {
-        const secondColumnMain = document.getElementById('second-column-main')
-
-        secondColumnMain.innerHTML = `  
+    static create() {
+        this.secondColumnMain.innerHTML = `  
             <div id="channels-visible-or-add-new">
                 <button id="channels-visibility-button">
                     <svg id="channels-visibility-arrow" width="10px" height="10px">
                         <line x1="0" y1="2" x2="5" y2="8" stroke="grey" stroke-width="1.5"/>
                         <line x1="5" y1="8" x2="10" y2="2" stroke="grey" stroke-width="1.5"/>
                     </svg>
-                    <label>text channels</label>
+                    <label>${Translation.get('text-channels')}</label>
                 </button>
                 <button id="add-channel-button">+</button>
             </div>
-            <div id="channel-list"></div>`
+            <div id="channel-list" class="second-column-buttons"></div>`
 
         const addChannelButton = document.getElementById('add-channel-button')
         const channelList = document.getElementById('channel-list')
@@ -83,7 +102,7 @@ class ChannelListClass extends SecondColumnMainClass {
         channelList.appendChild(button)
 
         MainClass.registerClick(button, async () => {
-            await this.selectChannel(channelID, false)
+            await this.selectChannel(channelID)
         })
         ContextMenuClass.registerContextMenu(button, (pageX, pageY) => {
             const owned = document.getElementById(MainClass.getCurrentServerID()).getAttribute('owned')
@@ -104,11 +123,11 @@ class ChannelListClass extends SecondColumnMainClass {
         if (channelID === MainClass.getCurrentChannelID()) {
             const channelList = document.getElementById('channel-list')
             if (channelList.firstChild !== null) {
-                await this.selectChannel(channelList.firstChild.id, false)
+                await this.selectChannel(channelList.firstChild.id)
             } else {
                 console.warn('There are no channels in current server, disabling chat...')
                 LocalStorageClass.removeServerFromLastChannels(MainClass.getCurrentServerID())
-                ChatMessageListClass.disableChat()
+                ThirdColumnMainClass.reset()
             }
         }
     }
@@ -121,38 +140,29 @@ class ChannelListClass extends SecondColumnMainClass {
             return
         }
 
-        ChatMessageListClass.channelHistoryReceived = false
-        MainClass.reachedBeginningOfChannel = false
-
         // get the selected channel
         const channelButton = document.getElementById(channelID)
 
         // if selected channel doesn't exist
         if (channelButton === null) {
             console.warn(`Selected channel ID [${channelID}] doesn't exist`)
-            // LocalStorageClass.removeServerFromLastChannels(MainClass.getCurrentServerID())
-            // ChatMessageListClass.disableChat()
             return
         }
 
-        // this will remove selection style from all channels
-        const allChannelButtons = document.getElementById('channel-list').querySelectorAll('button')
-        for (let i = 0; i < allChannelButtons.length; i++) {
-            allChannelButtons[i].removeAttribute('style')
-        }
-
-        // this will set the selection style to new channel
-        channelButton.style.backgroundColor = ColorsClass.mainColor
-
-        // sets the placeholder text in the area where you enter the chat message
-        this.setChannelName(channelID, channelButton.querySelector('div').textContent)
+        this.selectButton(channelID)
 
         this.setCurrentChannel(channelID)
 
-        ChatMessageListClass.resetChatMessages()
-        await WebsocketClass.requestChatHistory(channelID, 0)
+        ChatMessageListClass.create()
+        // sets the placeholder text in the area where you enter the chat message
+        this.setChannelName(channelID, channelButton.querySelector('div').textContent)
         ChatMessageListClass.setLoadingChatMessagesIndicator(true)
-        ChatMessageListClass.enableChat()
+
+
+        // ChatMessageListClass.resetChatMessages()
+        await WebsocketClass.requestChatHistory(channelID, 0)
+
+        // ChatMessageListClass.enableChat()
     }
 
 
@@ -187,15 +197,28 @@ class ChannelListClass extends SecondColumnMainClass {
     }
 }
 
-class DirectMessagesClass {
-    static DirectMessages = document.getElementById('direct-messages')
-    static DmChatList = document.getElementById('dm-chat-list')
+class DirectMessagesClass extends SecondColumnMainClass {
+    static create() {
+        this.secondColumnMain.innerHTML = `  
 
-    static init() {
-        // const dmFriendsButton = document.getElementById('dm-friends-button')
-        // MainClass.registerClick(dmFriendsButton, async () => {
-        //     await ChannelListClass.selectChannel(chatID, true)
-        // })
+                <div id="dm-buttons" class="second-column-buttons">
+                    <button id="dm-friends-button"> - Friends</button>
+                </div>
+                <div id="dm-chat-visible-or-add-new">
+                    <button id="dm-chat-visibility-button">
+                        <label>direct messages</label>
+                    </button>
+                    <button id="create-dm-button">+</button>
+                </div>
+                <div id="dm-chat-list" class="second-column-buttons"></div>`
+
+
+        const dmFriendsButton = document.getElementById('dm-friends-button')
+        MainClass.registerClick(dmFriendsButton, async () => {
+            console.log('clicked dm friends')
+            FriendListClass.create()
+            // await ChannelListClass.selectChannel(chatID, true)
+        })
     }
 
     static addDirectMessages(json) {
@@ -203,18 +226,16 @@ class DirectMessagesClass {
         for (let i = 0, len = dmChatIDs.length; i < len; i++) {
             this.addDirectMessage(dmChatIDs[i])
         }
-        console.log(LocalStorageClass.selectLastChannel())
-        // ChannelListClass.selectChannel(LocalStorageClass.selectLastChannel())
     }
 
     static addDirectMessage(chatID) {
         const dmButton = document.createElement('button')
         dmButton.id = chatID
         dmButton.textContent = chatID
-        this.DmChatList.appendChild(dmButton)
+        document.getElementById('dm-chat-list').appendChild(dmButton)
 
         MainClass.registerClick(dmButton, async () => {
-            await ChannelListClass.selectChannel(chatID, true)
+            await ChannelListClass.selectChannel(chatID)
         })
     }
 }

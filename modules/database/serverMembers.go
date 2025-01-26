@@ -46,7 +46,6 @@ func GetServerMembersList(serverID uint64) []ServerMember {
 		var m ServerMember
 
 		err := rows.Scan(&m.UserID, &m.Name, &m.Pic, &m.Status, &m.StatusText)
-		log.Trace("test: ", m.StatusText)
 		DatabaseErrorCheck(err)
 
 		members = append(members, m)

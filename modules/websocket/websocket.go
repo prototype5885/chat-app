@@ -2,6 +2,7 @@ package websocket
 
 import (
 	"chat-app/modules/clients"
+	"chat-app/modules/database"
 	log "chat-app/modules/logging"
 	"chat-app/modules/macros"
 	"encoding/binary"
@@ -243,8 +244,8 @@ func (c *WsClient) readMessages(wg *sync.WaitGroup) {
 			c.onUnfriendRequest(packetJson, packetType)
 		case OPEN_DM: // user wants to open a dm
 			c.onOpenDmRequest(packetJson, packetType)
-		//case REQUEST_DM_LIST: // user requests list of direct messages they have
-		//	c.WriteChan <- macros.PreparePacket(packetType, database.GetDmListOfUser(c.UserID))
+		case REQUEST_DM_LIST: // user requests list of direct messages they have
+			c.WriteChan <- macros.PreparePacket(packetType, database.GetDmListOfUser(c.UserID))
 		//case ADD_DM_CHAT_MESSAGE:
 		//	c.onAddChatMessageRequest(packetJson, packetType, true)
 		case INITIAL_USER_DATA: // user requests initial data

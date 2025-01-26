@@ -6,7 +6,7 @@ class ServerListClass {
     static init() {
         // add bubble when hovering over add server button
         MainClass.registerHover(ServerListClass.AddServerButton, () => {
-            BubbleClass.createBubble(ServerListClass.AddServerButton, 'Add Server', 'right', 15)
+            BubbleClass.createBubble(ServerListClass.AddServerButton, Translation.get('add-server'), 'right', 15)
         }, () => {
             BubbleClass.deleteBubble()
         })
@@ -121,11 +121,11 @@ class ServerListClass {
     }
 
     static async selectServer(serverID) {
-        // if (serverID === '1') {
-        //     console.log('Selected direct messages')
-        // } else {
-        //     console.log('Selected server ID', serverID, ', requesting list of channels...')
-        // }
+        if (serverID === '1') {
+            console.log('Selected direct messages')
+        } else {
+            console.log('Selected server ID', serverID, ', requesting list of channels...')
+        }
 
 
         // check if selected server is already the current one
@@ -134,9 +134,6 @@ class ServerListClass {
             return
         }
 
-
-        // DirectMessagesClass.DmChatList.innerHTML = ''
-        // ChannelListClass.ChannelList.innerHTML = ''
 
         // if (serverID === '1') {
         //     DirectMessagesClass.DirectMessages.removeAttribute('style')
@@ -157,19 +154,18 @@ class ServerListClass {
             previousServerButton.style.borderRadius = '50%'
         }
 
-        MainClass.setCurrentServerID(serverID)
 
-        // serverButton.nextElementSibling.style.height = '36px'
+        // if (serverID === '1') {
 
-        // if (serverID !== '1') {
-        //     const owned = ServerListClass.getServerOwned(serverID)
-        //
-        //     // hide add channel button if server isn't own
-        //     if (owned === 'true') {
-        //         ChannelListClass.AddChannelButton.style.display = 'block'
-        //     } else {
-        //         ChannelListClass.AddChannelButton.style.display = 'none'
-        //     }
+        // } else {
+        // const owned = ServerListClass.getServerOwned(serverID)
+        // const addChannelButton = document.getElementById('add-channel-button')
+        // hide add channel button if server isn't own
+        // if (owned === 'true') {
+        // addChannelButton.style.display = 'block'
+        // } else {
+        // addChannelButton.style.display = 'none'
+        // }
         // }
 
 
@@ -180,21 +176,26 @@ class ServerListClass {
         // }
 
         SecondColumnMainClass.reset()
-        ChatMessageListClass.resetChatMessages()
+        // ChatMessageListClass.resetChatMessages()
         MemberListClass.resetMemberList()
 
-        ChannelListClass.createChannelList()
+
+        MainClass.setCurrentServerID(serverID)
 
         if (serverID !== '1') {
+            ChannelListClass.create()
             await WebsocketClass.requestChannelList()
             await WebsocketClass.requestMemberList()
         } else {
+            DirectMessagesClass.create()
+            MainClass.setCurrentChannelID('0')
             await WebsocketClass.requestDmList()
         }
-        const serverButton = document.getElementById(serverID)
 
-        ServerBannerClass.setName(serverButton.getAttribute('name'))
+        // set server name in top left button
+        ServerBannerClass.setName(document.getElementById(serverID).getAttribute('name'))
 
+        // set last server in local storage
         LocalStorageClass.setLastServer(serverID)
 
         // const bannerUrl = 'https://cdn.discordapp.com/banners/1267683587902279742/adb469683ec356db30b42f0e5bccba01.webp?size=480'
