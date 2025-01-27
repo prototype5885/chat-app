@@ -106,22 +106,29 @@ class ContextMenuClass {
 
         if (owned) {
             actions.push({
-                text: 'Server Settings',
+                text: Translation.get('serverSettings'),
                 func: () => WindowManagerClass.addWindow('server-settings', serverID)
             })
         }
         if (owned) {
-            actions.push({text: 'Create Invite Link', func: () => WebsocketClass.requestInviteLink(serverID)})
+            actions.push({
+                text: Translation.get('createInviteLink'),
+                func: () => WebsocketClass.requestInviteLink(serverID)
+            })
         }
         if (owned) {
             actions.push({
-                text: 'Delete Server',
+                text: Translation.get('deleteServer'),
                 color: 'red',
                 func: () => WebsocketClass.requestDeleteServer(serverID)
             })
         }
         if (!owned) {
-            actions.push({text: 'Leave Server', color: 'red', func: () => WebsocketClass.requestLeaveServer(serverID)})
+            actions.push({
+                text: Translation.get('leaveServer'),
+                color: 'red',
+                func: () => WebsocketClass.requestLeaveServer(serverID)
+            })
         }
         // if (!owned) { actions.push({ text: 'Report Server', color: 'red' }) }
 
@@ -132,21 +139,20 @@ class ContextMenuClass {
         const actions = []
         if (owned) {
             actions.push({
-                text: 'Channel Settings',
+                text: Translation.get('channelSettings'),
                 func: () => WindowManagerClass.addWindow('channel-settings', channelID)
             })
         }
         if (owned) {
-            actions.push({text: 'Delete channel', color: 'red', func: () => deleteChannel(channelID)})
+            actions.push({
+                text: Translation.get('deleteChannel'),
+                color: 'red',
+                func: async () => deleteChannel(channelID)
+            })
         }
 
-
-        function channelSettings(channelID) {
-            console.log('TODO renaming channel', channelID)
-        }
-
-        function deleteChannel(channelID) {
-            WebsocketClass.requestRemoveChannel(channelID)
+        async function deleteChannel(channelID) {
+            await WebsocketClass.requestRemoveChannel(channelID)
         }
 
         this.createContextMenu(actions, pageX, pageY)
@@ -187,7 +193,7 @@ class ContextMenuClass {
         //     actions.push({text: 'Report user', color: 'red', func: () => reportUser(userID)})
         // }
         actions.push({
-            text: 'Copy user ID', func: () => {
+            text: Translation.get('copyUserID'), func: () => {
                 console.log('Copying user ID', userID)
                 navigator.clipboard.writeText(userID).then(r => '')
             }
@@ -199,7 +205,7 @@ class ContextMenuClass {
     static messageCtxMenu(messageID, owner, pageX, pageY) {
         const actions = []
         actions.push({
-            text: Translation.get('copy-chat-message'), func: async () => {
+            text: Translation.get('copyChatMessage'), func: async () => {
                 const chatMsg = document.getElementById(messageID).querySelector('.msg-text').textContent
                 console.log('Copied to clipboard:', chatMsg)
                 await navigator.clipboard.writeText(chatMsg)
@@ -208,7 +214,7 @@ class ContextMenuClass {
 
         if (owner) {
             actions.push({
-                text: Translation.get('edit-chat-message'), func: () => {
+                text: Translation.get('editChatMessage'), func: () => {
                     const chatMsg = document.getElementById(messageID).querySelector('.msg-text')
                     const msgData = document.getElementById(messageID).querySelector('.msg-data')
 
@@ -305,7 +311,7 @@ class ContextMenuClass {
 
         if (owner) {
             actions.push({
-                text: Translation.get('delete-chat-message'),
+                text: Translation.get('deleteChatMessage'),
                 color: 'red',
                 func: () => WebsocketClass.requestDeleteChatMessage(messageID)
             })

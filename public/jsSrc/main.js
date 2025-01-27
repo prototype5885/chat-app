@@ -1,6 +1,6 @@
 class ColorsClass {
     static mainColor = '#36393f'
-    static hoverColor = '#313338'
+    static hoverColor = 'rgba(128, 128, 128, 0.075)'
     static bitDarkerColor = '#2B2D31'
     static darkColor = '#232428'
     static darkerColor = '#1E1F22'
@@ -47,7 +47,7 @@ class MainClass {
 
         // this runs after webpage was loaded
         document.addEventListener('DOMContentLoaded', async () => {
-            Translation.setLanguage(navigator.language)
+            Translation.setLanguage()
 
             TouchControlsClass.init()
             ContextMenuClass.init()
@@ -60,6 +60,8 @@ class MainClass {
             ServerListClass.init()
 
             ServerBannerClass.init()
+
+            AttachmentInputClass.init()
 
             // add the direct messages button
             // ServerListClass.addServer('1', 0, Translation.get('dm'), 'content/static/mail.svg', '1')

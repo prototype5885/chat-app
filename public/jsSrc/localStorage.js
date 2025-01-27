@@ -144,4 +144,12 @@ class LocalStorageClass {
         localStorage.setItem("serverCount", value)
         // }
     }
+
+    static setLanguage(value) {
+        localStorage.setItem("language", value)
+    }
+
+    static getLanguage() {
+        return localStorage.getItem("language")
+    }
 }

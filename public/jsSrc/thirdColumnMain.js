@@ -22,6 +22,7 @@ class ChatMessageListClass {
     static create() {
         this.resetChatMessages()
 
+
         // the div in list makes sure there will be a little gap between chat input box
         // and the chat messages when user is viewing the latest message at the bottom
         document.getElementById('third-column-main').innerHTML = `
@@ -71,7 +72,7 @@ class ChatMessageListClass {
         let lastDate = ''
         for (let i = 0; i < messages.length; i++) {
             // extract date from message id
-            const date = new Date(Number((BigInt(messages[i].id) >> BigInt(22)))).toLocaleDateString(this.locale, this.dateOptionsDay)
+            const date = new Date(Number((BigInt(messages[i].id) >> BigInt(22)))).toLocaleDateString(Translation.lang, this.dateOptionsDay)
 
             if (lastDate !== '' && lastDate !== date) {
                 const dateBetweenMsgs = document.createElement('li')
@@ -141,11 +142,11 @@ class ChatMessageListClass {
         yesterday.setDate(yesterday.getDate() - 1)
 
         if (msgDate.toLocaleDateString() === today.toLocaleDateString()) {
-            msgDateStr = Translation.get('today') + ' ' + msgDate.toLocaleTimeString(this.locale, this.dateHourShort)
+            msgDateStr = Translation.get('today') + ' ' + msgDate.toLocaleTimeString(Translation.lang, this.dateHourShort)
         } else if (msgDate.toLocaleDateString() === yesterday.toLocaleDateString()) {
-            msgDateStr = Translation.get('yesterday') + ' ' + msgDate.toLocaleTimeString(this.locale, this.dateHourShort)
+            msgDateStr = Translation.get('yesterday') + ' ' + msgDate.toLocaleTimeString(Translation.lang, this.dateHourShort)
         } else {
-            msgDateStr = msgDate.toLocaleString(this.locale, this.dateOptionsLong)
+            msgDateStr = msgDate.toLocaleString(Translation.lang, this.dateOptionsLong)
         }
 
         const userInfo = MemberListClass.getUserInfo(userID)
@@ -248,7 +249,7 @@ class ChatMessageListClass {
 
         const msgDateShortContainer = document.createElement('div')
 
-        msgDateShortContainer.textContent = `${msgDate.toLocaleTimeString(this.locale, this.dateHourShort)}`
+        msgDateShortContainer.textContent = `${msgDate.toLocaleTimeString(Translation.lang, this.dateHourShort)}`
         msgDateShortContainer.className = 'msg-date-short'
 
         msgLeftSide.appendChild(msgDateShortContainer)
@@ -763,7 +764,8 @@ class ChatInputClass {
     static maxFiles = 5
     static files = []
 
-    static #canDrag = false
+    static xhr
+    static alreadyCreatedDragListener = false
 
     static create() {
         document.getElementById('third-column-main').innerHTML += `
@@ -818,66 +820,12 @@ class ChatInputClass {
         this.AttachmentInput = document.getElementById('attachment-input')
         this.AttachmentInput.addEventListener('change', () => {
             for (let i = 0; i < this.AttachmentInput.files.length; i++) {
-                this.addAttachment(this.AttachmentInput.files[i])
-            }
-        })
-
-        this.fileDropZone = document.getElementById('file-drop-zone')
-        this.fileDropMsg = document.getElementById('file-drop-msg')
-
-        this.fileDropZone.addEventListener('dragenter', e => {
-            e.preventDefault()
-            this.#canDrag = true
-            console.log('Started dragging a file into window')
-        })
-
-        this.fileDropZone.addEventListener('dragover', e => {
-            e.preventDefault()
-            // if (this.#canDrag) {
-            this.fileDropZone.style.display = 'flex'
-            this.fileDropMsg.textContent = 'Upload to:\n\n' + MainClass.getCurrentChannelID()
-            // }
-        })
-
-        // this when user drags files into webpage
-        this.fileDropZone.addEventListener('drop', e => {
-            e.preventDefault()
-            console.log('dropped file')
-
-            for (let i = 0; i < e.dataTransfer.items.length; i++) {
-                const file = e.dataTransfer.items[i]
-                if (e.dataTransfer.items[i].kind === 'file') {
-                    const file = e.dataTransfer.items[i].getAsFile();
-                    this.addAttachment(file)
-                }
-            }
-            this.hideFileDropUI()
-            this.#canDrag = false
-        })
-
-        this.fileDropZone.addEventListener('dragleave', e => {
-            e.preventDefault()
-            console.log('Cancelled file dragging')
-            this.hideFileDropUI()
-            this.#canDrag = false
-        })
-
-        document.addEventListener('paste', e => {
-            const items = e.clipboardData.items
-            if (items) {
-                for (let i = 0; i < items.length; i++) {
-                    const item = items[i]
-
-                    // Only handle files
-                    if (item.kind === 'file') {
-                        const file = item.getAsFile()
-                        this.addAttachment(file)
-                    }
-                }
+                AttachmentInputClass.addAttachment(this.AttachmentInput.files[i])
             }
         })
 
         this.resizeChatInput()
+        this.resetChatInput()
     }
 
     static reset() {
@@ -1040,15 +988,14 @@ class ChatInputClass {
             }
         }
 
-        const xhr = new XMLHttpRequest()
+        this.xhr = new XMLHttpRequest()
 
         return new Promise((resolve, reject) => {
-            xhr.onload = () => {
-                if (xhr.status === 200) {
-                    const attachmentToken = JSON.parse(xhr.responseText)
+            this.xhr.onload = () => {
+                if (this.xhr.status === 200) {
+                    const attachmentToken = JSON.parse(this.xhr.responseText)
                     console.log('Attachment was uploaded successfully')
-                    this.resetAttachments()
-                    this.calculateAttachments()
+                    this.resetChatInput()
                     resolve(attachmentToken)
                 } else {
                     console.error('Failed asking the server if given attachment hashes exist')
@@ -1056,15 +1003,14 @@ class ChatInputClass {
                 }
             }
 
-            xhr.onloadstart = function () {
+            this.xhr.onloadstart = function () {
                 console.log('Starting upload...')
             }
-            xhr.onloadend = function () {
+            this.xhr.onloadend = function () {
                 console.log('Finished upload')
             }
 
-            xhr.upload.onprogress = async function (e) {
-                console.log(e.loaded, e.total)
+            this.xhr.upload.onprogress = async function (e) {
                 if (e.lengthComputable) {
                     const indicator = document.getElementById('upload-percentage')
                     let percent = (e.loaded / e.total) * 100
@@ -1078,15 +1024,26 @@ class ChatInputClass {
             }
 
 
-            xhr.onerror = function () {
+            this.xhr.onerror = function () {
                 console.error('Error asking the server if given attachment hashes exist')
                 reject(null)
             }
 
-            xhr.open('POST', '/upload-attachment')
-            xhr.send(formData)
+            this.xhr.open('POST', '/upload-attachment')
+            this.xhr.send(formData)
         })
 
+    }
+
+    static resetChatInput() {
+        if (this.xhr !== undefined) {
+            console.log('Aborting upload of attachments')
+            this.xhr.abort()
+            this.xhr = undefined
+        }
+
+        this.resetAttachments()
+        this.calculateAttachments()
     }
 
     static resetAttachments() {
@@ -1153,10 +1110,6 @@ class ChatInputClass {
         this.files.splice(this.files.indexOf(entry), 1)
     }
 
-    static hideFileDropUI() {
-        this.fileDropZone.style.display = 'none'
-    }
-
     static calculateAttachments() {
         const attachmentList = document.getElementById('attachment-list')
 
@@ -1189,6 +1142,65 @@ class ChatInputClass {
     }
 }
 
+class AttachmentInputClass {
+    static fileDropZone = document.getElementById('file-drop-zone')
+    static fileDropMsg = document.getElementById('file-drop-msg')
+
+    static init() {
+        this.fileDropZone.addEventListener('dragenter', e => {
+            console.log('why')
+            e.preventDefault()
+            console.log('Started dragging a file into window')
+        })
+
+
+        document.addEventListener('dragover', e => {
+            e.preventDefault()
+            this.fileDropZone.style.display = 'flex'
+            this.fileDropMsg.textContent = 'Upload to:\n\n' + MainClass.getCurrentChannelID()
+        })
+
+
+        // this when user drags files into webpage
+        this.fileDropZone.addEventListener('drop', e => {
+            e.preventDefault()
+            console.log('dropped file')
+
+            for (let i = 0; i < e.dataTransfer.items.length; i++) {
+                if (e.dataTransfer.items[i].kind === 'file') {
+                    const file = e.dataTransfer.items[i].getAsFile();
+                    ChatInputClass.addAttachment(file)
+                }
+            }
+            this.hideFileDropUI()
+        })
+
+        this.fileDropZone.addEventListener('dragleave', e => {
+            e.preventDefault()
+            console.log('Cancelled file dragging')
+            this.hideFileDropUI()
+        })
+
+        document.addEventListener('paste', e => {
+            const items = e.clipboardData.items
+            if (items) {
+                for (let i = 0; i < items.length; i++) {
+                    const item = items[i]
+                    
+                    if (item.kind === 'file') {
+                        const file = item.getAsFile()
+                        ChatInputClass.addAttachment(file)
+                    }
+                }
+            }
+        })
+    }
+
+    static hideFileDropUI() {
+        this.fileDropZone.style.display = 'none'
+    }
+}
+
 class FriendListClass {
     static create() {
         document.getElementById('third-column-main').innerHTML = `
@@ -1206,10 +1218,10 @@ class FriendListClass {
         // ChannelListClass.selectNoChannel(true)
     }
 
-    static disableFriendList() {
-        this.friendListContainer.style.display = 'none'
-        this.friendList.innerHTML = ''
-    }
+    // static disableFriendList() {
+    //     this.friendListContainer.style.display = 'none'
+    //     this.friendList.innerHTML = ''
+    // }
 
     static addCurrentFriends() {
         this.updateFriendCount()

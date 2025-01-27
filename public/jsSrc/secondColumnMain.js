@@ -34,7 +34,7 @@ class ChannelListClass extends SecondColumnMainClass {
                         <line x1="0" y1="2" x2="5" y2="8" stroke="grey" stroke-width="1.5"/>
                         <line x1="5" y1="8" x2="10" y2="2" stroke="grey" stroke-width="1.5"/>
                     </svg>
-                    <label>${Translation.get('text-channels')}</label>
+                    <label>${Translation.get('textChannels')}</label>
                 </button>
                 <button id="add-channel-button">+</button>
             </div>

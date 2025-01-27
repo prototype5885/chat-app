@@ -5,7 +5,7 @@ class UserPanelClass {
 
         // user settings button
         MainClass.registerHover(UserSettingsButton, () => {
-            BubbleClass.createBubble(UserSettingsButton, Translation.get('user-settings'), 'up', 15)
+            BubbleClass.createBubble(UserSettingsButton, Translation.get('userSettings'), 'up', 15)
         }, () => {
             BubbleClass.deleteBubble()
         })

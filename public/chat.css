@@ -80,7 +80,8 @@ a:visited {
 
 #file-drop-deco {
     width: 352px;
-    height: 160px;;
+    height: 160px;
+    ;
     border: 2px dashed lightgray;
     border-radius: 8px;
     display: flex;
@@ -92,7 +93,8 @@ a:visited {
     color: white;
     font-size: 24px;
     text-align: center;
-    white-space: pre-line; /* this will allow to use newline n\ */
+    white-space: pre-line;
+    /* this will allow to use newline n\ */
 }
 
 #update-client {
@@ -109,7 +111,7 @@ a:visited {
     cursor: pointer;
 }
 
-#loading > div {
+#loading>div {
     animation: rotate 5s infinite;
 }
 
@@ -246,15 +248,14 @@ a:visited {
     height: fit-content;
 }
 
-.settings-right-main > div {
-    background-color: var(--bit-darker-color);
+.settings-right-main>div {
+    /*background-color: var(--bit-darker-color);*/
     border-radius: 16px;
     display: flex;
-    flex-direction: row;
     align-items: center;
 }
 
-.settings-right-main > div > div {
+.settings-right-main>div>div {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -349,7 +350,7 @@ a:visited {
 
 
 /* this holds the server button and its notification thing */
-#first-column > li {
+#first-column>li {
     /* background-color: green; */
     height: 60px;
     width: 72px;
@@ -423,7 +424,7 @@ a:visited {
 
 }
 
-#server-name-button > label {
+#server-name-button>label {
     pointer-events: none;
 }
 
@@ -448,7 +449,7 @@ a:visited {
     padding-left: 0;
 }
 
-#dm-buttons > button {
+#dm-buttons>button {
     width: 100%;
 }
 
@@ -479,6 +480,31 @@ a:visited {
     transform-origin: 50% 50%;
 }
 
+.button-list {
+    display: flex;
+    flex-direction: column;
+}
+
+.button-list>button {
+    height: 32px;
+    width: 128px;
+    display: flex;
+    align-items: center;
+    padding-left: 16px;
+    margin-top: 2px;
+    margin-bottom: 2px;
+    border-radius: 8px;
+    border: none;
+    font-size: 14px;
+    transform-origin: left;
+    transition: all 0.3s ease;
+}
+
+.button-list>button:hover {
+    background-color: var(--hover-color);
+    transform: scale(1.2);
+}
+
 #channel-list,
 #dm-chat-list {
     display: flex;
@@ -487,8 +513,8 @@ a:visited {
 
 #channel-list button,
 .settings-list button,
-#dm-buttons > button,
-#dm-chat-list > button {
+#dm-buttons>button,
+#dm-chat-list>button {
     height: 32px;
     display: flex;
     align-items: center;
@@ -500,20 +526,20 @@ a:visited {
 }
 
 .settings-list button,
-#dm-buttons > button,
-#dm-chat-list > button {
+#dm-buttons>button,
+#dm-chat-list>button {
     padding-left: 8px;
 }
 
 #channel-list button:hover,
 .settings-list button:hover,
-#dm-buttons > button:hover,
-#dm-chat-list > button:hover {
+#dm-buttons>button:hover,
+#dm-chat-list>button:hover {
     background-color: var(--hover-color);
     font-size: large;
 }
 
-#channel-list button > div {
+#channel-list button>div {
     padding-left: 4px;
 }
 
@@ -527,7 +553,7 @@ a:visited {
     display: flex;
 }
 
-#user-panel > div {
+#user-panel>div {
     display: flex;
     align-items: center;
     width: 100%;
@@ -596,6 +622,10 @@ a:visited {
     width: 32px;
     height: 32px;
     border-radius: 6px;
+}
+
+#user-panel-buttons button img {
+    pointer-events: none;
 }
 
 .rotate-svg {
@@ -678,7 +708,7 @@ a:visited {
     justify-content: flex-end;
 }
 
-#main-top-right > button {
+#main-top-right>button {
     width: 32px;
     height: 32px;
     background-color: var(--main-color);
@@ -718,7 +748,7 @@ a:visited {
     padding: 0;
 }
 
-#chat-message-list > li {
+#chat-message-list>li {
     padding-top: 16px;
     /*padding-left: 16px;*/
     padding-right: 16px;
@@ -731,7 +761,7 @@ a:visited {
 /*}*/
 
 /* chat scroll gap */
-#chat-message-list > div {
+#chat-message-list>div {
     order: 2;
     min-height: 20px;
 }
@@ -751,10 +781,11 @@ a:visited {
     border-radius: 50%;
     object-fit: cover;
     user-select: none;
+    pointer-events: none;
 }
 
-.message-attachment-pictures > *,
-.message-attachment-videos > * {
+.message-attachment-pictures>*,
+.message-attachment-videos>* {
     margin-right: 4px;
     margin-bottom: 8px;
     height: auto;
@@ -763,7 +794,7 @@ a:visited {
     border-radius: 6px;
 }
 
-.message-attachment-audios > * {
+.message-attachment-audios>* {
     width: 512px;
     user-select: none;
 }
@@ -894,7 +925,7 @@ a:visited {
     user-select: none;
 }
 
-.ghost-msg > {
+.ghost-msg> {
     opacity: 25%;
 }
 
@@ -919,7 +950,7 @@ a:visited {
     box-sizing: border-box;
 }
 
-#attachment-list > div {
+#attachment-list>div {
     /* height: 200px; */
     width: 200px;
     background-color: var(--bit-darker-color);
@@ -939,7 +970,7 @@ a:visited {
     /* background-color: red; */
 }
 
-.attachment-preview > img {
+.attachment-preview>img {
     width: 100%;
     height: 100%;
     object-fit: scale-down;
@@ -985,26 +1016,34 @@ a:visited {
 
 
 @keyframes color-change {
-    0%, 100% {
+
+    0%,
+    100% {
         stroke: red;
     }
+
     33% {
         stroke: white;
     }
+
     66% {
         stroke: white;
     }
 }
 
 @keyframes size-change {
-    0%, 100% {
+
+    0%,
+    100% {
         transform: scale(1);
         fill-opacity: 0.5;
     }
+
     33% {
         transform: scale(1.5);
         fill-opacity: 1;
     }
+
     66% {
         transform: scale(1);
         fill-opacity: 0.5;
@@ -1037,13 +1076,13 @@ a:visited {
     user-select: none;
 }
 
-.date-between-msgs > div {
+.date-between-msgs>div {
     display: flex;
     width: 100%;
     border-top: thin solid var(--separator-color);
 }
 
-.date-between-msgs > span {
+.date-between-msgs>span {
     margin-left: 4px;
     margin-right: 4px;
     white-space: nowrap;
@@ -1134,7 +1173,7 @@ a:visited {
 /*    background-color: red;*/
 /*}*/
 
-.chat-button:hover > #attachment-button-icon {
+.chat-button:hover>#attachment-button-icon {
     background-color: white;
 }
 
@@ -1146,19 +1185,19 @@ a:visited {
     width: 100%;
 }
 
-#friend-list-container > label {
+#friend-list-container>label {
     margin-bottom: 16px;
     font-variant: small-caps
 }
 
-#friend-list-container > ul {
+#friend-list-container>ul {
     padding: 0;
     margin: 0;
     display: flex;
     flex-direction: column;
 }
 
-#friend-list-container > ul > li {
+#friend-list-container>ul>li {
     display: flex;
     flex-direction: row;
     padding: 8px;
@@ -1166,7 +1205,7 @@ a:visited {
     cursor: pointer;
 }
 
-#friend-list-container > ul > li:hover {
+#friend-list-container>ul>li:hover {
     background-color: var(--separator-color);
     border-top: thin solid rgba(0, 0, 0, 0);
     border-radius: 8px;
@@ -1222,18 +1261,18 @@ a:visited {
 
 #ctx-menu {
     z-index: 100;
-    width: 175px;
+    width: fit-content;
 }
 
 #ctx-menu ul {
     list-style: none;
-    margin: 5%;
+    margin: 8px;
     padding: 0;
 }
 
 /* context menu items */
 #ctx-menu li {
-    padding: 8px 12px;
+    padding: 8px;
     font-size: small;
     cursor: pointer;
     border-radius: 5px;
@@ -1251,4 +1290,9 @@ a:visited {
 #ctx-menu li.cm-red:hover {
     background-color: #F23F42;
     color: white;
+}
+
+.flag {
+    height: 16px;
+    padding-right: 8px;
 }

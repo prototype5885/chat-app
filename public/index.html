@@ -11,8 +11,12 @@
 </head>
 
 <body>
-<a id="download-button" class="button" href="/">Download for windows</a>
+<!--<a id="download-button" class="button" href="/">Download for windows</a>-->
 <a id="login-button" class="button" href="/login-register.html">Open in browser</a>
 </body>
-
+<script src="jsSrc/translation.js"></script>
+<script>
+    Translation.setLanguage()
+    document.getElementById('login-button').textContent = Translation.get('openInBrowser')
+</script>
 </html>

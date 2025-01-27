@@ -272,15 +272,15 @@ class Window {
 
         switch (this.type) {
             case 'user-settings':
-                this.topBarLeft.textContent = 'User settings'
+                this.topBarLeft.textContent = Translation.get('userSettings')
                 await this.createSettingsLeftSide(this.windowMain, this.type, 0)
                 break
             case 'server-settings':
-                this.topBarLeft.textContent = 'Server settings'
+                this.topBarLeft.textContent = Translation.get('serverSettings')
                 await this.createSettingsLeftSide(this.windowMain, this.type, this.id)
                 break
             case 'channel-settings':
-                this.topBarLeft.textContent = 'Channel settings'
+                this.topBarLeft.textContent = Translation.get('channelSettings')
                 await this.createSettingsLeftSide(this.windowMain, this.type, this.id)
                 break
         }
@@ -289,12 +289,12 @@ class Window {
     async pictureUploader(settings, pictureType, serverID) {
         settings.innerHTML += `  
     <div>
-        <label>Maximum: 1,5 MB</label>
+        <label>${Translation.get('maximum')}: 1,5 MB</label>
         <br>
         <input type='file' accept='.jpg,.png,.gif' name='image' class='pic-uploader' accept='image/*' style='display: none'>
         <button class='select-pic'></button>
         <br>
-        <button class='button send-pic-button noHover' disabled>Apply Picture</button>
+        <button class='button send-pic-button noHover' disabled>${Translation.get('applyPicture')}</button>
         <br>
         <label class='pic-response-label'></label>
     </div>`
@@ -417,7 +417,7 @@ class Window {
                 button.className = 'left-side-button'
 
                 const textDiv = document.createElement('div')
-                button.textContent = elements[i].text
+                textDiv.textContent = Translation.get(elements[i].text)
                 button.appendChild(textDiv)
 
                 const settingsRight = windowMain.querySelector('.settings-right')
@@ -442,7 +442,7 @@ class Window {
 
                     const label = document.createElement('div')
                     label.className = 'settings-right-label'
-                    label.textContent = elements[i].text
+                    label.textContent = Translation.get(elements[i].text)
                     topRight.appendChild(label)
 
                     settingsRight.appendChild(topRight)
@@ -453,23 +453,23 @@ class Window {
                     settingsRight.appendChild(mainRight)
 
                     switch (elements[i].text) {
-                        case 'Profile':
+                        case 'profile':
                             const profileSettings = document.createElement('div')
                             profileSettings.className = 'profile-settings'
                             mainRight.appendChild(profileSettings)
 
                             profileSettings.innerHTML = `
                             <div>
-                                <label class='input-label'>Display name:</label>
+                                <label class='input-label'>${Translation.get('displayName')}:</label>
                                 <input class='change-display-name' maxlength='32' value='${MainClass.myDisplayName}'>
                                 <br>
-                                <label class='input-label'>Pronouns:</label>
+                                <label class='input-label'>${Translation.get('pronouns')}:</label>
                                 <input class='change-pronoun' placeholder='they/them' maxlength='16' value='${MainClass.myPronouns}'>
                                 <br>
-                                <label class='input-label'>Status:</label>
+                                <label class='input-label'>${Translation.get('statusText')}:</label>
                                 <input class='change-status' placeholder='Was passiert?' value='${MainClass.myStatusText}' maxlength='32'>
                                 <br>
-                                <button class='button update-account-data'>Apply</button>
+                                <button class='button update-account-data'>${Translation.get('apply')}</button>
                                 <br>
                                 <label class='update-data-response-label'></label>
                             </div>`
@@ -518,26 +518,26 @@ class Window {
 
                             })
                             break
-                        case 'Account':
+                        case 'account':
                             const accountSettings = document.createElement('div')
                             accountSettings.className = 'account-settings'
                             mainRight.appendChild(accountSettings)
 
                             accountSettings.innerHTML = `
                             <div>
-                                <label class='input-label'>Current Password:</label>
+                                <label class='input-label'>${Translation.get('currentPassword')}:</label>
                                 <input type='password' class='change-password-current' maxlength='32'>
                                 <br>
-                                <label class='input-label'>New Password:</label>
+                                <label class='input-label'>${Translation.get('newPassword')}:</label>
                                 <input type='password' class='change-password-first' maxlength='32' minlength='4' required>
                                 <br>
-                                <label class='input-label'>New Password Again:</label>
+                                <label class='input-label'>${Translation.get('confirmNewPassword')}:</label>
                                 <input type='password' class='change-password-second' maxlength='32' minlength='4' required>
                                 <br>
                                 <button class='button update-password'>Apply</button>
                             </div>`
                             break
-                        case 'Server':
+                        case 'server':
                             const serverSettings = document.createElement('div')
                             serverSettings.className = 'server-settings'
                             mainRight.appendChild(serverSettings)
@@ -580,7 +580,7 @@ class Window {
                                 WebsocketClass.requestUpdateServerData(updatedServerData)
                             })
                             break
-                        case 'Channel':
+                        case 'channel':
                             const channelSettings = document.createElement('div')
                             channelSettings.className = 'channel-settings'
                             mainRight.appendChild(channelSettings)
@@ -621,6 +621,63 @@ class Window {
                                 WebsocketClass.requestUpdateChannelData(updatedChannelData)
                             })
                             break
+                        case 'language':
+                            const leftSideContent = []
+
+                            leftSideContent.push({ text: 'Deutsch', code: 'de' })
+                            leftSideContent.push({ text: 'Español', code: 'es' })
+                            leftSideContent.push({ text: 'English', code: 'en' })
+                            leftSideContent.push({ text: 'Русский', code: 'ru' })
+                            leftSideContent.push({ text: 'Magyar', code: 'hu' })
+                            leftSideContent.push({ text: 'Türkçe', code: 'tr' })
+
+                            const settingsRightMain = windowMain.querySelector('.settings-right-main')
+
+                            const container = document.createElement('div')
+                            container.className = 'button-list'
+                            settingsRightMain.appendChild(container)
+
+
+                            for (let i = 0; i < leftSideContent.length; i++) {
+                                const button = document.createElement('button')
+
+
+                                if (LocalStorageClass.getLanguage() === null) {
+                                    if (navigator.language.split('-')[0] === leftSideContent[i].code) {
+                                        button.style.backgroundColor = ColorsClass.selectedColor
+                                    }
+                                } else if (LocalStorageClass.getLanguage() === leftSideContent[i].code) {
+                                    button.style.backgroundColor = ColorsClass.selectedColor
+                                }
+
+                                const flag = document.createElement('img')
+                                flag.className = 'flag'
+
+                                switch (leftSideContent[i].code) {
+                                    case 'es':
+                                        flag.src = `content/static/flags/${leftSideContent[i].code}.webp`
+                                        break
+                                    default:
+                                        flag.src = `content/static/flags/${leftSideContent[i].code}.svg`
+                                        break
+                                }
+
+
+                                button.appendChild(flag)
+
+                                const label = document.createElement('span')
+                                label.textContent = leftSideContent[i].text
+                                button.appendChild(label)
+
+                                button.addEventListener('click', function () {
+                                    LocalStorageClass.setLanguage(leftSideContent[i].code)
+                                    window.location.reload()
+                                })
+
+                                container.appendChild(button)
+                            }
+
+                            break
                     }
                 })
 
@@ -634,14 +691,15 @@ class Window {
         // add these elements to the left side
         switch (type) {
             case 'user-settings':
-                leftSideContent.push({text: 'Profile'})
-                leftSideContent.push({text: 'Account'})
+                leftSideContent.push({ text: 'profile' })
+                // leftSideContent.push({text: 'account'})
+                leftSideContent.push({ text: 'language' })
                 break
             case 'server-settings':
-                leftSideContent.push({text: 'Server'})
+                leftSideContent.push({ text: 'server' })
                 break
             case 'channel-settings':
-                leftSideContent.push({text: 'Channel'})
+                leftSideContent.push({ text: 'channel' })
         }
         addElementsLeftSide(leftSideContent)
 

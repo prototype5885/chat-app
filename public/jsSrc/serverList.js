@@ -6,7 +6,7 @@ class ServerListClass {
     static init() {
         // add bubble when hovering over add server button
         MainClass.registerHover(ServerListClass.AddServerButton, () => {
-            BubbleClass.createBubble(ServerListClass.AddServerButton, Translation.get('add-server'), 'right', 15)
+            BubbleClass.createBubble(ServerListClass.AddServerButton, Translation.get('addServer'), 'right', 15)
         }, () => {
             BubbleClass.deleteBubble()
         })
@@ -85,9 +85,12 @@ class ServerListClass {
         MainClass.registerClick(button, async () => {
             await this.selectServer(serverID)
         })
-        ContextMenuClass.registerContextMenu(button, (pageX, pageY) => {
-            ContextMenuClass.serverCtxMenu(serverID, owned, pageX, pageY)
-        })
+        if (serverID !== '1') {
+            ContextMenuClass.registerContextMenu(button, (pageX, pageY) => {
+                ContextMenuClass.serverCtxMenu(serverID, owned, pageX, pageY)
+            })
+        }
+
         MainClass.registerHover(button, () => {
             if (serverID !== MainClass.getCurrentServerID()) {
                 button.style.borderRadius = '35%'

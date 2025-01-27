@@ -49,42 +49,71 @@
     <br>
     <div id="login-container">
         <form onsubmit="sendLogin(event)">
-            <label for="login-username" class="input-label">Username:</label>
+            <label for="login-username" class="input-label"></label>
             <input autocomplete="username" id="login-username" maxlength="16" oninput="asciiOnly(event)" required>
             <br>
-            <label for="login-password" class="input-label">Password:</label>
+            <label for="login-password" class="input-label"></label>
             <input autocomplete="current-password" id="login-password" type="password" maxlength="64" required>
             <br>
-            <button class="button" type="submit">Login</button>
+            <button id="login-button" class="button" type="submit"></button>
         </form>
         <br>
-        <button class="button" onclick="toRegister()">No account?</button>
+        <button id="to-registration-button" class="button" onclick="toRegister()"></button>
     </div>
     <div id="register-container" style="display: none;">
         <form onsubmit="sendRegister(event)">
-            <label for="register-username" class="input-label">Username:</label>
+            <label for="register-username" class="input-label"></label>
             <input autocomplete="username" id="register-username" maxlength="16" oninput="asciiOnly(event)"
                    required>
             <br>
-            <label for="register-password-first" class="input-label">Password:</label>
+            <label for="register-password-first" class="input-label"></label>
             <input autocomplete="new-password" type="password" id="register-password-first" maxlength="64" required>
             <br>
-            <label for="register-password-second" class="input-label">Password again:</label>
+            <label for="register-password-second" class="input-label"></label>
             <input autocomplete="new-password" type="password" id="register-password-second" maxlength="64"
                    required>
             <br>
-            <label for="invite-key" class="input-label">Invite key</label>
+            <label for="invite-key" class="input-label"></label>
             <input id="invite-key" maxlength="32" required>
             <br>
-            <button class="button" type="submit">Register</button>
+            <button id="register-button" class="button" type="submit"></button>
         </form>
         <br>
-        <button class="button" onclick="toLogin()">Login instead</button>
+        <button id="to-login-button" class="button" onclick="toLogin()">Login instead</button>
     </div>
     <br>
 </div>
+<script src="jsSrc/translation.js"></script>
 <script>
+    const loginUsername = document.getElementById("login-username")
+    const loginPassword = document.getElementById("login-password")
+
+    const username = document.getElementById("register-username")
+    const firstPassword = document.getElementById("register-password-first")
+    const secondPassword = document.getElementById("register-password-second")
+    const inviteKey = document.getElementById("invite-key")
+
+
     const errorMessage = document.getElementById("error-message")
+
+    Translation.setLanguage()
+    setTextLanguage()
+
+    function setTextLanguage() {
+        document.querySelector(`label[for="${loginUsername.id}"]`).textContent = Translation.get('username') + ":"
+        document.querySelector(`label[for="${loginPassword.id}"]`).textContent = Translation.get('password') + ":"
+
+        document.getElementById("login-button").textContent = Translation.get('login')
+        document.getElementById("to-registration-button").textContent = Translation.get('toRegistration')
+
+        document.getElementById('register-button').textContent = Translation.get('register')
+        document.getElementById('to-login-button').textContent = Translation.get('toLogin')
+
+        document.querySelector(`label[for="${username.id}"]`).textContent = Translation.get('username')
+        document.querySelector(`label[for="${firstPassword.id}"]`).textContent = Translation.get('password')
+        document.querySelector(`label[for="${secondPassword.id}"]`).textContent = Translation.get('passwordAgain')
+        document.querySelector(`label[for="${inviteKey.id}"]`).textContent = Translation.get('inviteKey')
+    }
 
     function toLogin() {
         errorMessage.textContent = ""
@@ -101,12 +130,9 @@
     async function sendLogin(event) {
         event.preventDefault()
 
-        const username = document.getElementById("login-username").value
-        const password = document.getElementById("login-password").value
-
         const json = {
-            Username: username,
-            Password: await hashPassword(password)
+            Username: loginUsername.value,
+            Password: await hashPassword(loginPassword.value)
         }
 
         const response = await fetch("/login", {
@@ -128,20 +154,16 @@
     async function sendRegister(event) {
         event.preventDefault()
 
-        const username = document.getElementById("register-username").value
-        const firstPassword = document.getElementById("register-password-first").value
-        const secondPassword = document.getElementById("register-password-second").value
-        const inviteKey = document.getElementById("invite-key").value
 
-        if (firstPassword !== secondPassword) {
+        if (firstPassword.value !== secondPassword.value) {
             errorMessage.textContent = "Passwords don't match"
             return
         }
 
         const json = {
-            Username: username,
-            Password: await hashPassword(firstPassword),
-            InviteKey: inviteKey
+            Username: username.value,
+            Password: await hashPassword(firstPassword.value),
+            InviteKey: inviteKey.value
         }
 
         const response = await fetch("/register", {

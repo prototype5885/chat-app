@@ -27,7 +27,6 @@ class NotificationClass {
         if (Notification.permission !== 'granted') {
             return false
         } else {
-            console.log('Notifications are enabled')
             return true
         }
     }
