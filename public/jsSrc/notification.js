@@ -14,12 +14,16 @@ class NotificationClass {
     }
 
     static sendNotification(userID, message) {
+        if (message === '') {
+            message = 'Sent something...'
+        }
         const userInfo = MemberListClass.getUserInfo(userID)
         if (this.checkIfNotificationsEnabled()) {
-            new Notification(userInfo.username, {
+            new Notification(userInfo.displayName, {
                 body: message,
                 icon: userInfo.pic
             })
+            // NotificationClass.NotificationSound.play()
         }
     }
 

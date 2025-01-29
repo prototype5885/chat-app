@@ -229,10 +229,19 @@ class DirectMessagesClass extends SecondColumnMainClass {
     }
 
     static addDirectMessage(chatID) {
-        const dmButton = document.createElement('button')
-        dmButton.id = chatID
-        dmButton.textContent = chatID
-        document.getElementById('dm-chat-list').appendChild(dmButton)
+        const dmChatList = document.getElementById('dm-chat-list')
+
+        // const dmButton = document.createElement('button')
+        // dmButton.id = chatID
+        // dmButton.textContent = chatID
+        // dmChatList.appendChild(dmButton)
+
+        dmChatList.innerHTML += `
+            <button id="${chatID}">
+                <div>${chatID}</div>   
+            </button>`
+
+        const dmButton = document.getElementById(chatID)
 
         MainClass.registerClick(dmButton, async () => {
             await ChannelListClass.selectChannel(chatID)

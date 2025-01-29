@@ -90,9 +90,21 @@ type WsClient struct {
 	CloseChan chan bool
 }
 
+type SpamProtection struct {
+	UserID           uint64
+	LastMsgTimestamp int64
+	TooFastCount     int
+	EndTimer         chan bool
+}
+
+var maxTooFastCount int = 50
+var resetAfter int64 = 20000
+
 var broadcastChan = make(chan BroadcastData, 100)
 
 var wsClients sync.Map
+
+var spamClients sync.Map
 
 func Init() {
 	go broadCastChannel()
@@ -100,6 +112,16 @@ func Init() {
 
 // AcceptWsClient client is connecting to the websocket
 func AcceptWsClient(userID uint64, w http.ResponseWriter, r *http.Request) {
+	val, exists := spamClients.Load(userID)
+	if exists {
+		spam := val.(SpamProtection)
+		if spam.TooFastCount >= maxTooFastCount {
+			log.Hack("User ID [%d] who spammed earlier came back, not accepting until spam timer expires", userID)
+			return
+		}
+		spam.EndTimer <- true
+	}
+
 	wsConn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.WarnError(err.Error(), "Error upgrading connection of user ID [%d] to websocket protocol", userID)
@@ -148,11 +170,47 @@ func AcceptWsClient(userID uint64, w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *WsClient) removeWsClient() {
-	//setUserStatusText(c.UserID, "Offline")
-	setUserOnline(c.UserID, false)
 	log.Trace("Removing session ID [%d] from WsClients", c.SessionID)
+
+	c.WriteChan <- macros.RespondFailureReason("You sent too many packets in a short time")
+
+	err := c.WsConn.Close()
+	if err != nil {
+		log.WarnError(err.Error(), "Error while closing websocket for session ID [%d]", c.SessionID)
+	}
+
 	clients.RemoveClient(c.SessionID)
 	wsClients.Delete(c.SessionID)
+
+	sessions := clients.GetUserSessions(c.UserID)
+	if len(sessions) == 0 {
+		setUserOnline(c.UserID, false)
+
+		val, exists := spamClients.Load(c.UserID)
+		if !exists {
+			log.Impossible("Why user ID [%d] didn't exist in spamClients while trying to delete it? It was connected to websocket", c.UserID)
+		}
+		spam := val.(SpamProtection)
+		spam.removeUser()
+	}
+}
+
+func (s *SpamProtection) removeUser() {
+	const duration = 1
+	timer := time.NewTimer(duration * time.Second)
+	defer timer.Stop()
+
+	log.Trace("Will remove user ID [%d] from spamClients in [%d] seconds, unless user rejoins", s.UserID, duration)
+
+	select {
+	case <-timer.C:
+		log.Trace("[%d] seconds passed, deleting user ID [%d] from spamClients", resetAfter/1000, s.UserID)
+		spamClients.Delete(s.UserID)
+		return
+	case <-s.EndTimer:
+		log.Trace("User ID [%d] came back early, no need to remove from spamClients", s.UserID)
+		return
+	}
 }
 
 func (c *WsClient) readMessages(wg *sync.WaitGroup) {
@@ -171,7 +229,36 @@ func (c *WsClient) readMessages(wg *sync.WaitGroup) {
 			break
 		}
 
-		// time.Sleep(500 * time.Millisecond)
+		val, _ := spamClients.LoadOrStore(c.UserID, SpamProtection{
+			UserID:           c.UserID,
+			LastMsgTimestamp: time.Now().UnixMilli(),
+			TooFastCount:     0,
+			EndTimer:         make(chan bool),
+		})
+
+		spam := val.(SpamProtection)
+
+		currentTime := time.Now().UnixMilli()
+		difference := currentTime - spam.LastMsgTimestamp
+		log.Trace("Difference: %d", difference)
+		if difference < 1000 {
+			spam.TooFastCount++
+			//log.Warn("Too fast [%d] times", spam.TooFastCount)
+
+			if spam.TooFastCount > maxTooFastCount {
+				log.Hack("User ID [%d] sent too many messages in short time, disconnecting...", c.UserID)
+				break
+			}
+		} else if difference > resetAfter {
+			log.Trace("User ID [%d] hasn't sent messages for a while, resetting TooFastCount", c.UserID)
+			spam.TooFastCount = 0
+		}
+
+		spam.LastMsgTimestamp = time.Now().UnixMilli()
+
+		spamClients.Store(c.UserID, spam)
+
+		//time.Sleep(500 * time.Millisecond)
 
 		// check if array is at least 5 in length to avoid exceptions
 		// because if client sends smaller byte array for some reason,

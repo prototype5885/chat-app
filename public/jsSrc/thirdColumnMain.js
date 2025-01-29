@@ -18,10 +18,8 @@ class ChatMessageListClass {
     static dateOptionsDay = {year: 'numeric', month: 'long', day: 'numeric'}
     static dateOptionsLong = {year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'}
 
-
     static create() {
         this.resetChatMessages()
-
 
         // the div in list makes sure there will be a little gap between chat input box
         // and the chat messages when user is viewing the latest message at the bottom
@@ -118,6 +116,15 @@ class ChatMessageListClass {
             return
         }
 
+        if (!ghost) {
+            this.removeGhostMessages()
+        }
+
+        if (ChatInputClass.sentAChatMessage && userID === MainClass.getOwnUserID()) {
+            ChatInputClass.sentAChatMessage = false
+            ChatInputClass.enableChatInput()
+        }
+
         const chatMessageList = document.getElementById('chat-message-list')
         if (chatMessageList === null) {
             console.error(`Can't add chat message because chat message list isnt loaded`)
@@ -149,7 +156,6 @@ class ChatMessageListClass {
             msgDateStr = msgDate.toLocaleString(Translation.lang, this.dateOptionsLong)
         }
 
-        const userInfo = MemberListClass.getUserInfo(userID)
 
         // create a <li> that holds the message
         const li = document.createElement('li')
@@ -161,28 +167,32 @@ class ChatMessageListClass {
         li.id = messageID
         li.setAttribute('user-id', userID)
 
+        if (ghost) {
+            li.style.opacity = 0.25
+        }
+
         let owner = false
         if (userID === MainClass.getOwnUserID()) {
             owner = true
         }
 
-        ContextMenuClass.registerContextMenu(li, (pageX, pageY) => {
-            ContextMenuClass.messageCtxMenu(messageID, owner, pageX, pageY)
-        })
+        if (!ghost) {
+            ContextMenuClass.registerContextMenu(li, (pageX, pageY) => {
+                ContextMenuClass.messageCtxMenu(messageID, owner, pageX, pageY)
+            })
+        }
 
         // create a <img> that shows profile pic on the left
         const img = document.createElement('img')
         img.className = 'msg-profile-pic'
 
-        if (userInfo.pic !== '') {
-            img.src = userInfo.pic
+        const memberInfo = MemberListClass.getUserInfo(userID)
+
+        if (memberInfo.pic !== '') {
+            img.src = memberInfo.pic
         } else {
             img.src = '/content/static/discord.webp'
         }
-
-        img.width = 40
-        img.height = 40
-
 
         // MainClass.registerClick(img, () => {
         //     const pictureViewerContainer = document.getElementById('picture-viewer-container')
@@ -201,10 +211,12 @@ class ChatMessageListClass {
         //     })
         // })
 
+        if (!ghost) {
+            ContextMenuClass.registerContextMenu(img, (pageX, pageY) => {
+                ContextMenuClass.userCtxMenu(userID, pageX, pageY)
+            })
+        }
 
-        ContextMenuClass.registerContextMenu(img, (pageX, pageY) => {
-            ContextMenuClass.userCtxMenu(userID, pageX, pageY)
-        })
 
         // create a nested <div> that will contain sender name, message and date
         const msgDataDiv = document.createElement('div')
@@ -216,8 +228,8 @@ class ChatMessageListClass {
 
         // and inside that create a <div> that displays the sender's name on the left
         const msgNameDiv = document.createElement('div')
-        msgNameDiv.className = 'msg-user-name'
-        msgNameDiv.textContent = userInfo.username
+        msgNameDiv.className = 'msg-display-name'
+        msgNameDiv.textContent = memberInfo.displayName
 
         ContextMenuClass.registerContextMenu(msgNameDiv, (pageX, pageY) => {
             ContextMenuClass.userCtxMenu(userID, pageX, pageY)
@@ -269,6 +281,17 @@ class ChatMessageListClass {
                 return `<a href='${url}' target='_blank'>${url}</a>`
             }
         })
+
+        msgTextDiv.innerHTML = message.replace(/<@(\d+)>/g, (match, id) => {
+            const userElement = document.getElementById(id)
+            if (userElement) {
+                const userName = userElement.querySelector('.display-name').textContent
+                return `<span class="mention">@${userName}</span>`
+            } else {
+                return `<span class="mention">@${id}</span>`
+            }
+        })
+
 
         // append both name/date <div> and msg <div> to msgDatDiv
         msgTextContainer.appendChild(msgTextDiv)
@@ -334,6 +357,7 @@ class ChatMessageListClass {
                     case 'png':
                     case 'gif':
                     case 'jfif':
+                    case 'svg':
                         attachmentContainer.className = 'message-attachment-pictures'
 
                         const img = document.createElement('img')
@@ -506,13 +530,14 @@ class ChatMessageListClass {
         this.addChatMessage(json.MsgID, json.UserID, json.Msg, json.Att, json.Edited, false)
 
         // play notification sound if messages is from other user
-        if (json.UserID !== MainClass.getOwnUserID()) {
-            if (Notification.permission === 'granted') {
-                NotificationClass.sendNotification(json.UserID, json.Msg)
-            } else {
-                NotificationClass.NotificationSound.play()
-            }
+        // if (json.UserID !== MainClass.getOwnUserID()) {
+
+        if (json.Msg === `<@${MainClass.myUserID}>`) {
+            NotificationClass.sendNotification(json.UserID, 'Mentioned you')
         }
+
+        // NotificationClass.sendNotification(json.UserID, json.Msg)
+        // }
 
         const chatMessageList = document.getElementById('chat-message-list')
         if (chatMessageList === null) {
@@ -527,7 +552,6 @@ class ChatMessageListClass {
         } else {
             console.log('Too far from current chat messages, not scrolling down on new message')
         }
-
         this.amountOfMessagesChanged()
     }
 
@@ -673,7 +697,7 @@ class ChatMessageListClass {
         const chatMessages = document.getElementById('chat-message-list').querySelectorAll('.msg')
         chatMessages.forEach((chatMessage) => {
             if (chatMessage.getAttribute('user-id') === userID) {
-                chatMessage.querySelector('.msg-user-name').textContent = newDisplayName
+                chatMessage.querySelector('.msg-display-name').textContent = newDisplayName
             }
         })
     }
@@ -765,11 +789,18 @@ class ChatInputClass {
     static files = []
 
     static xhr
-    static alreadyCreatedDragListener = false
+
+    static sentAChatMessage = false
+
+    static #pressedButton = false
 
     static create() {
         document.getElementById('third-column-main').innerHTML += `
                 <div id="chat-input-container">
+                        <div id="mentionable-users-container">
+                            <label>members</label>
+                            <ul id="mentionable-user-list"></ul>
+                        </div>
                         <div id="attachment-list"></div>
                         <div id="chat-input-form">
                             <label id="upload-percentage"></label>
@@ -808,8 +839,22 @@ class ChatInputClass {
         chatInput.addEventListener('keydown', this.chatEnterPressed.bind(this))
 
         chatInput.addEventListener('input', async () => {
+            this.#pressedButton = true
             this.resizeChatInput()
             await this.checkIfTyping()
+            MentionUserClass.lookForMentions(chatInput)
+        })
+
+
+        chatInput.addEventListener('selectionchange', async () => {
+            // this pressed button is needed so input won't trigger selectionchange,
+            // which would result lookForMentions to run twice
+            if (!this.#pressedButton) {
+                MentionUserClass.lookForMentions(chatInput)
+            } else {
+                this.#pressedButton = false
+            }
+
         })
 
         document.getElementById('attachment-button').addEventListener('click', () => {
@@ -820,16 +865,12 @@ class ChatInputClass {
         this.AttachmentInput = document.getElementById('attachment-input')
         this.AttachmentInput.addEventListener('change', () => {
             for (let i = 0; i < this.AttachmentInput.files.length; i++) {
-                AttachmentInputClass.addAttachment(this.AttachmentInput.files[i])
+                this.addAttachment(this.AttachmentInput.files[i])
             }
         })
 
         this.resizeChatInput()
         this.resetChatInput()
-    }
-
-    static reset() {
-
     }
 
 
@@ -860,11 +901,15 @@ class ChatInputClass {
     static async chatEnterPressed(event) {
         if (event.key === 'Enter' && !event.shiftKey) {
             event.preventDefault()
+            if (document.getElementById('mentionable-user-list').innerHTML !== '') {
+                return
+            }
+
             if (this.sendingChatMsg) {
                 console.warn(`Sending a message currently, can't send any new yet`)
                 return
             }
-            this.disableChatInput()
+
             let attachmentToken = null
             if (this.files.length !== 0) {
                 console.log(`Chat message has [${this.files.length}] attachments, sending those first...`)
@@ -878,6 +923,14 @@ class ChatInputClass {
 
             const chatInput = document.getElementById('chat-input')
             if (chatInput.value.trim() !== '' || attachmentToken !== null) {
+                this.disableChatInput()
+
+                const fakeSnowflake = ((BigInt(Date.now()) << BigInt(22)) | BigInt(0) << BigInt(12) | BigInt(0)).toString()
+
+                //add ghost
+                ChatMessageListClass.addChatMessage(fakeSnowflake, MainClass.getOwnUserID(), chatInput.value.trim(), null, false, true)
+                ChatMessageListClass.amountOfMessagesChanged()
+
                 if (attachmentToken !== null) {
                     await WebsocketClass.sendChatMessage(chatInput.value.trim(), MainClass.getCurrentChannelID(), attachmentToken.AttToken)
                 } else {
@@ -888,7 +941,7 @@ class ChatInputClass {
                 this.AttachmentInput.value = ''
                 this.resizeChatInput()
                 this.#typing = false
-                this.enableChatInput()
+                this.sentAChatMessage = true
             }
         }
     }
@@ -896,16 +949,14 @@ class ChatInputClass {
     static disableChatInput() {
         console.warn('Disabling chat input')
         this.sendingChatMsg = true
-        // this.ChatInput.disabled = true
-        // this.ChatInputForm.style.backgroundColor = ColorsClass.bitDarkerColor
+        document.getElementById('chat-input').style.opacity = 0.25
     }
 
     static enableChatInput() {
         console.warn('Enable chat input')
         this.sendingChatMsg = false
-        // this.ChatInput.disabled = false
         document.getElementById('chat-input').focus()
-        // this.ChatInputForm.style.backgroundColor = ''
+        document.getElementById('chat-input').style.opacity = 1
     }
 
     static async checkAttachments() {
@@ -1142,22 +1193,163 @@ class ChatInputClass {
     }
 }
 
+class MentionUserClass {
+    static word = ''
+    static currentIndex = 0
+
+
+    static init() {
+        document.addEventListener('keydown', (event) => {
+            const mentionableUserList = document.getElementById('mentionable-user-list')
+            if (mentionableUserList.children.length === 0) {
+                return
+            }
+
+            if (event.key === 'ArrowDown') {
+                event.preventDefault()
+                this.currentIndex = (this.currentIndex + 1) % mentionableUserList.children.length
+                this.updateActiveItem()
+            } else if (event.key === 'ArrowUp') {
+                event.preventDefault()
+                this.currentIndex = (this.currentIndex - 1 + mentionableUserList.children.length) % mentionableUserList.children.length
+                this.updateActiveItem()
+            } else if (event.key === 'Enter') {
+                event.preventDefault()
+                this.addMentionUser(mentionableUserList.children[this.currentIndex].getAttribute('user-id'))
+                this.removeMentionableWindow()
+            }
+        })
+    }
+
+    static lookForMentions(chatInput) {
+        if (chatInput.value === '') {
+            this.removeMentionableWindow()
+            return
+        }
+
+        let wordStartsAt = chatInput.selectionStart
+        while (wordStartsAt > 0 && !/\s/.test(chatInput.value[wordStartsAt - 1])) {
+            wordStartsAt--
+        }
+
+        let wordEndsAt = chatInput.selectionStart;
+        while (wordEndsAt < chatInput.value.length && !/\s/.test(chatInput.value[wordEndsAt])) {
+            wordEndsAt++
+        }
+
+        this.word = chatInput.value.substring(wordStartsAt, wordEndsAt)
+
+        if (this.word.charAt(0) === '@') {
+            const container = document.getElementById('mentionable-users-container')
+            const mentionableUserList = document.getElementById('mentionable-user-list')
+
+            mentionableUserList.innerHTML = ''
+
+            this.currentIndex = 0
+            container.style.display = 'flex'
+            const mentionMember = this.word.substring(1)
+            console.log('searching for user:', mentionMember)
+
+
+            const members = document.getElementById('member-list').querySelectorAll('.member')
+
+            function addMember(memberInfo, id) {
+                const button = document.createElement('button')
+                button.className = 'mentionable-user'
+                button.setAttribute('user-id', id)
+
+                const img = document.createElement('img')
+                img.src = memberInfo.pic
+                button.appendChild(img)
+
+                const span = document.createElement('span')
+                span.textContent = memberInfo.displayName
+                button.appendChild(span)
+
+                mentionableUserList.appendChild(button)
+
+                button.addEventListener('click', () => {
+                    MentionUserClass.addMentionUser(id)
+                })
+
+                // list.innerHTML += `
+                // <button>
+                //     <img src="${memberInfo.pic}" alt="">
+                //     <span>${memberInfo.displayName}</span>
+                // </button>`
+            }
+
+            if (mentionMember === '') {
+                // const currentMsgIndex = chatMessageList.length - 1
+                // for (let m = 0; m < 16; m++) {
+                //
+                // }
+
+                const max = 10
+                for (let i = 0; i < members.length; i++) {
+                    if (i > max) {
+                        break
+                    }
+                    if (members[i].getAttribute('online') === 'true') {
+                        const memberInfo = MemberListClass.getUserInfo(members[i].id)
+                        addMember(memberInfo, members[i].id)
+                    }
+                }
+            } else {
+                for (let i = 0; i < members.length; i++) {
+                    const memberInfo = MemberListClass.getUserInfo(members[i].id)
+                    if (memberInfo.displayName.toLowerCase().includes(mentionMember)) {
+                        addMember(memberInfo, members[i].id)
+                    }
+                }
+
+            }
+            this.updateActiveItem()
+        }
+    }
+
+
+    static updateActiveItem() {
+        console.log(MentionUserClass.currentIndex)
+        document.getElementById('mentionable-user-list').querySelectorAll('button').forEach((item, index) => {
+            if (index === MentionUserClass.currentIndex) {
+                item.style.backgroundColor = ColorsClass.selectedColor
+            } else {
+                item.style.backgroundColor = ''
+            }
+        })
+    }
+
+    static addMentionUser(id) {
+        const chatInput = document.getElementById('chat-input')
+        console.log(`replacing word [${this.word}] with [<@${id}>]`)
+        chatInput.value = chatInput.value.replace(this.word, `<@${id}>`)
+        document.getElementById('chat-input').focus()
+        MentionUserClass.removeMentionableWindow()
+    }
+
+    static removeMentionableWindow() {
+        this.word = ''
+        this.currentIndex = 0
+        document.getElementById('mentionable-users-container').style.display = 'none'
+        document.getElementById('mentionable-user-list').innerHTML = ''
+    }
+}
+
 class AttachmentInputClass {
     static fileDropZone = document.getElementById('file-drop-zone')
     static fileDropMsg = document.getElementById('file-drop-msg')
 
     static init() {
-        this.fileDropZone.addEventListener('dragenter', e => {
-            console.log('why')
-            e.preventDefault()
-            console.log('Started dragging a file into window')
-        })
-
-
         document.addEventListener('dragover', e => {
             e.preventDefault()
             this.fileDropZone.style.display = 'flex'
             this.fileDropMsg.textContent = 'Upload to:\n\n' + MainClass.getCurrentChannelID()
+        })
+
+        this.fileDropZone.addEventListener('dragenter', e => {
+            e.preventDefault()
+            console.log('Started dragging a file into window')
         })
 
 
@@ -1186,7 +1378,7 @@ class AttachmentInputClass {
             if (items) {
                 for (let i = 0; i < items.length; i++) {
                     const item = items[i]
-                    
+
                     if (item.kind === 'file') {
                         const file = item.getAsFile()
                         ChatInputClass.addAttachment(file)
@@ -1226,7 +1418,7 @@ class FriendListClass {
     static addCurrentFriends() {
         this.updateFriendCount()
         for (let f = 0; f < MainClass.myFriends.length; f++) {
-            this.addFriend(MainClass.myFriends[f], "name", "username", '/content/static/default_profilepic.webp', true, 1, "test status")
+            this.addFriend(MainClass.myFriends[f], "name", "username", '/static/default_profilepic.webp', true, 1, "test status")
         }
     }
 
@@ -1238,7 +1430,7 @@ class FriendListClass {
                     <div class="user-status"></div>
                 </div>   
                 <div class="user-data">
-                    <span class="user-name">${userID}</span>
+                    <span class="display-name">${userID}</span>
                     <div class="user-status-text">${statusText}</div>
                 </div>
             </li>`

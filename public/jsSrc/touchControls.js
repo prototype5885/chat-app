@@ -5,7 +5,7 @@ class TouchControlsClass {
     static pastHalf = false
     static direction = ''
 
-    static boxes = document.querySelectorAll('.pages')
+    static boxes = document.getElementById('pages').children
 
     static offsetX = 0
     static touchStartX = 0

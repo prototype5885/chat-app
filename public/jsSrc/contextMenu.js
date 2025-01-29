@@ -101,10 +101,10 @@ class ContextMenuClass {
     }
 
     static serverCtxMenu(serverID, owned, pageX, pageY) {
-        console.log('serverctxmenu')
         const actions = []
 
         if (owned) {
+            console.log(Translation.get('serverSettings'))
             actions.push({
                 text: Translation.get('serverSettings'),
                 func: () => WindowManagerClass.addWindow('server-settings', serverID)
@@ -130,7 +130,6 @@ class ContextMenuClass {
                 func: () => WebsocketClass.requestLeaveServer(serverID)
             })
         }
-        // if (!owned) { actions.push({ text: 'Report Server', color: 'red' }) }
 
         this.createContextMenu(actions, pageX, pageY)
     }
@@ -196,6 +195,15 @@ class ContextMenuClass {
             text: Translation.get('copyUserID'), func: () => {
                 console.log('Copying user ID', userID)
                 navigator.clipboard.writeText(userID).then(r => '')
+            }
+        })
+        actions.push({
+            text: Translation.get('mentionUser'), func: () => {
+                console.log('Mentioning user ID', userID)
+                const chatInput = document.getElementById('chat-input')
+                chatInput.value = `<@${userID}>`
+                chatInput.dispatchEvent(new Event('input'));
+                chatInput.focus()
             }
         })
 

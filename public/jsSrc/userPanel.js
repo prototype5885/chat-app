@@ -14,11 +14,11 @@ class UserPanelClass {
         })
 
         // refresh button
-        MainClass.registerHover(RefreshButton, () => {
-            BubbleClass.createBubble(RefreshButton, 'Force refresh', 'up', 15)
-        }, () => {
-            BubbleClass.deleteBubble()
-        })
+        // MainClass.registerHover(RefreshButton, () => {
+        //     BubbleClass.createBubble(RefreshButton, 'Force refresh', 'up', 15)
+        // }, () => {
+        //     BubbleClass.deleteBubble()
+        // })
     }
 
     static setUserPanelName(name) {

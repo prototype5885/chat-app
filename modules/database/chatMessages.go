@@ -82,7 +82,6 @@ func GetChatHistory(channelID uint64, fromMessageID uint64, older bool, userID u
 
 		if !found {
 			userMessages = append(userMessages, UserMessages{UserID: retrievedMsgs[m].UserID})
-			log.Trace("wtf: %d", userID)
 			index = len(userMessages) - 1
 		}
 

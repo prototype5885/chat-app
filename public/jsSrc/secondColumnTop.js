@@ -4,11 +4,12 @@ class SecondColumnTopClass {
 class ServerBannerClass {
     static #ServerNameContainer = document.getElementById('server-name-container')
     static #ServerName = document.getElementById('server-name')
-    static #ServerNameButton = document.getElementById('server-name-button')
+
 
     static init() {
-        ContextMenuClass.registerLeftClickContextMenu(this.#ServerNameButton, () => {
-            const rect = this.#ServerNameButton.getBoundingClientRect()
+        const serverNameButton = document.getElementById('server-name-button')
+        ContextMenuClass.registerLeftClickContextMenu(serverNameButton, () => {
+            const rect = serverNameButton.getBoundingClientRect()
 
             const absoluteBottom = (rect.bottom + window.scrollY) + 8
             const absoluteCenter = (rect.left + window.scrollX) + (rect.width / 2) - 75

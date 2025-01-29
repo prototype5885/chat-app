@@ -64,17 +64,6 @@ class ServerListClass {
         button.setAttribute('name', serverName)
         li.append(button)
 
-        // set picture of server
-        if (picture !== '') {
-            if (serverID !== '1') {
-                picture = 'content/avatars/' + picture
-            }
-            button.style.backgroundImage = `url(${picture})`
-        } else {
-            if (serverName !== '') {
-                button.textContent = serverName[0].toUpperCase()
-            }
-        }
 
         const span = document.createElement('span')
         span.className = 'server-notification'
@@ -114,6 +103,8 @@ class ServerListClass {
             ServerListClass.calculateServerAmount()
         }
 
+        this.setServerPic(serverID, picture)
+
         return li
     }
 
@@ -147,6 +138,7 @@ class ServerListClass {
         //     DirectMessagesClass.DirectMessages.style.display = 'none'
         // }
 
+        MemberListClass.create()
         MainClass.memberListLoaded = false
 
         // this will reset the previously selected server's visuals
@@ -201,8 +193,8 @@ class ServerListClass {
         // set last server in local storage
         LocalStorageClass.setLastServer(serverID)
 
-        // const bannerUrl = 'https://cdn.discordapp.com/banners/1267683587902279742/adb469683ec356db30b42f0e5bccba01.webp?size=480'
-        const bannerUrl = ''
+        const bannerUrl = '/content/banners/adb469683ec356db30b42f0e5bccba01.webp'
+        // const bannerUrl = ''
 
         ServerBannerClass.setPicture(bannerUrl)
 
@@ -216,14 +208,24 @@ class ServerListClass {
         ServerListClass.calculateServerAmount()
     }
 
-    static setServerPicture(serverID, picture) {
-        const serverButton = document.getElementById(serverID)
-        if (serverButton == null) {
-            console.error(`Server ID ${serverID} button doesn't exist, can't set server picture`)
+    static setServerPic(serverID, picture) {
+        const button = document.getElementById(serverID)
+
+        if (button === null) {
             return
         }
-        picture = 'public/content/avatars/' + picture
-        serverButton.style.backgroundImage = `url('${picture}')`
+        const serverName = button.getAttribute('name')
+        // set picture of server
+        if (picture !== '') {
+            if (serverID !== '1') {
+                picture = 'content/avatars/' + picture
+            }
+            button.style.backgroundImage = `url(${picture})`
+        } else {
+            if (serverName !== '') {
+                button.textContent = serverName[0].toUpperCase()
+            }
+        }
     }
 
     static setServerName(serverID, name) {

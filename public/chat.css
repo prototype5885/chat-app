@@ -6,6 +6,20 @@ body {
     overflow: hidden;
 }
 
+#pages {
+    display: flex;
+    margin: 0;
+    overflow: hidden;
+
+    height: 100vh;
+    max-height: 100vh;
+    min-height: 100vh;
+
+    width: 100vw;
+    max-width: 100vw;
+    min-width: 100vw;
+}
+
 
 @keyframes rotate {
     0% {
@@ -80,8 +94,7 @@ a:visited {
 
 #file-drop-deco {
     width: 352px;
-    height: 160px;
-    ;
+    height: 160px;;
     border: 2px dashed lightgray;
     border-radius: 8px;
     display: flex;
@@ -111,7 +124,7 @@ a:visited {
     cursor: pointer;
 }
 
-#loading>div {
+#loading > div {
     animation: rotate 5s infinite;
 }
 
@@ -244,18 +257,18 @@ a:visited {
 
 .settings-right-main {
     margin: 16px;
-    width: fit-content;
-    height: fit-content;
+    /*width: fit-content;*/
+    /*height: fit-content;*/
 }
 
-.settings-right-main>div {
+.settings-right-main > div {
     /*background-color: var(--bit-darker-color);*/
     border-radius: 16px;
     display: flex;
-    align-items: center;
+    /*align-items: center;*/
 }
 
-.settings-right-main>div>div {
+.settings-right-main > div > div {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -350,7 +363,7 @@ a:visited {
 
 
 /* this holds the server button and its notification thing */
-#first-column>li {
+#first-column > li {
     /* background-color: green; */
     height: 60px;
     width: 72px;
@@ -424,7 +437,7 @@ a:visited {
 
 }
 
-#server-name-button>label {
+#server-name-button > label {
     pointer-events: none;
 }
 
@@ -449,7 +462,7 @@ a:visited {
     padding-left: 0;
 }
 
-#dm-buttons>button {
+#dm-buttons > button {
     width: 100%;
 }
 
@@ -480,14 +493,16 @@ a:visited {
     transform-origin: 50% 50%;
 }
 
-.button-list {
+.language-button-list {
     display: flex;
     flex-direction: column;
+    /*width: 100%;*/
 }
 
-.button-list>button {
+.language-button-list > button {
     height: 32px;
-    width: 128px;
+    width: 192px;
+    /*width: auto;*/
     display: flex;
     align-items: center;
     padding-left: 16px;
@@ -500,7 +515,7 @@ a:visited {
     transition: all 0.3s ease;
 }
 
-.button-list>button:hover {
+.language-button-list > button:hover {
     background-color: var(--hover-color);
     transform: scale(1.2);
 }
@@ -513,8 +528,8 @@ a:visited {
 
 #channel-list button,
 .settings-list button,
-#dm-buttons>button,
-#dm-chat-list>button {
+#dm-buttons > button,
+#dm-chat-list > button {
     height: 32px;
     display: flex;
     align-items: center;
@@ -526,20 +541,20 @@ a:visited {
 }
 
 .settings-list button,
-#dm-buttons>button,
-#dm-chat-list>button {
+#dm-buttons > button,
+#dm-chat-list > button {
     padding-left: 8px;
 }
 
 #channel-list button:hover,
 .settings-list button:hover,
-#dm-buttons>button:hover,
-#dm-chat-list>button:hover {
+#dm-buttons > button:hover,
+#dm-chat-list > button:hover {
     background-color: var(--hover-color);
     font-size: large;
 }
 
-#channel-list button>div {
+#channel-list button > div {
     padding-left: 4px;
 }
 
@@ -553,7 +568,7 @@ a:visited {
     display: flex;
 }
 
-#user-panel>div {
+#user-panel > div {
     display: flex;
     align-items: center;
     width: 100%;
@@ -600,7 +615,7 @@ a:visited {
 
 #user-panel-status-text,
 #user-panel-name,
-.user-name,
+.display-name,
 .user-status-text,
 #server-name {
     overflow: hidden;
@@ -708,7 +723,7 @@ a:visited {
     justify-content: flex-end;
 }
 
-#main-top-right>button {
+#main-top-right > button {
     width: 32px;
     height: 32px;
     background-color: var(--main-color);
@@ -748,7 +763,7 @@ a:visited {
     padding: 0;
 }
 
-#chat-message-list>li {
+#chat-message-list > li {
     padding-top: 16px;
     /*padding-left: 16px;*/
     padding-right: 16px;
@@ -761,14 +776,15 @@ a:visited {
 /*}*/
 
 /* chat scroll gap */
-#chat-message-list>div {
+#chat-message-list > div {
     order: 2;
     min-height: 20px;
 }
 
-.ghost-msg {
-    order: 1;
-}
+/*.ghost-msg {*/
+/*    order: 1;*/
+/*    opacity: 25%;*/
+/*}*/
 
 .profile-pic {
     height: inherit;
@@ -777,15 +793,20 @@ a:visited {
 
 .profile-pic,
 .msg-profile-pic,
-#user-panel-pfp {
+#user-panel-pfp,
+#mentionable-users-container > ul > button > img {
     border-radius: 50%;
     object-fit: cover;
     user-select: none;
-    pointer-events: none;
 }
 
-.message-attachment-pictures>*,
-.message-attachment-videos>* {
+.msg-profile-pic {
+    width: 40px;
+    height: 40px;
+}
+
+.message-attachment-pictures > *,
+.message-attachment-videos > * {
     margin-right: 4px;
     margin-bottom: 8px;
     height: auto;
@@ -794,7 +815,7 @@ a:visited {
     border-radius: 6px;
 }
 
-.message-attachment-audios>* {
+.message-attachment-audios > * {
     width: 512px;
     user-select: none;
 }
@@ -811,7 +832,8 @@ a:visited {
 
 .profile-pic-container {
     position: relative;
-    display: inline-block;
+    width: 32px;
+    height: 32px;
 }
 
 .profile-pic {
@@ -853,7 +875,7 @@ a:visited {
     flex-direction: row;
 }
 
-.msg-user-name {
+.msg-display-name {
     line-height: 20px;
     vertical-align: baseline;
     font-size: 15px;
@@ -863,8 +885,8 @@ a:visited {
     text-overflow: ellipsis;
 }
 
-.user-name:hover,
-.msg-user-name:hover {
+.display-name:hover,
+.msg-display-name:hover {
     cursor: pointer;
     text-decoration: underline;
 }
@@ -925,9 +947,6 @@ a:visited {
     user-select: none;
 }
 
-.ghost-msg> {
-    opacity: 25%;
-}
 
 #chat-input-container {
     padding-left: 16px;
@@ -936,7 +955,52 @@ a:visited {
     flex-direction: column;
     /*padding-bottom: 24px;*/
     overflow-x: hidden;
+    margin: 0;
+}
 
+#mentionable-users-container {
+    display: none;
+    /*position: absolute;*/
+    flex-direction: column;
+    background-color: var(--bit-darker-color);
+    height: auto;
+    margin-bottom: 8px;
+    border: solid 1px var(--separator-color);
+    border-radius: 8px;
+    padding: 16px;
+}
+
+#mentionable-users-container > label {
+    padding-bottom: 12px;
+    font-variant: small-caps;
+    font-size: 15px;
+}
+
+#mentionable-users-container > ul {
+    display: flex;
+    flex-direction: column;
+}
+
+#mentionable-users-container ul > button {
+    padding-top: 4px;
+    padding-bottom: 4px;
+    display: flex;
+    align-items: center;
+    border-radius: 6px;
+}
+
+#mentionable-users-container ul > button:hover {
+    background-color: var(--hover-color);
+}
+
+#mentionable-users-container > ul > button > img {
+    margin-right: 8px;
+    width: 24px;
+    height: 24px;
+}
+
+#mentionable-users-container > ul > button > span {
+    /*font-size: 32px;*/
 }
 
 #attachment-list {
@@ -947,10 +1011,10 @@ a:visited {
     padding: 6px;
     border-top-left-radius: 12px;
     border-top-right-radius: 12px;
-    box-sizing: border-box;
+    /*box-sizing: border-box;*/
 }
 
-#attachment-list>div {
+#attachment-list > div {
     /* height: 200px; */
     width: 200px;
     background-color: var(--bit-darker-color);
@@ -970,7 +1034,7 @@ a:visited {
     /* background-color: red; */
 }
 
-.attachment-preview>img {
+.attachment-preview > img {
     width: 100%;
     height: 100%;
     object-fit: scale-down;
@@ -1076,13 +1140,13 @@ a:visited {
     user-select: none;
 }
 
-.date-between-msgs>div {
+.date-between-msgs > div {
     display: flex;
     width: 100%;
     border-top: thin solid var(--separator-color);
 }
 
-.date-between-msgs>span {
+.date-between-msgs > span {
     margin-left: 4px;
     margin-right: 4px;
     white-space: nowrap;
@@ -1173,7 +1237,7 @@ a:visited {
 /*    background-color: red;*/
 /*}*/
 
-.chat-button:hover>#attachment-button-icon {
+.chat-button:hover > #attachment-button-icon {
     background-color: white;
 }
 
@@ -1185,19 +1249,19 @@ a:visited {
     width: 100%;
 }
 
-#friend-list-container>label {
+#friend-list-container > label {
     margin-bottom: 16px;
     font-variant: small-caps
 }
 
-#friend-list-container>ul {
+#friend-list-container > ul {
     padding: 0;
     margin: 0;
     display: flex;
     flex-direction: column;
 }
 
-#friend-list-container>ul>li {
+#friend-list-container > ul > li {
     display: flex;
     flex-direction: row;
     padding: 8px;
@@ -1205,29 +1269,34 @@ a:visited {
     cursor: pointer;
 }
 
-#friend-list-container>ul>li:hover {
+#friend-list-container > ul > li:hover {
     background-color: var(--separator-color);
     border-top: thin solid rgba(0, 0, 0, 0);
     border-radius: 8px;
 }
 
-#fourth-column-main {
-    list-style: none;
+#member-list {
+    display: flex;
+    flex-direction: column;
     padding: 0;
-    margin: 0;
-    background-color: var(--bit-darker-color);
-    min-width: 240px;
-    max-width: 240px;
-    flex: 1;
+    /*margin: 16px;*/
+    margin: 0 16px;
     overflow-y: auto;
     user-select: none;
 }
 
-#fourth-column-main li,
+#member-list label {
+    margin-bottom: 4px;
+    margin-top: 16px;
+    font-variant: small-caps;
+}
+
+#member-list li,
 #first-column-main-container li {
-    padding: 6px 16px;
+    padding: 6px;
     display: flex;
     flex-direction: row;
+    border-radius: 6px;
 }
 
 .user:hover {
@@ -1244,7 +1313,7 @@ a:visited {
 
 }
 
-.user-name {
+.display-name {
     margin-right: 13px;
     line-height: 16px;
     vertical-align: baseline;
@@ -1265,7 +1334,6 @@ a:visited {
 }
 
 #ctx-menu ul {
-    list-style: none;
     margin: 8px;
     padding: 0;
 }
@@ -1292,7 +1360,21 @@ a:visited {
     color: white;
 }
 
+.member {
+    cursor: pointer;
+}
+
+.member:hover {
+    background-color: var(--hover-color);
+}
+
 .flag {
     height: 16px;
     padding-right: 8px;
+}
+
+.mention {
+    background-color: #3e4587;
+    padding: 3px 3px;
+    border-radius: 6px;
 }

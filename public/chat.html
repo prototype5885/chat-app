@@ -29,63 +29,65 @@
 
 <!-- <button id="update-client" onclick="location.reload()">Version: 1<br></button> -->
 
-
-<div class="pages" id="first-main-container">
-    <ol id="first-column">
-        <div class="servers-separator" id="first-servers-separator" style="display: none;"></div>
-        <div class="servers-separator" id="second-servers-separator" style="display: none;"></div>
-        <li id="add-server">
-            <button id="add-server-button">+</button>
-            <span class="server-notification"></span>
-        </li>
-    </ol>
-    <div id="second-column">
-        <div id="second-column-top">
-            <div id="server-name-container">
-                <div id="server-name-button-container">
-                    <button id="server-name-button">
-                        <label id="server-name"></label>
-                    </button>
-                </div>
-            </div>
-        </div>
-        <div id="second-column-main"></div>
-        <div id="user-panel">
-            <div>
-                <button id="user-panel-user-container">
-                    <img id="user-panel-pfp" src="">
-                    <div id="user-panel-name-status">
-                        <div id="user-panel-name"></div>
-                        <div id="user-panel-status-text"></div>
+<div id="pages">
+    <div id="first-main-container">
+        <ol id="first-column">
+            <div class="servers-separator" id="first-servers-separator" style="display: none;"></div>
+            <div class="servers-separator" id="second-servers-separator" style="display: none;"></div>
+            <li id="add-server">
+                <button id="add-server-button">+</button>
+                <span class="server-notification"></span>
+            </li>
+        </ol>
+        <div id="second-column">
+            <div id="second-column-top">
+                <div id="server-name-container">
+                    <div id="server-name-button-container">
+                        <button id="server-name-button">
+                            <label id="server-name"></label>
+                        </button>
                     </div>
-                </button>
-                <div id="user-panel-buttons">
-                    <button id="refresh-button" onclick="window.location.reload(true)"></button>
-                    <button id="user-settings-button">
-                        <img src="/content/static/settings.svg">
+                </div>
+            </div>
+            <div id="second-column-main"></div>
+            <div id="user-panel">
+                <div>
+                    <button id="user-panel-user-container">
+                        <img id="user-panel-pfp" src="">
+                        <div id="user-panel-name-status">
+                            <div id="user-panel-name"></div>
+                            <div id="user-panel-status-text"></div>
+                        </div>
                     </button>
+                    <div id="user-panel-buttons">
+                        <!--                        <button id="refresh-button" onclick="window.location.reload(true)"></button>-->
+                        <button id="user-settings-button">
+                            <img src="/static/settings.svg">
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-</div>
-<div class="pages" id="second-main-container">
-    <!--    <button id="update-client" onclick="window.location.reload(true)">Force reload<br></button>-->
-    <div id="third-column-top">
-        <div id="main-top-left">
-            <label id="channel-name-top">Channel</label>
+    <div id="second-main-container">
+        <!--    <button id="update-client" onclick="window.location.reload(true)">Force reload<br></button>-->
+        <div id="third-column-top">
+            <div id="main-top-left">
+                <label id="channel-name-top">Channel</label>
+            </div>
+            <div id="main-top-right">
+                <button id="help-button"></button>
+                <button id="hide-member-list-button"></button>
+            </div>
         </div>
-        <div id="main-top-right">
-            <button id="help-button"></button>
-            <button id="hide-member-list-button"></button>
-        </div>
+        <div id="third-column-main"></div>
     </div>
-    <div id="third-column-main"></div>
+    <div id="third-main-container">
+        <div id="fourth-column-top"></div>
+        <div id="fourth-column-main"></div>
+    </div>
 </div>
-<div class="pages" id="third-main-container">
-    <div id="fourth-column-top"></div>
-    <ol id="fourth-column-main"></ol>
-</div>
+
 
 <!--<audio id="notification-sound" preload="auto" src="sounds/discord-notification.mp3"></audio>-->
 <!--<script src="script.js"></script>-->
@@ -102,7 +104,7 @@
 <script src="jsSrc/thirdColumnMain.js"></script>
 <script src="jsSrc/contextMenu.js"></script>
 <script src="jsSrc/loading.js"></script>
-<script src="jsSrc/memberList.js"></script>
+<script src="jsSrc/fourthColumnMain.js"></script>
 <script src="jsSrc/serverList.js"></script>
 <script src="jsSrc/userPanel.js"></script>
 <script src="jsSrc/window.js"></script>

@@ -82,7 +82,7 @@ class WebsocketClass {
         MainClass.lastChannelID = 0
 
         MainClass.receivedInitialUserData = false
-        MainClass.receivedImageHostAddress = false
+        // MainClass.receivedImageHostAddress = false
 
         ServerListClass.removeServers()
         ServerListClass.createPlaceHolderServers()
@@ -108,17 +108,28 @@ class WebsocketClass {
         }
 
         WebsocketClass.wsClient.onclose = async () => {
-            console.log('Connection lost to websocket')
-            if (WebsocketClass.reconnectAttempts > 60) {
-                console.log('Failed reconnecting to the server')
-                LoadingClass.setLoadingText('Failed reconnecting')
-                return
-            }
-            console.log('Reconnection attempt:', WebsocketClass.reconnectAttempts)
-            WebsocketClass.reconnectAttempts++
+            console.warn('Connection lost to websocket')
+            // if (WebsocketClass.reconnectAttempts > 60) {
+            //     console.log('Failed reconnecting to the server')
+            //     LoadingClass.setLoadingText('Failed reconnecting')
+            //     return
+            // }
+            // console.log('Reconnection attempt:', WebsocketClass.reconnectAttempts)
+            // WebsocketClass.reconnectAttempts++
 
             WebsocketClass.wsConnected = false
             LoadingClass.fadeInLoading()
+
+            let counter = 5
+            while (counter > 0) {
+                const text = `Retrying in: ${counter}`
+                LoadingClass.setLoadingText(text)
+                console.warn(text)
+                const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms))
+                await sleep(1000)
+                counter--
+            }
+            
             await this.connectToWebsocket()
         }
 
@@ -182,7 +193,7 @@ class WebsocketClass {
                     await ServerListClass.selectServer(json.ServerID)
                     break
                 case WebsocketClass.UPDATE_SERVER_PIC: // Server sent that a chat server picture was updated
-                    ServerListClass.setServerPicture(json.ServerID, json.Pic)
+                    ServerListClass.setServerPic(json.ServerID, json.Pic)
                     break
                 case WebsocketClass.DELETE_SERVER: // Server sent which server was deleted
                     console.log(`Server ID [${json.ServerID}] has been deleted`)
@@ -465,7 +476,7 @@ class WebsocketClass {
             Message: message,
             AttTok: attachmentToken
         })
-
+        console.log('Server received the chat message successfully')
     }
 
     static async requestChatHistory(channelID, lastMessageID) {

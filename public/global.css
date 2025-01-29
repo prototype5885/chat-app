@@ -11,7 +11,7 @@
     --brighter-transparent: #656565d1;
     --chat-input-color: #383a40;
     --server-separator-color: #3c3c3c;
-    --separator-color: rgba(255, 255, 255, 0.05);
+    --separator-color: rgba(255, 255, 255, 0.1);
     --loading-color: rgba(0, 0, 0, 0.71);
     --button-color: #b5bac1;
     --blue: #5865F2
@@ -35,6 +35,12 @@ textarea {
 /*    max-height: 256px;*/
 /*    max-width: 256px;*/
 /*}*/
+
+ul, ol {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
 
 
 /* default settings for all buttons */

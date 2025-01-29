@@ -624,17 +624,21 @@ class Window {
                         case 'language':
                             const leftSideContent = []
 
-                            leftSideContent.push({ text: 'Deutsch', code: 'de' })
-                            leftSideContent.push({ text: 'Español', code: 'es' })
-                            leftSideContent.push({ text: 'English', code: 'en' })
-                            leftSideContent.push({ text: 'Русский', code: 'ru' })
-                            leftSideContent.push({ text: 'Magyar', code: 'hu' })
-                            leftSideContent.push({ text: 'Türkçe', code: 'tr' })
+                            leftSideContent.push({text: 'Deutsch', code: 'de'})
+                            leftSideContent.push({text: 'Español', code: 'es'})
+                            leftSideContent.push({text: 'English', code: 'en'})
+                            leftSideContent.push({text: 'Русский', code: 'ru'})
+                            leftSideContent.push({text: 'Magyar', code: 'hu'})
+                            leftSideContent.push({text: 'Türkçe', code: 'tr'})
+                            leftSideContent.push({text: '汉语', code: 'zh'})
+                            leftSideContent.push({text: '日本語', code: 'jp'})
 
                             const settingsRightMain = windowMain.querySelector('.settings-right-main')
 
                             const container = document.createElement('div')
-                            container.className = 'button-list'
+                            container.className = 'language-button-list'
+                            container.style.display = 'flex'
+                            // container.style.width = '100%'
                             settingsRightMain.appendChild(container)
 
 
@@ -655,10 +659,10 @@ class Window {
 
                                 switch (leftSideContent[i].code) {
                                     case 'es':
-                                        flag.src = `content/static/flags/${leftSideContent[i].code}.webp`
+                                        flag.src = `/static/flags/${leftSideContent[i].code}.webp`
                                         break
                                     default:
-                                        flag.src = `content/static/flags/${leftSideContent[i].code}.svg`
+                                        flag.src = `/static/flags/${leftSideContent[i].code}.svg`
                                         break
                                 }
 
@@ -691,15 +695,15 @@ class Window {
         // add these elements to the left side
         switch (type) {
             case 'user-settings':
-                leftSideContent.push({ text: 'profile' })
+                leftSideContent.push({text: 'profile'})
                 // leftSideContent.push({text: 'account'})
-                leftSideContent.push({ text: 'language' })
+                leftSideContent.push({text: 'language'})
                 break
             case 'server-settings':
-                leftSideContent.push({ text: 'server' })
+                leftSideContent.push({text: 'server'})
                 break
             case 'channel-settings':
-                leftSideContent.push({ text: 'channel' })
+                leftSideContent.push({text: 'channel'})
         }
         addElementsLeftSide(leftSideContent)
 

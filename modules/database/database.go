@@ -81,15 +81,21 @@ func CreateTables() {
 	CreateServerInvitesTable()
 	CreateAttachmentsTable()
 	CreateInviteKeysTable()
+	CreateBotTable()
 }
 
 func DatabaseErrorCheck(err error) {
 	if err != nil {
-		if err == sql.ErrNoRows {
-			log.WarnError(err.Error(), "No row was returned")
-		} else {
-			log.FatalError(err.Error(), "Fatal error in database")
-		}
+		log.WarnError(err.Error(), "Error in db")
+		//if sqlite {
+		//	if err == sql.ErrNoRows {
+		//		log.WarnError(err.Error(), "No row was returned")
+		//	} else {
+		//		log.FatalError(err.Error(), "Fatal error in database")
+		//	}
+		//} else {
+		//
+		//}
 	}
 }
 
@@ -239,6 +245,6 @@ func Delete(structo any) bool {
 		return false
 	} else {
 		log.Impossible("%s", "multiple rows were deleted")
-		return false
 	}
+	return false
 }

@@ -38,7 +38,7 @@ class MainClass {
     static currentPictureViewerPicPath = ''
     static currentPictureViewerPicName = ''
 
-    static defaultProfilePic = '/content/static/default_profilepic.webp'
+    static defaultProfilePic = '/static/default_profilepic.webp'
 
     static init() {
         if (this.isElectron() || this.isPWA()) {
@@ -62,9 +62,10 @@ class MainClass {
             ServerBannerClass.init()
 
             AttachmentInputClass.init()
+            MentionUserClass.init()
 
             // add the direct messages button
-            // ServerListClass.addServer('1', 0, Translation.get('dm'), 'content/static/mail.svg', '1')
+            // ServerListClass.addServer('1', 0, Translation.get('dm'), '/static/mail.svg', '1')
 
             await WebsocketClass.connectToWebsocket()
 
