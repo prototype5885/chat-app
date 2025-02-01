@@ -1,7 +1,7 @@
 class WebsocketClass {
     static wsClient
     static wsConnected = false
-    static reconnectAttempts = 0
+    // static reconnectAttempts = 0
 
     static REJECTION_MESSAGE = 0
 
@@ -91,7 +91,6 @@ class WebsocketClass {
     static async connectToWebsocket() {
         console.log('Connecting to websocket...')
 
-        this.websocketBeforeConnected()
 
         // check if protocol is http or https
         const protocol = location.protocol === 'https:' ? 'wss://' : 'ws://'
@@ -102,6 +101,7 @@ class WebsocketClass {
         WebsocketClass.wsClient.binaryType = 'arraybuffer'
 
         WebsocketClass.wsClient.onopen = async () => {
+            this.websocketBeforeConnected()
             console.log('Connected to WebSocket successfully.')
             WebsocketClass.wsConnected = true
             await this.websocketConnected()
@@ -122,14 +122,14 @@ class WebsocketClass {
 
             let counter = 5
             while (counter > 0) {
-                const text = `Retrying in: ${counter}`
+                const text = `${Translation.get('retryingIn')}: ${counter}`
                 LoadingClass.setLoadingText(text)
                 console.warn(text)
                 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms))
                 await sleep(1000)
                 counter--
             }
-            
+            LoadingClass.setLoadingText(Translation.get('connecting'))
             await this.connectToWebsocket()
         }
 
@@ -465,7 +465,7 @@ class WebsocketClass {
         // }, 100)
     }
 
-    static async sendChatMessage(message, channelID, attachmentToken) { // type is 1
+    static async sendChatMessage(message, channelID, attachmentToken, replyID) { // type is 1
         console.log('Sending a chat message')
         if (channelID === 0) {
             console.warn('You have no channel selected')
@@ -474,9 +474,9 @@ class WebsocketClass {
         await WebsocketClass.preparePacket(WebsocketClass.ADD_CHAT_MESSAGE, {
             ChannelID: channelID,
             Message: message,
-            AttTok: attachmentToken
+            AttTok: attachmentToken,
+            ReplyID: replyID,
         })
-        console.log('Server received the chat message successfully')
     }
 
     static async requestChatHistory(channelID, lastMessageID) {

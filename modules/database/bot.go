@@ -8,7 +8,8 @@ type Bot struct {
 	Key string
 }
 
-const deleteBotQuery = "DELETE FROM invite_keys WHERE invite_key = ?"
+const insertBotQuery = `INSERT INTO bots (bot_id, owner_id, display_name, status, status_text, picture, token) VALUES (?, ?, ?, ?, ?, ?, ?)`
+const deleteBotQuery = "DELETE FROM bots WHERE bot_id = ?"
 
 func CreateBotTable() {
 	_, err := Conn.Exec(`CREATE TABLE IF NOT EXISTS bots (

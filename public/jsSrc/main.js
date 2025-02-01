@@ -10,6 +10,7 @@ class ColorsClass {
     static brighterTransparent = '#656565d1'
     static loadingColor = '#000000b5'
     static selectedColor = 'rgba(255, 255, 255, 0.05)'
+    static separatorColor = 'rgba(255, 255, 255, 0.1)'
 
     static textColor = '#C5C7CB'
 

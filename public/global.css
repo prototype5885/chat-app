@@ -1,6 +1,7 @@
 :root {
     --main-color: #36393f;
     --hover-color: rgba(128, 128, 128, 0.075);
+    --hover-dark-color: rgba(0, 0, 0, 0.075);
     --light-color: #42444b;
     --bit-darker-color: #2B2D31;
     --dark-color: #232428;

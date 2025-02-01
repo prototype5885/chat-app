@@ -14,6 +14,7 @@ class NotificationClass {
     }
 
     static sendNotification(userID, message) {
+        console.log('Notification')
         if (message === '') {
             message = 'Sent something...'
         }

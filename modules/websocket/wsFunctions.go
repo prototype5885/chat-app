@@ -203,6 +203,7 @@ func (c *WsClient) onAddChatMessageRequest(packetJson []byte, packetType byte) {
 		ChannelID uint64
 		Message   string
 		AttTok    string
+		ReplyID   uint64
 	}
 
 	var req ClientChatMsg
@@ -214,7 +215,6 @@ func (c *WsClient) onAddChatMessageRequest(packetJson []byte, packetType byte) {
 
 	var rejectMessage = fmt.Sprintf("Denied sending chat message to channel ID [%d]", req.ChannelID)
 
-	log.Trace("not dm")
 	// check if user is member of the server which the channel belongs to
 	serverID := database.GetServerIdOfChannel(req.ChannelID)
 	if serverID == 0 {
@@ -251,6 +251,7 @@ func (c *WsClient) onAddChatMessageRequest(packetJson []byte, packetType byte) {
 		UserID:         c.UserID,
 		Message:        req.Message,
 		HasAttachments: hasAttachments,
+		ReplyID:        req.ReplyID,
 	})
 	if err != nil {
 		log.FatalError(err.Error(), "Fatal error inserting message ID [%d] into database of user ID [%d]", messageID, c.UserID)
@@ -285,6 +286,7 @@ func (c *WsClient) onAddChatMessageRequest(packetJson []byte, packetType byte) {
 		UserID uint64
 		Msg    string
 		Att    []database.AttachmentResponse
+		RepID  uint64
 	}
 
 	var serverChatMsg = ChatMessageResponse{
@@ -292,6 +294,7 @@ func (c *WsClient) onAddChatMessageRequest(packetJson []byte, packetType byte) {
 		UserID: c.UserID,
 		Msg:    req.Message,
 		Att:    attachmentList,
+		RepID:  req.ReplyID,
 	}
 
 	jsonBytes, err := json.Marshal(serverChatMsg)

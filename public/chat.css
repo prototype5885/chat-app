@@ -763,14 +763,6 @@ a:visited {
     padding: 0;
 }
 
-#chat-message-list > li {
-    padding-top: 16px;
-    /*padding-left: 16px;*/
-    padding-right: 16px;
-    display: flex;
-    flex-direction: row;
-}
-
 /*#chat-message-list > li:hover {*/
 /*background-color: #2E3035;*/
 /*}*/
@@ -803,6 +795,14 @@ a:visited {
 .msg-profile-pic {
     width: 40px;
     height: 40px;
+}
+
+.msg:hover {
+    background-color: var(--hover-dark-color);
+}
+
+.msg:hover .msg-date-short {
+    display: block;
 }
 
 .message-attachment-pictures > *,
@@ -864,10 +864,67 @@ a:visited {
     cursor: pointer;
 }
 
+.msg {
+    margin-top: 16px;
+    padding-right: 16px;
+    display: flex;
+    flex-direction: column;
+}
+
+.msg-top {
+    height: auto;
+    display: none;
+    margin-bottom: 6px;
+}
+
+
+.reply-msg-pic {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    margin-right: 8px;
+}
+
+.reply-msg-name {
+    padding-right: 8px;
+}
+
+.reply-msg-name:hover {
+    cursor: pointer;
+    text-decoration: underline;
+}
+
+.reply-msg-message {
+    width: 192px;
+    /*width: 100%;*/
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow-wrap: anywhere;
+    overflow: hidden;
+}
+
+.reply-msg-message:hover {
+    cursor: pointer;
+    color: white;
+}
+
+.msg-top svg {
+    stroke: var(--separator-color);
+}
+
+.msg-top:hover > svg {
+    stroke: #9f9f9f;
+}
+
+.msg-bottom {
+    display: flex;
+}
+
 .msg-data {
     display: flex;
     flex-direction: column;
     width: 100%;
+    /*height: 40px;*/
 }
 
 .msg-name-and-date {
@@ -904,6 +961,8 @@ a:visited {
     opacity: 50%;
     font-size: 12px;
     text-align: center;
+    display: none;
+    user-select: none;
 }
 
 .msg-left-right-container {
@@ -1001,6 +1060,40 @@ a:visited {
 
 #mentionable-users-container > ul > button > span {
     /*font-size: 32px;*/
+}
+
+#reply-container {
+    display: none;
+    height: 32px;
+    background-color: var(--bit-darker-color);
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    user-select: none;
+    padding-left: 16px;
+    padding-right: 16px;
+    align-items: center;
+    /*padding: 4px;*/
+}
+
+#reply-container > span {
+    display: flex;
+    justify-content: flex-start;
+    overflow: hidden;
+}
+
+#reply-container > button {
+    display: flex;
+    justify-content: center;
+    width: 64px;
+}
+
+
+#reply-container button svg circle {
+    fill: var(--button-color);
+}
+
+#reply-container button:hover svg circle {
+    fill: white;
 }
 
 #attachment-list {

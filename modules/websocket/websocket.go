@@ -94,11 +94,13 @@ type SpamProtection struct {
 	UserID           uint64
 	LastMsgTimestamp int64
 	TooFastCount     int
-	EndTimer         chan bool
+	Timer            *time.Timer
+	StopTimer        chan bool
 }
 
-var maxTooFastCount int = 50
+var maxTooFastCount int = 40
 var resetAfter int64 = 20000
+var deleteFromSpamProtectionAfter time.Duration = 29
 
 var broadcastChan = make(chan BroadcastData, 100)
 
@@ -112,16 +114,20 @@ func Init() {
 
 // AcceptWsClient client is connecting to the websocket
 func AcceptWsClient(userID uint64, w http.ResponseWriter, r *http.Request) {
+	log.Trace("Accepting user ID [%d] to websocket...", userID)
 	val, exists := spamClients.Load(userID)
 	if exists {
+		log.Trace("SpamClients thing exists for user ID [%d]", userID)
 		spam := val.(SpamProtection)
 		if spam.TooFastCount >= maxTooFastCount {
 			log.Hack("User ID [%d] who spammed earlier came back, not accepting until spam timer expires", userID)
 			return
 		}
-		spam.EndTimer <- true
+		log.Trace("Wasn't spamming earlier")
+		spam.StopTimer <- true
 	}
 
+	log.Trace("Upgrading user ID [%d] to websocket connection", userID)
 	wsConn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.WarnError(err.Error(), "Error upgrading connection of user ID [%d] to websocket protocol", userID)
@@ -189,27 +195,27 @@ func (c *WsClient) removeWsClient() {
 		val, exists := spamClients.Load(c.UserID)
 		if !exists {
 			log.Impossible("Why user ID [%d] didn't exist in spamClients while trying to delete it? It was connected to websocket", c.UserID)
+		} else {
+			spam := val.(SpamProtection)
+			spam.Timer.Reset(deleteFromSpamProtectionAfter * time.Second)
+			log.Trace("Will remove user ID [%d] from spamClients in [%d] seconds, unless user rejoins earlier", deleteFromSpamProtectionAfter, spam.UserID)
 		}
-		spam := val.(SpamProtection)
-		spam.removeUser()
 	}
 }
 
-func (s *SpamProtection) removeUser() {
-	const duration = 1
-	timer := time.NewTimer(duration * time.Second)
-	defer timer.Stop()
+func (s *SpamProtection) spamManager() {
+	defer spamClients.Delete(s.UserID)
+	defer s.Timer.Stop()
 
-	log.Trace("Will remove user ID [%d] from spamClients in [%d] seconds, unless user rejoins", s.UserID, duration)
-
-	select {
-	case <-timer.C:
-		log.Trace("[%d] seconds passed, deleting user ID [%d] from spamClients", resetAfter/1000, s.UserID)
-		spamClients.Delete(s.UserID)
-		return
-	case <-s.EndTimer:
-		log.Trace("User ID [%d] came back early, no need to remove from spamClients", s.UserID)
-		return
+	for {
+		select {
+		case <-s.Timer.C:
+			log.Trace("[%d] seconds passed, deleting user ID [%d] from spamClients", resetAfter/1000, s.UserID)
+			return
+		case <-s.StopTimer:
+			log.Trace("User ID [%d] came back early, no need to remove from spamClients anymore", s.UserID)
+			s.Timer.Stop()
+		}
 	}
 }
 
@@ -229,14 +235,20 @@ func (c *WsClient) readMessages(wg *sync.WaitGroup) {
 			break
 		}
 
-		val, _ := spamClients.LoadOrStore(c.UserID, SpamProtection{
+		val, exists := spamClients.LoadOrStore(c.UserID, SpamProtection{
 			UserID:           c.UserID,
 			LastMsgTimestamp: time.Now().UnixMilli(),
 			TooFastCount:     0,
-			EndTimer:         make(chan bool),
+			Timer:            time.NewTimer(deleteFromSpamProtectionAfter * time.Second),
+			StopTimer:        make(chan bool),
 		})
 
 		spam := val.(SpamProtection)
+
+		if !exists {
+			spam.Timer.Stop()
+			go spam.spamManager()
+		}
 
 		currentTime := time.Now().UnixMilli()
 		difference := currentTime - spam.LastMsgTimestamp

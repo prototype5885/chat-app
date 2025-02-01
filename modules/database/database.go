@@ -112,8 +112,8 @@ func Insert(structs any) error {
 		log.Query(insertChannelQuery, s.ChannelID, s.ServerID, s.Name)
 		_, err = Conn.Exec(insertChannelQuery, s.ChannelID, s.ServerID, s.Name)
 	case Message:
-		log.Query(insertChatMessageQuery, s.MessageID, s.ChannelID, s.UserID, s.Message, s.HasAttachments, 0)
-		_, err = Conn.Exec(insertChatMessageQuery, s.MessageID, s.ChannelID, s.UserID, s.Message, s.HasAttachments, 0)
+		log.Query(insertChatMessageQuery, s.MessageID, s.ChannelID, s.UserID, s.Message, s.HasAttachments, 0, s.ReplyID)
+		_, err = Conn.Exec(insertChatMessageQuery, s.MessageID, s.ChannelID, s.UserID, s.Message, s.HasAttachments, 0, s.ReplyID)
 	case Attachment:
 		log.Query(insertAttachmentQuery, s.Hash, s.MessageID, s.Name)
 		_, err = Conn.Exec(insertAttachmentQuery, s.Hash, s.MessageID, s.Name)

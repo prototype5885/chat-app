@@ -110,7 +110,7 @@ class ChatMessageListClass {
     }
 
     // adds the new chat message into html
-    static addChatMessage(messageID, userID, message, attachments, edited, ghost) {
+    static addChatMessage(messageID, userID, message, attachments, edited, replyID, ghost) {
         if (document.getElementById(messageID) !== null) {
             console.error(`This message already exists in chat list with same ID, won't add it again: ${messageID}`)
             return
@@ -156,7 +156,6 @@ class ChatMessageListClass {
             msgDateStr = msgDate.toLocaleString(Translation.lang, this.dateOptionsLong)
         }
 
-
         // create a <li> that holds the message
         const li = document.createElement('li')
         if (ghost) {
@@ -166,6 +165,7 @@ class ChatMessageListClass {
         }
         li.id = messageID
         li.setAttribute('user-id', userID)
+
 
         if (ghost) {
             li.style.opacity = 0.25
@@ -181,6 +181,45 @@ class ChatMessageListClass {
                 ContextMenuClass.messageCtxMenu(messageID, owner, pageX, pageY)
             })
         }
+
+        if (replyID !== 0) {
+            li.setAttribute('reply-id', replyID)
+            const msgTop = document.createElement('div')
+            msgTop.className = 'msg-top'
+            li.appendChild(msgTop)
+            msgTop.style.display = 'flex'
+
+            msgTop.innerHTML = ` <svg width="52" height="16">
+                                    <line x1="20" y1="16" x2="20" y2="8" stroke-width="2"/>
+                                    <line x1="20" y1="8" x2="48" y2="8" stroke-width="2"/>
+                                </svg>`
+
+            const replyPic = document.createElement('img')
+            replyPic.className = 'reply-msg-pic'
+            const replyName = document.createElement('div')
+            replyName.className = 'reply-msg-name'
+            const replyMessage = document.createElement('div')
+            replyMessage.className = 'reply-msg-message'
+            msgTop.appendChild(replyPic)
+            msgTop.appendChild(replyName)
+            msgTop.appendChild(replyMessage)
+
+            const msg = document.getElementById(replyID)
+            if (msg === null) {
+                console.log(`The message to which message ID [${messageID}] replied to no longer exists`)
+            } else {
+                const userInfo = MemberListClass.getUserInfo(msg.getAttribute('user-id'))
+                replyPic.src = userInfo.pic
+                replyName.textContent = userInfo.displayName
+                replyMessage.textContent = msg.querySelector('.msg-text').textContent
+            }
+        }
+
+        const msgBottom = document.createElement('div')
+        msgBottom.className = 'msg-bottom'
+
+        li.appendChild(msgBottom)
+
 
         // create a <img> that shows profile pic on the left
         const img = document.createElement('img')
@@ -299,8 +338,8 @@ class ChatMessageListClass {
         msgRightSide.appendChild(msgTextContainer)
 
         // append both the profile pic and message data to the <li>
-        li.appendChild(img)
-        li.appendChild(msgDataDiv)
+        msgBottom.appendChild(img)
+        msgBottom.appendChild(msgDataDiv)
 
         // insert the messages ordered by message id
         const messages = chatMessageList.querySelectorAll('li.msg')
@@ -409,18 +448,6 @@ class ChatMessageListClass {
         if (edited) {
             this.setEdited(messageID)
         }
-
-        li.addEventListener('mouseenter', () => {
-            msgDateShortContainer.style.display = 'block'
-            li.style.backgroundColor = '#2E3035'
-        })
-
-        li.addEventListener('mouseleave', () => {
-            msgDateShortContainer.style.display = 'none'
-            li.style.backgroundColor = ''
-        })
-
-        msgDateShortContainer.style.display = 'none'
     }
 
     static checkPreviousMessage(messageID) {
@@ -430,27 +457,27 @@ class ChatMessageListClass {
         const msgDataDiv = li.querySelector('.msg-data')
         const msgNameAndDateDiv = li.querySelector('.msg-name-and-date')
 
-
         function normal() {
             const msgLeftSide = li.querySelector('.msg-left-side')
             img.style.display = ''
             msgNameAndDateDiv.style.display = ''
             msgLeftSide.style.display = 'none'
             msgDataDiv.style.marginLeft = '14px'
-            li.style.paddingTop = '16px'
+            li.style.paddingTop = '4px'
             li.style.paddingLeft = '16px'
+            // msgDataDiv.style.height = '40px'
         }
 
         function short() {
-            const msgDateShort = li.querySelector('.msg-date-short')
             img.style.display = 'none'
             msgNameAndDateDiv.style.display = 'none'
-            msgDateShort.style.display = 'block'
-            // msgDataDiv.style.marginLeft = '6px'
-            li.style.paddingTop = '0px'
+            li.style.marginTop = '0px'
             li.style.paddingLeft = '0'
-            // msgDateShort.style.
+        }
 
+        if (document.getElementById(messageID).hasAttribute('reply-id')) {
+            normal()
+            return
         }
 
         const previousElement = li.previousElementSibling
@@ -460,10 +487,12 @@ class ChatMessageListClass {
 
         if (previousElement.className === 'date-between-msgs') {
             normal()
+            return
         }
 
         if (previousElement.className !== 'msg') {
             normal()
+            return
         }
 
 
@@ -527,7 +556,7 @@ class ChatMessageListClass {
         }
 
         // console.log(`New chat message ID [${json.MsgID}] received`)
-        this.addChatMessage(json.MsgID, json.UserID, json.Msg, json.Att, json.Edited, false)
+        this.addChatMessage(json.MsgID, json.UserID, json.Msg, json.Att, json.Edited, json.RepID, false)
 
         // play notification sound if messages is from other user
         // if (json.UserID !== MainClass.getOwnUserID()) {
@@ -535,6 +564,17 @@ class ChatMessageListClass {
         if (json.Msg === `<@${MainClass.myUserID}>`) {
             NotificationClass.sendNotification(json.UserID, 'Mentioned you')
         }
+
+        if (json.RepID !== 0) {
+            const msg = document.getElementById(json.RepID)
+            if (msg !== null) {
+                const userID = msg.getAttribute('user-id')
+                if (userID === MainClass.myUserID) {
+                    NotificationClass.sendNotification(json.UserID, 'Replied to you')
+                }
+            }
+        }
+
 
         // NotificationClass.sendNotification(json.UserID, json.Msg)
         // }
@@ -586,7 +626,8 @@ class ChatMessageListClass {
                         UserID: json[1][u].UserID, // user id
                         Message: json[1][u].Msgs[m][1], // message
                         Edited: json[1][u].Msgs[m][2],
-                        Attachments: json[1][u].Msgs[m][3] // attachments
+                        Attachments: json[1][u].Msgs[m][3], // attachments
+                        ReplyID: json[1][u].Msgs[m][4], // replied to other message
                     }
                     chatMessages.push(chatMessage)
                 }
@@ -594,7 +635,7 @@ class ChatMessageListClass {
             // sort the history here because message history is not received ordered
             chatMessages.sort((a, b) => a.MessageID - b.MessageID)
             for (let i = 0; i < chatMessages.length; i++) {
-                this.addChatMessage(chatMessages[i].MessageID, chatMessages[i].UserID, chatMessages[i].Message, chatMessages[i].Attachments, chatMessages[i].Edited, false)
+                this.addChatMessage(chatMessages[i].MessageID, chatMessages[i].UserID, chatMessages[i].Message, chatMessages[i].Attachments, chatMessages[i].Edited, chatMessages[i].ReplyID, false)
             }
 
             // only auto scroll down when entering channel, and not when
@@ -784,14 +825,11 @@ class ChatMessageListClass {
 class ChatInputClass {
     static #typing = false
     static sendingChatMsg = false
-
+    static #replyMsgID = 0
     static maxFiles = 5
     static files = []
-
     static xhr
-
     static sentAChatMessage = false
-
     static #pressedButton = false
 
     static create() {
@@ -800,6 +838,16 @@ class ChatInputClass {
                         <div id="mentionable-users-container">
                             <label>members</label>
                             <ul id="mentionable-user-list"></ul>
+                        </div>
+                        <div id="reply-container">
+                            <span>${Translation.get('replyingTo')}</span>
+                            <button onclick="ChatInputClass.closeReplyContainer()">
+                                <svg width="32" height="32">
+                                    <circle cx="16" cy="16" r="8" />
+                                    <line x1="12" y1="20" x2="20" y2="12" stroke="#383a40" stroke-width="2"/>
+                                    <line x1="12" y1="12" x2="20" y2="20" stroke="#383a40" stroke-width="2"/>
+                                </svg>
+                            </button>
                         </div>
                         <div id="attachment-list"></div>
                         <div id="chat-input-form">
@@ -873,6 +921,26 @@ class ChatInputClass {
         this.resetChatInput()
     }
 
+    static openReplyContainer(msgID, userID) {
+        this.#replyMsgID = msgID
+
+        const replyContainer = document.getElementById('reply-container')
+        replyContainer.style.display = 'flex'
+
+        const userInfo = MemberListClass.getUserInfo(userID)
+
+        replyContainer.querySelector('span').textContent = Translation.get('replyingTo') + ` ${userInfo.displayName}`
+
+        this.setChatInputBorders()
+    }
+
+    static closeReplyContainer() {
+        this.#replyMsgID = 0
+
+        document.getElementById('reply-container').style.display = 'none'
+        this.setChatInputBorders()
+    }
+
 
     // dynamically resize the chat input textarea to fit the text content
     // runs whenever the chat input textarea content changes
@@ -928,18 +996,19 @@ class ChatInputClass {
                 const fakeSnowflake = ((BigInt(Date.now()) << BigInt(22)) | BigInt(0) << BigInt(12) | BigInt(0)).toString()
 
                 //add ghost
-                ChatMessageListClass.addChatMessage(fakeSnowflake, MainClass.getOwnUserID(), chatInput.value.trim(), null, false, true)
+                ChatMessageListClass.addChatMessage(fakeSnowflake, MainClass.getOwnUserID(), chatInput.value.trim(), null, false, 0, true)
                 ChatMessageListClass.amountOfMessagesChanged()
 
                 if (attachmentToken !== null) {
-                    await WebsocketClass.sendChatMessage(chatInput.value.trim(), MainClass.getCurrentChannelID(), attachmentToken.AttToken)
+                    await WebsocketClass.sendChatMessage(chatInput.value.trim(), MainClass.getCurrentChannelID(), attachmentToken.AttToken, this.#replyMsgID)
                 } else {
-                    await WebsocketClass.sendChatMessage(chatInput.value.trim(), MainClass.getCurrentChannelID(), null)
+                    await WebsocketClass.sendChatMessage(chatInput.value.trim(), MainClass.getCurrentChannelID(), null, this.#replyMsgID)
                 }
                 console.log('Resetting chat input and attachment input values')
                 chatInput.value = ''
                 this.AttachmentInput.value = ''
                 this.resizeChatInput()
+                this.closeReplyContainer()
                 this.#typing = false
                 this.sentAChatMessage = true
             }
@@ -1094,12 +1163,20 @@ class ChatInputClass {
         }
 
         this.resetAttachments()
-        this.calculateAttachments()
+        this.setChatInputBorders()
     }
 
     static resetAttachments() {
         console.log('Resetting attachments')
-        document.getElementById('attachment-list').innerHTML = ''
+
+        const attachmentList = document.getElementById('attachment-list')
+        const replyContainer = document.getElementById('reply-container')
+        if (replyContainer.style.display === 'flex') {
+            attachmentList.style.borderTopLeftRadius = '0px'
+            attachmentList.style.borderTopRightRadius = '0px'
+        }
+
+        attachmentList.innerHTML = ''
         this.files = []
     }
 
@@ -1129,7 +1206,7 @@ class ChatInputClass {
                     this.AttachmentInput.value = ''
                 }
                 console.log(`Removed attachment [${entry.name}], current attachment count: [${this.files.length}]`)
-                this.calculateAttachments()
+                this.setChatInputBorders()
             })
 
             const text = false
@@ -1153,34 +1230,12 @@ class ChatInputClass {
                 attachmentName.textContent = 'test.jpg'
                 attachmentContainer.appendChild(attachmentName)
             }
-            this.calculateAttachments()
+            this.setChatInputBorders()
         }
     }
 
     static removeAttachment(entry) {
         this.files.splice(this.files.indexOf(entry), 1)
-    }
-
-    static calculateAttachments() {
-        const attachmentList = document.getElementById('attachment-list')
-
-        const count = attachmentList.children.length
-
-        const ChatInputForm = document.getElementById('chat-input-form')
-
-        if (count > 0 && attachmentList.style.display !== 'flex') {
-            attachmentList.style.display = 'flex'
-            ChatInputForm.style.borderTopLeftRadius = '0px'
-            ChatInputForm.style.borderTopRightRadius = '0px'
-            ChatInputForm.style.borderTopStyle = 'solid'
-        } else if (count <= 0 && attachmentList.style.display === 'flex') {
-            attachmentList.style.display = 'none'
-            ChatInputForm.style.borderTopLeftRadius = '12px'
-            ChatInputForm.style.borderTopRightRadius = '12px'
-            ChatInputForm.style.borderTopStyle = 'none'
-        }
-
-        document.getElementById('chat-input').focus()
     }
 
     static setChatInputPlaceHolderText(channelName) {
@@ -1190,6 +1245,45 @@ class ChatInputClass {
             return
         }
         chatInput.placeholder = `${Translation.get('message')} #${channelName}`
+    }
+
+    static setChatInputBorders() {
+        const attachmentList = document.getElementById('attachment-list')
+        const chatInputForm = document.getElementById('chat-input-form')
+        const replyContainer = document.getElementById('reply-container')
+
+        const attachmentCount = attachmentList.children.length
+
+        if (attachmentCount > 0) {
+            attachmentList.style.display = 'flex'
+        } else if (attachmentCount <= 0) {
+            attachmentList.style.display = 'none'
+        }
+
+        if (attachmentList.style.display === 'flex') {
+            chatInputForm.style.borderTopStyle = 'solid'
+            chatInputForm.style.borderTopLeftRadius = '0px'
+            chatInputForm.style.borderTopRightRadius = '0px'
+
+            if (replyContainer.style.display === 'flex') {
+                attachmentList.style.borderTopLeftRadius = '0px'
+                attachmentList.style.borderTopRightRadius = '0px'
+            } else {
+                attachmentList.style.borderTopLeftRadius = '12px'
+                attachmentList.style.borderTopRightRadius = '12px'
+            }
+        } else {
+            if (replyContainer.style.display === 'flex') {
+                chatInputForm.style.borderTopLeftRadius = '0px'
+                chatInputForm.style.borderTopRightRadius = '0px'
+            } else {
+                chatInputForm.style.borderTopLeftRadius = '12px'
+                chatInputForm.style.borderTopRightRadius = '12px'
+            }
+            chatInputForm.style.borderTopStyle = 'none'
+        }
+
+        document.getElementById('chat-input').focus()
     }
 }
 
@@ -1201,7 +1295,7 @@ class MentionUserClass {
     static init() {
         document.addEventListener('keydown', (event) => {
             const mentionableUserList = document.getElementById('mentionable-user-list')
-            if (mentionableUserList.children.length === 0) {
+            if (mentionableUserList === null || mentionableUserList.children.length === 0) {
                 return
             }
 
@@ -1351,7 +1445,6 @@ class AttachmentInputClass {
             e.preventDefault()
             console.log('Started dragging a file into window')
         })
-
 
         // this when user drags files into webpage
         this.fileDropZone.addEventListener('drop', e => {

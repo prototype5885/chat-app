@@ -78,6 +78,7 @@ class Translation {
             message: 'Message',
             textChannels: 'text channels',
             copyChatMessage: 'Copy message',
+            reply: 'Reply',
             editChatMessage: 'Edit message',
             deleteChatMessage: 'Delete message',
             userSettings: 'User settings',
@@ -114,6 +115,9 @@ class Translation {
             mentionUser: 'Mention user',
             online: 'online',
             offline: 'offline',
+            replyingTo: 'Replying to',
+            retryingIn: 'Retrying in',
+            connecting: 'Connecting...'
         },
         de: {
             today: 'heute um',

@@ -220,6 +220,15 @@ class ContextMenuClass {
             }
         })
 
+        actions.push({
+            text: Translation.get('reply'), func: async () => {
+                const msg = document.getElementById(messageID)
+                console.log(`Replying to message ID [${msg.id}]`)
+
+                ChatInputClass.openReplyContainer(msg.id, msg.getAttribute('user-id'))
+            }
+        })
+
         if (owner) {
             actions.push({
                 text: Translation.get('editChatMessage'), func: () => {

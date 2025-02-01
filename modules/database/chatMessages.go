@@ -13,6 +13,7 @@ type Message struct {
 	UserID         uint64
 	Message        string
 	HasAttachments bool
+	ReplyID        uint64
 }
 
 type RetrievedMessage struct {
@@ -21,6 +22,7 @@ type RetrievedMessage struct {
 	Message        string
 	HasAttachments bool
 	Edited         bool
+	ReplyID        uint64
 }
 
 type UserMessages struct {
@@ -33,7 +35,7 @@ type DeleteMessage struct {
 	UserID    uint64
 }
 
-const insertChatMessageQuery = "INSERT INTO messages (message_id, channel_id, user_id, message, has_attachments, edited) VALUES (?, ?, ?, ?, ?, ?)"
+const insertChatMessageQuery = "INSERT INTO messages (message_id, channel_id, user_id, message, has_attachments, edited, reply_id) VALUES (?, ?, ?, ?, ?, ?, ?)"
 const deleteChatMessageQuery = "DELETE FROM messages WHERE message_id = ? AND user_id = ?"
 
 func CreateChatMessagesTable() {
@@ -44,6 +46,7 @@ func CreateChatMessagesTable() {
 			message TEXT NOT NULL,
 			edited BOOLEAN NOT NULL,
 			has_attachments BOOLEAN NOT NULL,
+			reply_id BIGINT UNSIGNED NOT NULL default 0,
 			FOREIGN KEY (channel_id) REFERENCES channels(channel_id) ON DELETE CASCADE,
 			FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
 		)`)
@@ -53,7 +56,7 @@ func CreateChatMessagesTable() {
 }
 
 func GetChatHistory(channelID uint64, fromMessageID uint64, older bool, userID uint64) []byte {
-	const query = "SELECT message_id, user_id, message, has_attachments, edited FROM messages WHERE channel_id = ? AND (message_id < ? OR ? = 0) ORDER BY message_id DESC LIMIT 50"
+	const query = "SELECT message_id, user_id, message, has_attachments, edited, reply_id FROM messages WHERE channel_id = ? AND (message_id < ? OR ? = 0) ORDER BY message_id DESC LIMIT 50"
 	log.Query(query, channelID, fromMessageID, fromMessageID)
 
 	rows, err := Conn.Query(query, channelID, fromMessageID, fromMessageID)
@@ -62,7 +65,7 @@ func GetChatHistory(channelID uint64, fromMessageID uint64, older bool, userID u
 	for rows.Next() {
 		retrievedMsg := RetrievedMessage{}
 
-		err := rows.Scan(&retrievedMsg.MessageID, &retrievedMsg.UserID, &retrievedMsg.Message, &retrievedMsg.HasAttachments, &retrievedMsg.Edited)
+		err := rows.Scan(&retrievedMsg.MessageID, &retrievedMsg.UserID, &retrievedMsg.Message, &retrievedMsg.HasAttachments, &retrievedMsg.Edited, &retrievedMsg.ReplyID)
 		DatabaseErrorCheck(err)
 
 		retrievedMsgs = append(retrievedMsgs, retrievedMsg)
@@ -92,7 +95,7 @@ func GetChatHistory(channelID uint64, fromMessageID uint64, older bool, userID u
 
 		log.Trace("Message ID [%d] has [%d] attachments", retrievedMsgs[m].MessageID, len(attachmentHistory))
 
-		userMessages[index].Msgs = append(userMessages[index].Msgs, []interface{}{retrievedMsgs[m].MessageID, retrievedMsgs[m].Message, retrievedMsgs[m].Edited, attachmentHistory})
+		userMessages[index].Msgs = append(userMessages[index].Msgs, []interface{}{retrievedMsgs[m].MessageID, retrievedMsgs[m].Message, retrievedMsgs[m].Edited, attachmentHistory, retrievedMsgs[m].ReplyID})
 	}
 
 	if len(userMessages) == 0 {
