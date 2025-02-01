@@ -194,7 +194,8 @@ func (c *WsClient) removeWsClient() {
 
 		val, exists := spamClients.Load(c.UserID)
 		if !exists {
-			log.Impossible("Why user ID [%d] didn't exist in spamClients while trying to delete it? It was connected to websocket", c.UserID)
+			log.Error("Why user ID [%d] didn't exist in spamClients while trying to delete it? It was connected to websocket", c.UserID)
+			return
 		} else {
 			spam := val.(SpamProtection)
 			spam.Timer.Reset(deleteFromSpamProtectionAfter * time.Second)

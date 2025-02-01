@@ -1072,19 +1072,19 @@ a:visited {
     padding-left: 16px;
     padding-right: 16px;
     align-items: center;
-    /*padding: 4px;*/
 }
 
 #reply-container > span {
     display: flex;
     justify-content: flex-start;
+    width: 80%;
     overflow: hidden;
 }
 
 #reply-container > button {
     display: flex;
     justify-content: center;
-    width: 64px;
+    width: 20%;
 }
 
 
@@ -1372,7 +1372,6 @@ a:visited {
     display: flex;
     flex-direction: column;
     padding: 0;
-    /*margin: 16px;*/
     margin: 0 16px;
     overflow-y: auto;
     user-select: none;

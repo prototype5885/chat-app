@@ -127,18 +127,10 @@ class ServerListClass {
             console.warn('Selected server is already the current one')
             return
         }
+        if (serverID !== '1') {
+            MemberListClass.create()
+        }
 
-
-        // if (serverID === '1') {
-        //     DirectMessagesClass.DirectMessages.removeAttribute('style')
-        //     ChannelListClass.Channels.style.display = 'none'
-        //     document.getElementById('channel-name-top').textContent = 'Friends'
-        // } else {
-        //     ChannelListClass.Channels.removeAttribute('style')
-        //     DirectMessagesClass.DirectMessages.style.display = 'none'
-        // }
-
-        MemberListClass.create()
         MainClass.memberListLoaded = false
 
         // this will reset the previously selected server's visuals
@@ -148,27 +140,6 @@ class ServerListClass {
             previousServerButton.style.backgroundColor = ''
             previousServerButton.style.borderRadius = '50%'
         }
-
-
-        // if (serverID === '1') {
-
-        // } else {
-        // const owned = ServerListClass.getServerOwned(serverID)
-        // const addChannelButton = document.getElementById('add-channel-button')
-        // hide add channel button if server isn't own
-        // if (owned === 'true') {
-        // addChannelButton.style.display = 'block'
-        // } else {
-        // addChannelButton.style.display = 'none'
-        // }
-        // }
-
-
-        // if (dm) {
-        //     this.memberList.hideMemberList()
-        // } else {
-        //     this.memberList.showMemberList()
-        // }
 
         SecondColumnMainClass.reset()
         // ChatMessageListClass.resetChatMessages()
@@ -197,8 +168,6 @@ class ServerListClass {
         // const bannerUrl = ''
 
         ServerBannerClass.setPicture(bannerUrl)
-
-        // TouchControlsClass.goRight()
     }
 
     static deleteServer(serverID) {

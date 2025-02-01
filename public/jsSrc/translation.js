@@ -117,7 +117,9 @@ class Translation {
             offline: 'offline',
             replyingTo: 'Replying to',
             retryingIn: 'Retrying in',
-            connecting: 'Connecting...'
+            connecting: 'Connecting...',
+            addFriend: 'Add friend',
+            removeFriend: 'Remove friend'
         },
         de: {
             today: 'heute um',

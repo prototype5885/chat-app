@@ -66,7 +66,7 @@ class MainClass {
             MentionUserClass.init()
 
             // add the direct messages button
-            // ServerListClass.addServer('1', 0, Translation.get('dm'), '/static/mail.svg', '1')
+            ServerListClass.addServer('1', 0, Translation.get('dm'), '/static/mail.svg', '1')
 
             await WebsocketClass.connectToWebsocket()
 

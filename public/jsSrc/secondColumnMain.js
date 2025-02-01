@@ -200,7 +200,6 @@ class ChannelListClass extends SecondColumnMainClass {
 class DirectMessagesClass extends SecondColumnMainClass {
     static create() {
         this.secondColumnMain.innerHTML = `  
-
                 <div id="dm-buttons" class="second-column-buttons">
                     <button id="dm-friends-button"> - Friends</button>
                 </div>
@@ -217,6 +216,7 @@ class DirectMessagesClass extends SecondColumnMainClass {
         MainClass.registerClick(dmFriendsButton, async () => {
             console.log('clicked dm friends')
             FriendListClass.create()
+            MainClass.setCurrentChannelID('dm-friends-button')
             // await ChannelListClass.selectChannel(chatID, true)
         })
     }
