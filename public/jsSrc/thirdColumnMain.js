@@ -208,10 +208,18 @@ class ChatMessageListClass {
             if (msg === null) {
                 console.log(`The message to which message ID [${messageID}] replied to no longer exists`)
             } else {
-                const userInfo = MemberListClass.getUserInfo(msg.getAttribute('user-id'))
+                const userID = msg.getAttribute('user-id')
+                const userInfo = MemberListClass.getUserInfo(userID)
                 replyPic.src = userInfo.pic
                 replyName.textContent = userInfo.displayName
                 replyMessage.textContent = msg.querySelector('.msg-text').textContent
+
+                if (userID === MainClass.getOwnUserID()) {
+                    li.style.backgroundColor = ColorsClass.replyColor
+                    li.style.borderLeftColor = ColorsClass.replyColorBorder
+                    li.style.borderLeftStyle = 'solid'
+                    li.style.borderLeftWidth = '2px'
+                }
             }
         }
 

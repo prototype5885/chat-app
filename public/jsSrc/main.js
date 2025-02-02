@@ -11,6 +11,8 @@ class ColorsClass {
     static loadingColor = '#000000b5'
     static selectedColor = 'rgba(255, 255, 255, 0.05)'
     static separatorColor = 'rgba(255, 255, 255, 0.1)'
+    static replyColor = 'rgba(255,192,0,0.075)'
+    static replyColorBorder = 'rgba(255,192,0,0.75)'
 
     static textColor = '#C5C7CB'
 
