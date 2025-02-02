@@ -561,7 +561,7 @@ class ChatMessageListClass {
         // play notification sound if messages is from other user
         // if (json.UserID !== MainClass.getOwnUserID()) {
 
-        if (json.Msg === `<@${MainClass.myUserID}>`) {
+        if (json.Msg.includes(`<@${MainClass.myUserID}>`)) {
             NotificationClass.sendNotification(json.UserID, 'Mentioned you')
         }
 
