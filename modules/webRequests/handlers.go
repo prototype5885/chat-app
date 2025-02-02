@@ -472,14 +472,11 @@ func uploadBannerHandler(w http.ResponseWriter, r *http.Request) {
 
 func uploadAvatarHandler(w http.ResponseWriter, r *http.Request) {
 	var picType string
-	var folder string
 	switch r.URL.Path {
 	case "/upload-profile-pic":
 		picType = "profile-pic"
-		folder = "avatars"
 	case "/upload-server-pic":
 		picType = "server-pic"
-		folder = "avatars"
 	}
 
 	userID := token.CheckIfTokenIsValid(w, r)
