@@ -241,7 +241,7 @@ class Window {
         this.windowMain.className = 'window-main'
         this.window.appendChild(this.windowMain)
 
-        MainClass.registerClick(maximizeButton, () => {
+        maximizeButton.addEventListener('click', () => {
             this.maximizeWindow()
         })
 
@@ -257,7 +257,7 @@ class Window {
             </svg>`
 
         // register the exit button
-        MainClass.registerClick(exitButton, () => {
+        exitButton.addEventListener('click', () => {
             this.deleteWindow()
         })
 
@@ -289,6 +289,8 @@ class Window {
     async pictureUploader(settings, pictureType, serverID) {
         settings.innerHTML += `  
     <div>
+        <label>Server picture</label>
+        <br>
         <label>${Translation.get('maximum')}: 1,5 MB</label>
         <br>
         <input type='file' accept='.jpg,.png,.gif' name='image' class='pic-uploader' accept='image/*' style='display: none'>
@@ -422,7 +424,7 @@ class Window {
 
                 const settingsRight = windowMain.querySelector('.settings-right')
 
-                MainClass.registerClick(button, async () => {
+                button.addEventListener('click', async () => {
                     // reset selection of items on left
                     for (const b of settingsList.children) {
                         if (b !== button) {

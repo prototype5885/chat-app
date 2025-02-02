@@ -433,7 +433,7 @@ class ChatMessageListClass {
                         })
 
 
-                        MainClass.registerClick(img, () => {
+                        img.addEventListener('click', () => {
                             const pictureViewerContainer = document.getElementById('picture-viewer-container')
                             const pictureViewer = document.getElementById('picture-viewer')
 
@@ -443,7 +443,7 @@ class ChatMessageListClass {
                             MainClass.currentPictureViewerPicName = img.getAttribute('name')
                             MainClass.currentPictureViewerPicPath = img.src
 
-                            MainClass.registerClick(pictureViewerContainer, () => {
+                            pictureViewerContainer.addEventListener('click', () => {
                                 pictureViewerContainer.style.display = 'none'
                                 pictureViewer.src = ''
                                 MainClass.currentPictureViewerPicPath = ''

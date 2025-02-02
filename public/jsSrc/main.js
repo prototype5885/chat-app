@@ -239,14 +239,6 @@ class MainClass {
 
     }
 
-    static registerClick(element, callback) {
-        element.addEventListener('click', (event) => {
-            ContextMenuClass.deleteCtxMenu()
-            event.stopPropagation()
-            callback()
-        })
-    }
-
     static registerHover(element, callbackIn, callbackOut) {
         element.addEventListener('mouseover', (event) => {
             // console.log('hovering over', element)

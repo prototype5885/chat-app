@@ -71,7 +71,7 @@ class ServerListClass {
 
         button.setAttribute('owned', owned)
 
-        MainClass.registerClick(button, async () => {
+        button.addEventListener('click', async () => {
             await this.selectServer(serverID)
         })
         if (serverID !== '1') {

@@ -101,7 +101,7 @@ class ChannelListClass extends SecondColumnMainClass {
 
         channelList.appendChild(button)
 
-        MainClass.registerClick(button, async () => {
+        button.addEventListener('click', async () => {
             await this.selectChannel(channelID)
         })
         ContextMenuClass.registerContextMenu(button, (pageX, pageY) => {
@@ -213,7 +213,7 @@ class DirectMessagesClass extends SecondColumnMainClass {
 
 
         const dmFriendsButton = document.getElementById('dm-friends-button')
-        MainClass.registerClick(dmFriendsButton, async () => {
+        dmFriendsButton.addEventListener('click', async () => {
             console.log('clicked dm friends')
             FriendListClass.create()
             MainClass.setCurrentChannelID('dm-friends-button')
@@ -243,8 +243,12 @@ class DirectMessagesClass extends SecondColumnMainClass {
 
         const dmButton = document.getElementById(chatID)
 
-        MainClass.registerClick(dmButton, async () => {
+        dmButton.addEventListener('click', async () => {
             await ChannelListClass.selectChannel(chatID)
         })
+
+        // MainClass.registerClick(dmButton, async () => {
+        //     await ChannelListClass.selectChannel(chatID)
+        // })
     }
 }
