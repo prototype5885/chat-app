@@ -224,7 +224,6 @@ class ChatMessageListClass {
                 msgTop.addEventListener('click', () => {
                     msg.scrollIntoView({behavior: 'smooth', block: 'center'})
                     if (msg.style.backgroundColor !== ColorsClass.highlightColor) {
-                        console.log('setting')
                         const originalColor = msg.style.backgroundColor
                         msg.style.backgroundColor = ColorsClass.highlightColor
                         setTimeout(() => {
@@ -440,8 +439,6 @@ class ChatMessageListClass {
 
                             pictureViewerContainer.style.display = 'block'
                             pictureViewer.src = path
-                            console.log('clicked on:', path)
-                            console.log('pic name:', img.getAttribute('name'))
 
                             MainClass.currentPictureViewerPicName = img.getAttribute('name')
                             MainClass.currentPictureViewerPicPath = img.src
@@ -1362,7 +1359,6 @@ class MentionUserClass {
             this.currentIndex = 0
             container.style.display = 'flex'
             const mentionMember = this.word.substring(1)
-            console.log('searching for user:', mentionMember)
 
 
             const members = document.getElementById('member-list').querySelectorAll('.member')
@@ -1424,7 +1420,6 @@ class MentionUserClass {
 
 
     static updateActiveItem() {
-        console.log(MentionUserClass.currentIndex)
         document.getElementById('mentionable-user-list').querySelectorAll('button').forEach((item, index) => {
             if (index === MentionUserClass.currentIndex) {
                 item.style.backgroundColor = ColorsClass.selectedColor
