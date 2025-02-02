@@ -23,8 +23,14 @@ class ServerBannerClass {
         this.#ServerName.textContent = name
     }
 
-    static setPicture(picPath) {
+    static setPicture(serverID, picPath) {
+        if (serverID !== MainClass.getCurrentServerID()) {
+            console.warn(`Won't set banner for server ID [${serverID}] as it's not the currently selected server`)
+            return
+        }
+
         if (picPath !== '') {
+            picPath = '/content/banners/' + picPath
             const img = new Image();
             img.src = picPath
 

@@ -287,37 +287,65 @@ class Window {
     }
 
     async pictureUploader(settings, pictureType, serverID) {
-        settings.innerHTML += `  
-    <div>
-        <label>Server picture</label>
-        <br>
-        <label>${Translation.get('maximum')}: 1,5 MB</label>
-        <br>
-        <input type='file' accept='.jpg,.png,.gif' name='image' class='pic-uploader' accept='image/*' style='display: none'>
-        <button class='select-pic'></button>
-        <br>
-        <button class='button send-pic-button noHover' disabled>${Translation.get('applyPicture')}</button>
-        <br>
-        <label class='pic-response-label'></label>
-    </div>`
-
         let picture
-        if (pictureType === 'server-pic') {
-            picture = window.getComputedStyle(document.getElementById(serverID)).backgroundImage
-        } else if (pictureType === 'profile-pic') {
-            picture = `url(${MainClass.myProfilePic})`
-        } else {
-            console.error('Unknown picture type provided for picture loader')
-            return
+        let label
+        let label2 = ''
+        switch (pictureType) {
+            case 'server-pic':
+                label = Translation.get('serverPicture')
+                label2 = 'resized to 256x256'
+                picture = window.getComputedStyle(document.getElementById(serverID)).backgroundImage
+                break
+            case 'banner-pic':
+                label = Translation.get('serverBanner')
+                label2 = 'fixed 480x270'
+                picture = `url(${'/content/banners/' + document.getElementById(serverID).getAttribute('banner')})`
+                break
+            case 'profile-pic':
+                label = Translation.get('profilePicture')
+                label2 = 'resized to 256x256'
+                picture = `url(${MainClass.myProfilePic})`
+                break
+            default:
+                console.error('Unknown picture type provided for picture loader')
+                return
         }
-        settings.querySelector('.select-pic').style.backgroundImage = picture
 
+        const htmlString = `  
+            <div class="${pictureType}-uploader">
+                <label>${label}</label>
+                <br>
+                <label>${Translation.get('maximum')}: 1 MB</label>
+                <label>${label2}</label>
+                <br>
+                <input type='file' accept='.jpg,.png,.gif' name='image' class='pic-uploader' accept='image/*' style='display: none'>
+                <button class='select-pic'></button>
+                <br>
+                <button class='button send-pic-button noHover' disabled>${Translation.get('applyPicture')}</button>
+                <br>
+                <label class='pic-response-label'></label>
+            </div>`
 
-        const sendButton = settings.querySelector('.send-pic-button')
-        const responseLabel = settings.querySelector('.pic-response-label')
+        settings.insertAdjacentHTML('beforeend', htmlString)
+
+        const pictureUploader = settings.querySelector(`.${pictureType}-uploader`)
+
+        const sendButton = pictureUploader.querySelector('.send-pic-button')
+        const responseLabel = pictureUploader.querySelector('.pic-response-label')
+        const selectPicButton = pictureUploader.querySelector('.select-pic')
+
+        const picUploader = pictureUploader.querySelector('.pic-uploader')
+
+        selectPicButton.style.backgroundImage = picture
+
+        if (pictureType === 'banner-pic') {
+            selectPicButton.style.width = '227px'
+            selectPicButton.style.borderRadius = 0
+        }
+
         // clicked on the pic
-        settings.querySelector('.select-pic').addEventListener('click', async (event) => {
-            settings.querySelector('.pic-uploader').click()
+        selectPicButton.addEventListener('click', () => {
+            picUploader.click()
 
             responseLabel.style.color = ''
             responseLabel.textContent = ''
@@ -326,8 +354,7 @@ class Window {
         let previousPicture
 
         // added a pic
-        const picUploader = settings.querySelector('.pic-uploader')
-        picUploader.addEventListener('change', async (event) => {
+        picUploader.addEventListener('change', () => {
             if (picUploader.files.length === 0) {
                 console.log('No picture has been selected')
                 // picPreview.style.backgroundImage = `url(${ownProfilePic})`
@@ -338,15 +365,14 @@ class Window {
                 reader.readAsDataURL(picUploader.files[0])
 
                 reader.onload = function (e) {
-                    const picPreview = settings.querySelector('.select-pic')
-                    previousPicture = picPreview.style.backgroundImage
-                    picPreview.style.backgroundImage = `url(${e.target.result})`
+                    previousPicture = selectPicButton.style.backgroundImage
+                    selectPicButton.style.backgroundImage = `url(${e.target.result})`
                 }
             }
         })
 
         // upload the pic
-        sendButton.addEventListener('click', async (event) => {
+        sendButton.addEventListener('click', (event) => {
             console.log(`Uploading ${pictureType}...`)
             event.preventDefault()
 
@@ -358,16 +384,15 @@ class Window {
             const formData = new FormData()
 
             formData.append(`${pictureType}`, picUploader.files[0])
-            if (pictureType === 'server-pic') {
+            if (pictureType === 'server-pic' || pictureType === 'banner-pic') {
                 formData.append('serverID', serverID)
             }
-
-            // Initialize a new XMLHttpRequest object
+            
             const uploadRequest = new XMLHttpRequest()
 
             uploadRequest.upload.onprogress = function (e) {
                 if (e.lengthComputable) {
-                    var percent = (e.loaded / e.total) * 100
+                    const percent = (e.loaded / e.total) * 100
                     responseLabel.textContent = Math.round(percent) + ' %'
                     console.log(responseLabel.textContent)
                 }
@@ -375,15 +400,15 @@ class Window {
 
             uploadRequest.onload = function () {
                 if (uploadRequest.status === 200) {
-                    const successText = 'Picture was uploaded successfully'
-                    console.log(successText)
+                    const successText = Translation.get('pictureUploadedSuccessfully')
+                    console.log("Picture uploaded successfully")
                     responseLabel.style.color = 'green'
                     responseLabel.textContent = successText
                 } else {
                     console.error(uploadRequest.responseText)
                     responseLabel.style.color = 'red'
                     responseLabel.textContent = uploadRequest.responseText
-                    settings.querySelector('.select-pic').style.backgroundImage = previousPicture
+                    selectPicButton.style.backgroundImage = previousPicture
                     MainClass.setButtonActive(sendButton, false)
                 }
             }
@@ -558,6 +583,7 @@ class Window {
 
                             console.log(`Changing picture of server ID [${value}]`)
                             await this.pictureUploader(serverSettings, 'server-pic', value)
+                            await this.pictureUploader(serverSettings, 'banner-pic', value)
 
                             // updating server data
                             serverSettings.querySelector('.update-server-data').addEventListener('click', function () {

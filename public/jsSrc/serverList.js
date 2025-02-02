@@ -42,13 +42,13 @@ class ServerListClass {
     }
 
     static addPlaceholderServer() {
-        const buttonParent = ServerListClass.addServer('', 0, '', '', 'placeholder-server')
+        const buttonParent = ServerListClass.addServer('', 0, '', '', '', 'placeholder-server')
         let button = buttonParent.querySelector('button')
         button.nextElementSibling.style.backgroundColor = 'transparent'
         button.textContent = ''
     }
 
-    static addServer(serverID, owned, serverName, picture, className) {
+    static addServer(serverID, owned, serverName, picture, banner, className) {
         if (serverName === '') {
             serverName = serverID
         }
@@ -61,6 +61,7 @@ class ServerListClass {
         // create the server button itself
         const button = document.createElement('button')
         button.id = serverID
+        button.setAttribute('banner', banner)
         button.setAttribute('name', serverName)
         li.append(button)
 
@@ -159,15 +160,12 @@ class ServerListClass {
         }
 
         // set server name in top left button
-        ServerBannerClass.setName(document.getElementById(serverID).getAttribute('name'))
+        const serverButton = document.getElementById(serverID)
+        ServerBannerClass.setName(serverButton.getAttribute('name'))
+        ServerBannerClass.setPicture(serverID, serverButton.getAttribute('banner'))
 
         // set last server in local storage
         LocalStorageClass.setLastServer(serverID)
-
-        const bannerUrl = '/content/banners/adb469683ec356db30b42f0e5bccba01.webp'
-        // const bannerUrl = ''
-
-        ServerBannerClass.setPicture(bannerUrl)
     }
 
     static deleteServer(serverID) {

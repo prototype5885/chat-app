@@ -66,6 +66,32 @@ func OnServerPicChanged(serverID uint64, fileName string) {
 	}
 }
 
+func OnServerBannerChanged(serverID uint64, fileName string) {
+	type ChangedServerPic struct {
+		ServerID uint64
+		Banner   string
+	}
+
+	changedServerPic := ChangedServerPic{
+		ServerID: serverID,
+		Banner:   fileName,
+	}
+
+	jsonBytes, err := json.Marshal(changedServerPic)
+	if err != nil {
+		macros.ErrorSerializing(err.Error(), UPDATE_SERVER_BANNER, serverID)
+	}
+
+	members := database.GetServerMembersList(serverID)
+	onlineMembers := clients.FilterOnlineMembers(members)
+
+	broadcastChan <- BroadcastData{
+		MessageBytes:   macros.PreparePacket(UPDATE_SERVER_BANNER, jsonBytes),
+		Type:           UPDATE_SERVER_BANNER,
+		AffectedUserID: onlineMembers,
+	}
+}
+
 func OnUserJoinedServer(userID uint64, serverID uint64) {
 	type UserJoinedServer struct {
 		ServerID uint64
@@ -104,6 +130,7 @@ func OnUserJoinedServer(userID uint64, serverID uint64) {
 		ServerID: serverID,
 		Name:     serverData.Name,
 		Picture:  serverData.Picture,
+		Banner:   serverData.Banner,
 	}
 
 	if userID == serverData.UserID {

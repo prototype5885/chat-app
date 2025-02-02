@@ -119,7 +119,11 @@ class Translation {
             retryingIn: 'Retrying in',
             connecting: 'Connecting...',
             addFriend: 'Add friend',
-            removeFriend: 'Remove friend'
+            removeFriend: 'Remove friend',
+            profilePicture: 'Profile picture',
+            serverPicture: 'Server picture',
+            serverBanner: 'Server banner',
+            pictureUploadedSuccessfully: 'Picture was uploaded successfully'
         },
         de: {
             today: 'heute um',

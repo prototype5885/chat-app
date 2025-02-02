@@ -23,11 +23,12 @@ const (
 	STARTED_TYPING      byte = 4
 	EDIT_CHAT_MESSAGE   byte = 5
 
-	ADD_SERVER         byte = 21
-	UPDATE_SERVER_PIC  byte = 22
-	DELETE_SERVER      byte = 23
-	SERVER_INVITE_LINK byte = 24
-	UPDATE_SERVER_DATA byte = 25
+	ADD_SERVER           byte = 21
+	UPDATE_SERVER_PIC    byte = 22
+	DELETE_SERVER        byte = 23
+	SERVER_INVITE_LINK   byte = 24
+	UPDATE_SERVER_DATA   byte = 25
+	UPDATE_SERVER_BANNER byte = 26
 
 	ADD_CHANNEL         byte = 31
 	CHANNEL_LIST        byte = 32
@@ -473,7 +474,7 @@ func broadCastChannel() {
 					}
 					return true
 				})
-			case ADD_FRIEND, BLOCK_USER, UNFRIEND, UPDATE_SERVER_PIC, DELETE_SERVER, UPDATE_SERVER_DATA: // things that affect multiple users directly
+			case ADD_FRIEND, BLOCK_USER, UNFRIEND, UPDATE_SERVER_PIC, DELETE_SERVER, UPDATE_SERVER_DATA, UPDATE_SERVER_BANNER: // things that affect multiple users directly
 				wsClients.Range(func(key, value interface{}) bool {
 					wsClient, ok := value.(*WsClient)
 					if !ok {

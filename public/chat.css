@@ -421,6 +421,7 @@ a:visited {
     background-repeat: no-repeat;
     background-position: center;
     max-height: 192px;
+    background-color: var(--bit-darker-color);
 }
 
 #server-name-button-container {
@@ -434,7 +435,6 @@ a:visited {
     width: 100%;
     display: flex;
     justify-content: center;
-
 }
 
 #server-name-button > label {
@@ -1470,4 +1470,9 @@ a:visited {
     background-color: #3e4587;
     padding: 3px 3px;
     border-radius: 6px;
+}
+
+.pic-response-label {
+    width: 128px;
+    text-align: center;
 }

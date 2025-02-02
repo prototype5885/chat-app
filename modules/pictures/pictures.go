@@ -69,3 +69,31 @@ func CheckAvatarPic(imgBytes *[]byte, userID uint64) string {
 	*imgBytes = buf.Bytes()
 	return ""
 }
+
+func CheckBanner(imgBytes *[]byte, userID uint64) string {
+	start := time.Now().UnixMilli()
+	// decode
+	img, _, err := image.Decode(bytes.NewReader(*imgBytes))
+	if err != nil {
+		log.Error("%s", err.Error())
+		log.Hack("Received avatar pic from user ID [%d] is not a picture", userID)
+		return "Not a picture"
+	}
+
+	if img.Bounds().Dx() != 480 && img.Bounds().Dy() != 270 {
+		log.Trace("Received banner pic from user ID [%d] isn't in resolution 480x270", userID)
+		return "Banner picture is in wrong resolution, must be 480x270"
+	}
+
+	// recompress into jpg
+	var buf bytes.Buffer
+	err = jpeg.Encode(&buf, img, &jpeg.Options{Quality: 90})
+	if err != nil {
+		log.FatalError(err.Error(), "Error compressing avatar pic from user ID [%d]", userID)
+		return ""
+	}
+
+	macros.MeasureTime(start, "checking avatar pic")
+	*imgBytes = buf.Bytes()
+	return ""
+}

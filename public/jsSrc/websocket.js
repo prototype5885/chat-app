@@ -16,6 +16,7 @@ class WebsocketClass {
     static DELETE_SERVER = 23
     static SERVER_INVITE_LINK = 24
     static UPDATE_SERVER_DATA = 25
+    static UPDATE_SERVER_BANNER = 26
 
     static ADD_CHANNEL = 31
     static CHANNEL_LIST = 32
@@ -189,7 +190,7 @@ class WebsocketClass {
                     break
                 case WebsocketClass.ADD_SERVER: // Server responded to the add server request
                     console.log('Add server request response arrived')
-                    ServerListClass.addServer(json.ServerID, json.Owned, json.Name, MainClass.imageHost + json.Picture, 'server')
+                    ServerListClass.addServer(json.ServerID, json.Owned, json.Name, MainClass.imageHost + json.Picture, json.Banner, 'server')
                     await ServerListClass.selectServer(json.ServerID)
                     break
                 case WebsocketClass.UPDATE_SERVER_PIC: // Server sent that a chat server picture was updated
@@ -220,6 +221,11 @@ class WebsocketClass {
                     } else {
                         WindowManagerClass.setCurrentUpdateUserDataResponseLabel(false)
                     }
+                    break
+                case WebsocketClass.UPDATE_SERVER_BANNER:
+                    console.log(`Server sent that banner of server ID [${json.ServerID}] was updated`)
+                    document.getElementById(json.ServerID).setAttribute('banner', json.Banner)
+                    ServerBannerClass.setPicture(json.ServerID, json.Banner)
                     break
                 case WebsocketClass.ADD_CHANNEL: // Server responded to the add channel request
                     console.log(`Adding new channel called [${json.Name}]`)
@@ -378,7 +384,7 @@ class WebsocketClass {
                     if (json.Servers.length !== 0) {
                         for (let i = 0; i < json.Servers.length; i++) {
                             console.log('Adding server ID', json.Servers[i].ServerID)
-                            ServerListClass.addServer(json.Servers[i].ServerID, json.Servers[i].Owned, json.Servers[i].Name, MainClass.imageHost + json.Servers[i].Picture, 'server')
+                            ServerListClass.addServer(json.Servers[i].ServerID, json.Servers[i].Owned, json.Servers[i].Name, MainClass.imageHost + json.Servers[i].Picture, json.Servers[i].Banner, 'server')
                         }
                         // this.localStorage.setServerCount(json.Servers.length)
                     } else {

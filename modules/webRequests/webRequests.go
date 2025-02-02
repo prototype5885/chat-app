@@ -111,6 +111,8 @@ func MainHandler(w http.ResponseWriter, r *http.Request) {
 			registerRequestHandler(w, r)
 		case "/upload-profile-pic", "/upload-server-pic":
 			uploadAvatarHandler(w, r)
+		case "/upload-banner-pic":
+			uploadBannerHandler(w, r)
 		case "/upload-attachment":
 			uploadAttachmentHandler(w, r)
 		case "/check-attachment":

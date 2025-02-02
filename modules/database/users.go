@@ -227,7 +227,7 @@ func GetInitialData(userID uint64) (*InitialData, bool) {
 	for rows4.Next() {
 		var server JoinedServer
 		var ownerID uint64
-		err := rows4.Scan(&server.ServerID, &ownerID, &server.Name, &server.Picture)
+		err := rows4.Scan(&server.ServerID, &ownerID, &server.Name, &server.Picture, &server.Banner)
 		DatabaseErrorCheck(err)
 		log.Trace("Owner ID: ", ownerID, " User ID: ", userID, "")
 		if ownerID == userID {

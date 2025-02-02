@@ -371,12 +371,115 @@ func inviteHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func uploadBannerHandler(w http.ResponseWriter, r *http.Request) {
+	userID := token.CheckIfTokenIsValid(w, r)
+	if userID == 0 {
+		log.Hack("Someone is trying to upload a server banner without token")
+		http.Error(w, "Who are you?", http.StatusUnauthorized)
+		return
+	}
+
+	log.Trace("User ID [%d] wants to change a server banner", userID)
+
+	// limit size
+	const maxSizeMb float32 = 1
+	const maxSize int64 = int64(1024 * 1024 * maxSizeMb)
+	if r.ContentLength > maxSize {
+		log.Warn("User ID [%d] tries to upload a server banner larger than [%f] MB", userID, maxSizeMb)
+		http.Error(w, fmt.Sprintf("Uploaded picture is larger than allowed %f MB", maxSizeMb), http.StatusBadRequest)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxSize)
+
+	// parse formfile
+	picFormFile, _, err := r.FormFile("banner-pic")
+	if err != nil {
+		log.WarnError(err.Error(), "Error parsing picture formfile sent by user ID [%d]", userID)
+		http.Error(w, "", http.StatusBadRequest)
+		return
+	}
+	defer picFormFile.Close()
+
+	// read bytes from received avatar pic
+	imgBytes, err := io.ReadAll(picFormFile)
+	if err != nil {
+		log.WarnError(err.Error(), "Error reading picture formfile of server banner from user ID [%d]", userID)
+		http.Error(w, "", http.StatusBadRequest)
+		return
+	}
+
+	var extension string
+
+	mimeType := http.DetectContentType(imgBytes)
+	switch mimeType {
+	case "image/jpeg", "image/jpg", "image/png":
+		extension = ".jpg"
+	case "image/gif":
+		extension = ".gif"
+	default:
+		log.Hack("User ID [%d] tried to upload unsupported filetype as server banner", userID)
+		http.Error(w, "Unsupported filetype", http.StatusBadRequest)
+		return
+	}
+
+	// check if received avatar pic is in correct format and compress
+	if extension == ".jpg" {
+		issue := pictures.CheckBanner(&imgBytes, userID)
+		if issue != "" {
+			http.Error(w, issue, http.StatusBadRequest)
+			return
+		}
+	}
+
+	hash := sha256.Sum256(imgBytes)
+	fileName := hex.EncodeToString(hash[:]) + extension
+	var filePath = "./public/content/banners/" + fileName
+
+	// check if avatar pic file exists already, otherwise save as new
+	_, err = os.Stat(filePath)
+	if os.IsNotExist(err) {
+		log.Trace("Server banner doesn't exist yet, creating...", fileName)
+		err = os.WriteFile(filePath, imgBytes, 0644)
+		if err != nil {
+			log.FatalError(err.Error(), "Error writing bytes to server banner file from user ID [%d]", userID)
+			http.Error(w, "", http.StatusInternalServerError)
+			return
+		}
+	} else if err != nil {
+		log.FatalError(err.Error(), "Error creating file for server banner from user ID [%d]", userID)
+		http.Error(w, "", http.StatusInternalServerError)
+		return
+	} else {
+		log.Trace("Server banner [%s] of same hash already exists, using that one...", fileName)
+	}
+
+	serverID, err := strconv.ParseUint(r.FormValue("serverID"), 10, 64)
+	if err != nil {
+		log.WarnError(err.Error(), "Error parsing serverID as uint64 while changing banner of server of user ID [%d]", userID)
+		http.Error(w, "", http.StatusBadRequest)
+		return
+	}
+	log.Trace("User ID [%d] wants to change banner of server ID [%d]", userID, serverID)
+	success := database.ChangeServerBanner(userID, serverID, fileName)
+	if !success {
+		log.Hack("Failed updating picture of server ID [%d] requested by user ID [%d]", serverID, userID)
+		http.Error(w, "Failed updating picture of server", http.StatusForbidden)
+		return
+	}
+
+	websocket.OnServerBannerChanged(serverID, fileName)
+}
+
 func uploadAvatarHandler(w http.ResponseWriter, r *http.Request) {
 	var picType string
-	if r.URL.Path == "/upload-profile-pic" {
+	var folder string
+	switch r.URL.Path {
+	case "/upload-profile-pic":
 		picType = "profile-pic"
-	} else if r.URL.Path == "/upload-server-pic" {
+		folder = "avatars"
+	case "/upload-server-pic":
 		picType = "server-pic"
+		folder = "avatars"
 	}
 
 	userID := token.CheckIfTokenIsValid(w, r)
@@ -389,7 +492,7 @@ func uploadAvatarHandler(w http.ResponseWriter, r *http.Request) {
 	log.Trace("User ID [%d] wants to change [%s]", userID, picType)
 
 	// limit size
-	const maxSizeMb float32 = 1.5
+	const maxSizeMb float32 = 1
 	const maxSize int64 = int64(1024 * 1024 * maxSizeMb)
 	if r.ContentLength > maxSize {
 		log.Warn("User ID [%d] tries to upload [%s] larger than [%f] MB", userID, picType, maxSizeMb)
@@ -472,13 +575,13 @@ func uploadAvatarHandler(w http.ResponseWriter, r *http.Request) {
 
 	hash := sha256.Sum256(imgBytes)
 	fileName := hex.EncodeToString(hash[:]) + extension
-	var pfpPath = "./public/content/avatars/" + fileName
+	var filePath = "./public/content/avatars/" + fileName
 
 	// check if avatar pic file exists already, otherwise save as new
-	_, err = os.Stat(pfpPath)
+	_, err = os.Stat(filePath)
 	if os.IsNotExist(err) {
 		log.Trace("Profile pic [%s] doesn't exist yet, creating...", fileName)
-		err = os.WriteFile(pfpPath, imgBytes, 0644)
+		err = os.WriteFile(filePath, imgBytes, 0644)
 		if err != nil {
 			log.FatalError(err.Error(), "Error writing bytes to [%s] file from user ID [%d]", picType, userID)
 			http.Error(w, "", http.StatusInternalServerError)
@@ -500,7 +603,6 @@ func uploadAvatarHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		websocket.OnProfilePicChanged(userID, fileName)
 	} else if picType == "server-pic" {
-		log.Trace("%s", r.FormValue("serverID"))
 		serverID, err := strconv.ParseUint(r.FormValue("serverID"), 10, 64)
 		if err != nil {
 			log.WarnError(err.Error(), "Error parsing serverID as uint64 while changing picture of server of user ID [%d]", userID)
