@@ -223,11 +223,14 @@ class ChatMessageListClass {
 
                 msgTop.addEventListener('click', () => {
                     msg.scrollIntoView({behavior: 'smooth', block: 'center'})
-                    const originalColor = msg.style.backgroundColor
-                    msg.style.backgroundColor = ColorsClass.highlightColor
-                    setTimeout(() => {
-                        msg.style.backgroundColor = originalColor
-                    }, 2000)
+                    if (msg.style.backgroundColor !== ColorsClass.highlightColor) {
+                        console.log('setting')
+                        const originalColor = msg.style.backgroundColor
+                        msg.style.backgroundColor = ColorsClass.highlightColor
+                        setTimeout(() => {
+                            msg.style.backgroundColor = originalColor
+                        }, 3000)
+                    }
                 })
             }
         }

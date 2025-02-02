@@ -1,21 +1,21 @@
 :root {
-    --main-color: #36393f;
+    --main-color: rgb(54, 57, 63);
     --hover-color: rgba(128, 128, 128, 0.075);
     --hover-dark-color: rgba(0, 0, 0, 0.075);
-    --light-color: #42444b;
-    --bit-darker-color: #2B2D31;
-    --dark-color: #232428;
-    --darker-color: #1E1F22;
-    --text-color: #C5C7CB;
-    --dark-transparent: #111214d1;
-    --dark-non-transparent: #111214;
-    --brighter-transparent: #656565d1;
-    --chat-input-color: #383a40;
-    --server-separator-color: #3c3c3c;
+    --light-color: rgb(66, 68, 75);
+    --bit-darker-color: rgb(43, 45, 49);
+    --dark-color: rgb(35, 36, 40);
+    --darker-color: rgb(30, 31, 34);
+    --text-color: rgb(197, 199, 203);
+    --dark-transparent: rgba(17, 18, 20, 0.82);
+    --dark-non-transparent: rgb(17, 18, 20);
+    --brighter-transparent: rgba(101, 101, 101, 0.82);
+    --chat-input-color: rgb(56, 58, 64);
+    --server-separator-color: rgb(60, 60, 60);
     --separator-color: rgba(255, 255, 255, 0.1);
     --loading-color: rgba(0, 0, 0, 0.71);
-    --button-color: #b5bac1;
-    --blue: #5865F2
+    --button-color: rgb(181, 186, 193);
+    --blue: rgb(88, 101, 242)
 }
 
 body {
