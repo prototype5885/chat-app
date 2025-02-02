@@ -16,8 +16,7 @@ chat-app
 discord-notification.mp3
 public/script.js
 jsHashes.bin
-public/content/avatars/
-/public/content/attachments/
+/public/content/
 go.sum
 database.sqlite
 chat-app.exe
