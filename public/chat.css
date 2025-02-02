@@ -869,6 +869,7 @@ a:visited {
     padding-right: 16px;
     display: flex;
     flex-direction: column;
+    transition: background-color 0.25s ease-in-out;
 }
 
 .msg-top {

@@ -13,6 +13,7 @@ class ColorsClass {
     static separatorColor = 'rgba(255, 255, 255, 0.1)'
     static replyColor = 'rgba(255,192,0,0.075)'
     static replyColorBorder = 'rgba(255,192,0,0.75)'
+    static highlightColor = 'rgba(100,100,255,0.1)'
 
     static textColor = '#C5C7CB'
 
